@@ -31,10 +31,24 @@ export default function AdminMyeongdangRequests() {
         }
     };
 
+    // 🚨 [수정된 부분] 사진 경로만 있을 경우 수파베이스 주소를 자동으로 붙여주는 로직 적용
     const parseImages = (urls) => {
         if (!urls) return [];
-        if (Array.isArray(urls)) return urls;
-        try { return JSON.parse(urls); } catch (e) { return []; }
+        let parsed = [];
+        if (Array.isArray(urls)) {
+            parsed = urls;
+        } else {
+            try { parsed = JSON.parse(urls); } catch (e) { return []; }
+        }
+
+        // DB에 'http'가 빠진 경로만 저장되어 있을 경우, Supabase 공용 URL을 강제로 붙여줍니다.
+        return parsed.map(url => {
+            if (url.startsWith('http')) return url;
+            
+            // 주의: 의뢰 사진이 업로드되는 스토리지 버킷 이름이 'myeongdang_requests' 입니다.
+            const { data } = supabase.storage.from('myeongdang_requests').getPublicUrl(url);
+            return data.publicUrl;
+        });
     };
 
     const openAppraisalModal = (req) => {
@@ -66,7 +80,7 @@ export default function AdminMyeongdangRequests() {
         }
     };
 
-    // 🚨 [추가된 기능] 숨김 / 숨김 해제 처리
+    // 🚨 [유지된 기능] 숨김 / 숨김 해제 처리
     const handleToggleHide = async (id, currentHiddenStatus) => {
         const confirmMsg = currentHiddenStatus 
             ? '이 의뢰를 다시 관리자 목록에 표시하시겠습니까?' 
@@ -87,7 +101,7 @@ export default function AdminMyeongdangRequests() {
         }
     };
 
-    // 🚨 [추가된 기능] 영구 삭제 처리
+    // 🚨 [유지된 기능] 영구 삭제 처리
     const handleDelete = async (id) => {
         if (!window.confirm('정말로 이 의뢰를 영구 삭제하시겠습니까?\n(데이터베이스에서 완전히 삭제되며, 고객의 화면에서도 사라집니다. 복구 불가)')) return;
         
