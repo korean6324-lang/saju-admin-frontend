@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query'; 
-// 🚨 Vercel 빌드 에러(no-unused-vars) 방지를 위해 실제 사용하는 아이콘만 남기고 정리했습니다.
-import { Search, Save, CheckCircle2, ArrowRightLeft } from 'lucide-react';
+import { Search, Save, CheckCircle2, ArrowRightLeft, Bell } from 'lucide-react'; // 🚨 Bell 아이콘 추가
 
 export default function AdminCash() {
     const queryClient = useQueryClient();
@@ -14,7 +13,6 @@ export default function AdminCash() {
     const [isSearching, setIsSearching] = useState(false);
     const [showCashUserDropdown, setShowCashUserDropdown] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState(null);
-    // 🚨 사용하지 않는 selectedUserEmail 상태는 Vercel 에러 방지를 위해 제거했습니다.
     const [cashAmount, setCashAmount] = useState('');
     const [cashType, setCashType] = useState('grant'); // 'grant' | 'deduct'
     const [cashMemo, setCashMemo] = useState('');
@@ -24,6 +22,57 @@ export default function AdminCash() {
     const [txPage, setTxPage] = useState(1);
     const txPageSize = 15;
     const [txFilter, setTxFilter] = useState('all'); // all, charge, pay, refund, settlement
+
+    // ==========================================================
+    // 🚨 [신규] 무통장 입금 승인 대기열 가져오기 및 처리
+    // ==========================================================
+    const { data: pendingRequests, refetch: refetchRequests } = useQuery({
+        queryKey: ['pendingCashRequests'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('cash_charge_requests')
+                .select('*, profiles:user_id(email, name)')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+            if (error) return [];
+            return data;
+        }
+    });
+
+    const handleApproveRequest = async (req) => {
+        if (!window.confirm(`[${req.depositor_name}]님의 ${req.amount.toLocaleString()}원 입금을 확인하셨습니까?\n확인 즉시 고객에게 캐시가 지급됩니다.`)) return;
+
+        try {
+            // 1. 요청 상태를 '승인(approved)'으로 변경
+            const { error: updateErr } = await supabase.from('cash_charge_requests').update({ status: 'approved' }).eq('id', req.id);
+            if (updateErr) throw updateErr;
+
+            // 2. 고객에게 캐시 자동 지급
+            const { error: rpcErr } = await supabase.rpc('process_admin_cash_transaction', {
+                p_target_user_id: req.user_id,
+                p_amount: req.amount,
+                p_transaction_type: 'charge',
+                p_description: `무통장 입금 충전 (${req.depositor_name})`
+            });
+            if (rpcErr) throw rpcErr;
+
+            alert('✅ 승인 및 캐시 지급이 완료되었습니다.');
+            refetchRequests();
+            queryClient.invalidateQueries(['cashTransactions']);
+        } catch (error) {
+            console.error("승인 에러:", error);
+            const errMsg = error.message || error.details || error.hint || JSON.stringify(error);
+            alert(`❌ 처리 실패: ${errMsg}`);
+        }
+    };
+
+    const handleRejectRequest = async (reqId) => {
+        if (!window.confirm("입금이 확인되지 않아 이 신청을 취소 처리하시겠습니까?")) return;
+        try {
+            await supabase.from('cash_charge_requests').update({ status: 'rejected' }).eq('id', reqId);
+            refetchRequests();
+        } catch (e) { alert("취소 중 오류가 발생했습니다."); }
+    };
 
     // ==========================================================
     // 1. 디바운스 유저 검색 로직
@@ -64,7 +113,6 @@ export default function AdminCash() {
             }
 
             const { data, count, error } = await query.order('created_at', { ascending: false }).range(from, to);
-            // 🚨 테이블이 아직 없다면 에러를 무시하고 빈 배열을 반환하여 앱이 뻗는 것을 방지합니다.
             if (error) return { transactions: [], totalCount: 0 }; 
             return { transactions: data, totalCount: count || 0 };
         },
@@ -72,7 +120,7 @@ export default function AdminCash() {
     });
 
     // ==========================================================
-    // 3. 캐시 수동 지급/차감 처리
+    // 3. 캐시 수동 지급/차감 처리 (🚨 에러 직관성 대폭 개선)
     // ==========================================================
     const handleCashSubmit = async () => {
         if (!selectedUserId) return alert("대상 유저를 정확히 선택해주세요.");
@@ -104,8 +152,10 @@ export default function AdminCash() {
             setCashAmount(''); setCashMemo(''); setShowCashUserDropdown(false);
 
         } catch (error) {
-            console.error("캐시 처리 에러:", error);
-            alert(`❌ 처리 실패: DB 트랜잭션 오류`);
+            console.error("캐시 처리 에러 상세:", error);
+            // 🚨 Object로 뭉뚱그려 나오던 에러를 강제로 풀어서 사용자에게 보여줍니다.
+            const errMsg = error.message || error.details || error.hint || JSON.stringify(error);
+            alert(`❌ 처리 실패: ${errMsg}`);
         } finally {
             setIsSaving(false);
         }
@@ -144,6 +194,40 @@ export default function AdminCash() {
                 <h2 style={styles.headerTitle}>사마캐시 운영 및 정산 관리</h2>
                 <p style={styles.headerSub}>[운영 및 마케팅 &gt; 사마캐시 관리] 특정 유저에게 캐시를 직접 지급/차감하거나, 플랫폼 전체의 캐시 흐름을 조회합니다.</p>
             </div>
+
+            {/* 🚨 [신규] 무통장 입금 승인 대기열 (최상단 강조) */}
+            {pendingRequests && pendingRequests.length > 0 && (
+                <div style={{ marginBottom: '32px', border: '2px solid #059669', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ padding: '12px 16px', backgroundColor: '#059669', color: '#FFF', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Bell size={16} /> 무통장 입금 승인 대기열 ({pendingRequests.length}건)
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                            <tr>
+                                <th style={styles.tableHeader}>신청일시</th>
+                                <th style={styles.tableHeader}>계정(이메일)</th>
+                                <th style={styles.tableHeader}>입금자명</th>
+                                <th style={{...styles.tableHeader, textAlign: 'right', paddingRight: '16px'}}>신청 금액</th>
+                                <th style={styles.tableHeader}>처리</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {pendingRequests.map(req => (
+                                <tr key={req.id} style={{ backgroundColor: '#F0FDF4' }}>
+                                    <td style={styles.tableCell}>{new Date(req.created_at).toLocaleString()}</td>
+                                    <td style={{...styles.tableCell, fontWeight: 'bold'}}>{req.profiles?.email}</td>
+                                    <td style={{...styles.tableCell, color: '#0ea5e9', fontWeight: 'bold'}}>{req.depositor_name}</td>
+                                    <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#059669'}}>{req.amount.toLocaleString()} C</td>
+                                    <td style={{...styles.tableCell, display: 'flex', justifyContent: 'center', gap: '4px'}}>
+                                        <button onClick={() => handleApproveRequest(req)} style={{ padding: '6px 12px', backgroundColor: '#059669', color: '#FFF', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>입금확인 및 지급</button>
+                                        <button onClick={() => handleRejectRequest(req.id)} style={{ padding: '6px 12px', backgroundColor: '#FFF', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}>취소</button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
             {/* 1. 수동 지급/차감 폼 (엔터프라이즈 밀도형 표 구조) */}
             <div style={{ ...styles.formBox, borderBottom: 'none' }}>
@@ -284,7 +368,6 @@ export default function AdminCash() {
                             <tr key={tx.id} style={{ backgroundColor: '#FFF' }}>
                                 <td style={styles.tableCell}>{new Date(tx.created_at).toLocaleString()}</td>
                                 
-                                {/* 🚨 에러 방어: tx.transaction_type이 비어있어도 사이트가 뻗지 않도록 ? 기호 추가 */}
                                 <td style={{...styles.tableCell, fontWeight: 'bold', color: tx.transaction_type?.includes('grant') || tx.transaction_type?.includes('charge') ? '#059669' : '#ef4444'}}>
                                     {tx.transaction_type === 'charge' && '충전(+)'}
                                     {tx.transaction_type === 'pay' && '결제(-)'}
