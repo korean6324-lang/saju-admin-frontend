@@ -73,7 +73,7 @@ export default function AdminMyeongdang({ session }) {
             uploadedPaths = uploadResults.map(r => r.path);
             uploadedUrls = uploadResults.map(r => r.url);
 
-            // DB Insert (새 글 작성 시 기본적으로 is_pinned는 false로 들어갑니다)
+            // DB Insert (새 글 작성 시 기본적으로 is_pinned는 false, pin_order는 999로 들어갑니다)
             const { error: dbError } = await supabase.from('myeongdang_posts').insert([{
                 user_id: session.user.id, 
                 title: mdTitle, 
@@ -83,7 +83,8 @@ export default function AdminMyeongdang({ session }) {
                 font_size: mdFontSize, 
                 font_family: mdFontFamily, 
                 is_visible: true,
-                is_pinned: false
+                is_pinned: false,
+                pin_order: 999
             }]);
 
             if (dbError) throw dbError;
@@ -114,11 +115,40 @@ export default function AdminMyeongdang({ session }) {
         else alert('상태 변경에 실패했습니다.');
     };
 
-    // 🚨 [신규 추가] 상위 고정(is_pinned) ON/OFF 토글 함수
+    // 🚨 상위 고정(is_pinned) ON/OFF 토글 함수 (해제 시 순번 999로 초기화)
     const togglePin = async (id, currentPin) => {
-        const { error } = await supabase.from('myeongdang_posts').update({ is_pinned: !currentPin }).eq('id', id);
+        const { error } = await supabase.from('myeongdang_posts').update({ 
+            is_pinned: !currentPin,
+            pin_order: !currentPin ? 999 : 999 // ON 하든 OFF 하든 일단 999로 리셋
+        }).eq('id', id);
         if (!error) queryClient.invalidateQueries(['myeongdangPosts']);
         else alert('상위 고정 상태 변경에 실패했습니다.');
+    };
+
+    // 🚨 [신규 추가] 화살표 클릭 시 순위(pin_order) 변경 로직
+    const movePinOrder = async (id, currentOrder, direction) => {
+        let order = (currentOrder === null || currentOrder === undefined) ? 999 : currentOrder;
+        let newOrder;
+
+        if (direction === 'up') {
+            // 위로(▲) 누르면 순위 숫자가 낮아짐 (1위가 최고)
+            newOrder = order === 999 ? 1 : order - 1;
+            if (newOrder < 1) newOrder = 1; // 1위 이상 못 올라가게 방어
+        } else {
+            // 아래로(▼) 누르면 순위 숫자가 커짐
+            newOrder = order === 999 ? 2 : order + 1;
+        }
+
+        const { error } = await supabase
+            .from('myeongdang_posts')
+            .update({ pin_order: newOrder })
+            .eq('id', id);
+
+        if (!error) {
+            queryClient.invalidateQueries(['myeongdangPosts']);
+        } else {
+            alert('순서 변경에 실패했습니다.');
+        }
     };
 
     // ==============================================================================
@@ -174,9 +204,11 @@ export default function AdminMyeongdang({ session }) {
         actionBtnBlue: { padding: '4px 8px', border: '1px solid #0ea5e9', backgroundColor: '#FFF', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#0ea5e9' },
         actionBtnRed: { padding: '4px 8px', border: '1px solid #ef4444', backgroundColor: '#FFF', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#ef4444' },
         
-        // 🚨 [신규 추가] 상위 고정 버튼용 스타일
-        actionBtnOrange: { padding: '4px 8px', border: '1px solid #f97316', backgroundColor: '#FFF', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#f97316', fontWeight: 'bold' },
-        actionBtnGray: { padding: '4px 8px', border: '1px solid #d1d5db', backgroundColor: '#F9FAFB', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#9ca3af' }
+        actionBtnOrange: { padding: '4px 8px', border: '1px solid #f97316', backgroundColor: '#FFF', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#f97316', fontWeight: 'bold', width: '100%' },
+        actionBtnGray: { padding: '4px 8px', border: '1px solid #d1d5db', backgroundColor: '#F9FAFB', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#9ca3af', width: '100%' },
+
+        // 🚨 [신규 추가] 화살표 버튼 스타일
+        arrowBtn: { background: '#fff', border: '1px solid #fdba74', borderRadius: '2px', cursor: 'pointer', fontSize: '9px', padding: '2px 4px', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     };
 
     return (
@@ -280,8 +312,7 @@ export default function AdminMyeongdang({ session }) {
                         <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px'}}>사례 제목</th>
                         <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px'}}>위치</th>
                         <th style={{...styles.tableHeader, width: '100px'}}>등록일</th>
-                        {/* 🚨 상위 고정 열 추가 */}
-                        <th style={{...styles.tableHeader, width: '90px'}}>상위 고정</th>
+                        <th style={{...styles.tableHeader, width: '100px'}}>상위 고정</th>
                         <th style={{...styles.tableHeader, width: '90px'}}>전시 상태</th>
                         <th style={{...styles.tableHeader, width: '60px'}}>관리</th>
                     </tr>
@@ -318,14 +349,27 @@ export default function AdminMyeongdang({ session }) {
                                     {new Date(p.created_at).toLocaleDateString()}
                                 </td>
 
-                                {/* 🚨 상위 고정 버튼 영역 */}
+                                {/* 🚨 상위 고정 버튼 및 순위 조절 화살표 영역 */}
                                 <td style={styles.tableCell}>
-                                    <button 
-                                        onClick={() => togglePin(p.id, p.is_pinned)} 
-                                        style={p.is_pinned ? styles.actionBtnOrange : styles.actionBtnGray}
-                                    >
-                                        {p.is_pinned ? '🔥 고정 ON' : '고정 OFF'}
-                                    </button>
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                        <button 
+                                            onClick={() => togglePin(p.id, p.is_pinned)} 
+                                            style={p.is_pinned ? styles.actionBtnOrange : styles.actionBtnGray}
+                                        >
+                                            {p.is_pinned ? '🔥 고정 ON' : '고정 OFF'}
+                                        </button>
+                                        
+                                        {/* 고정 상태일 때만 화살표와 순위 표시 */}
+                                        {p.is_pinned && (
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '2px', background: '#fff7ed', padding: '2px 4px', border: '1px solid #fed7aa', borderRadius: '4px', width: '100%', boxSizing: 'border-box' }}>
+                                                <button onClick={() => movePinOrder(p.id, p.pin_order, 'up')} style={styles.arrowBtn} title="순위 올리기">▲</button>
+                                                <span style={{ fontWeight: 'bold', color: '#ea580c', fontSize: '11px', width: '28px', textAlign: 'center' }}>
+                                                    {p.pin_order === 999 ? '-' : `${p.pin_order}위`}
+                                                </span>
+                                                <button onClick={() => movePinOrder(p.id, p.pin_order, 'down')} style={styles.arrowBtn} title="순위 내리기">▼</button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </td>
 
                                 <td style={styles.tableCell}>
