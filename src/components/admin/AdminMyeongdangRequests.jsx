@@ -1,7 +1,8 @@
 // src/components/admin/AdminMyeongdangRequests.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
-import { MapPin, CheckCircle, Clock, X, Save, MessageSquare } from 'lucide-react';
+// 🚨 에러의 원인이었던 미사용 아이콘(MapPin, Save)을 삭제했습니다!
+import { CheckCircle, Clock, X, MessageSquare } from 'lucide-react';
 
 export default function AdminMyeongdangRequests() {
     const [requests, setRequests] = useState([]);
