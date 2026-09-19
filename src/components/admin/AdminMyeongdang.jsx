@@ -26,6 +26,7 @@ export default function AdminMyeongdang({ session }) {
             const { data, error } = await supabase
                 .from('myeongdang_posts')
                 .select('*')
+                // 🚨 관리자 화면에서는 고정 여부와 상관없이 최신 등록순으로 나열하여 관리하기 편하게 합니다.
                 .order('created_at', { ascending: false });
             if (error) throw error;
             return data || [];
@@ -72,7 +73,7 @@ export default function AdminMyeongdang({ session }) {
             uploadedPaths = uploadResults.map(r => r.path);
             uploadedUrls = uploadResults.map(r => r.url);
 
-            // DB Insert
+            // DB Insert (새 글 작성 시 기본적으로 is_pinned는 false로 들어갑니다)
             const { error: dbError } = await supabase.from('myeongdang_posts').insert([{
                 user_id: session.user.id, 
                 title: mdTitle, 
@@ -81,7 +82,8 @@ export default function AdminMyeongdang({ session }) {
                 image_urls: uploadedUrls, 
                 font_size: mdFontSize, 
                 font_family: mdFontFamily, 
-                is_visible: true
+                is_visible: true,
+                is_pinned: false
             }]);
 
             if (dbError) throw dbError;
@@ -109,6 +111,14 @@ export default function AdminMyeongdang({ session }) {
     const toggleVis = async (id, currentVis) => {
         const { error } = await supabase.from('myeongdang_posts').update({ is_visible: !currentVis }).eq('id', id);
         if (!error) queryClient.invalidateQueries(['myeongdangPosts']);
+        else alert('상태 변경에 실패했습니다.');
+    };
+
+    // 🚨 [신규 추가] 상위 고정(is_pinned) ON/OFF 토글 함수
+    const togglePin = async (id, currentPin) => {
+        const { error } = await supabase.from('myeongdang_posts').update({ is_pinned: !currentPin }).eq('id', id);
+        if (!error) queryClient.invalidateQueries(['myeongdangPosts']);
+        else alert('상위 고정 상태 변경에 실패했습니다.');
     };
 
     // ==============================================================================
@@ -162,7 +172,11 @@ export default function AdminMyeongdang({ session }) {
         tableCell: { padding: '8px', borderBottom: '1px solid #E5E7EB', textAlign: 'center', verticalAlign: 'middle', fontSize: '12px', color: '#555' },
         
         actionBtnBlue: { padding: '4px 8px', border: '1px solid #0ea5e9', backgroundColor: '#FFF', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#0ea5e9' },
-        actionBtnRed: { padding: '4px 8px', border: '1px solid #ef4444', backgroundColor: '#FFF', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#ef4444' }
+        actionBtnRed: { padding: '4px 8px', border: '1px solid #ef4444', backgroundColor: '#FFF', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#ef4444' },
+        
+        // 🚨 [신규 추가] 상위 고정 버튼용 스타일
+        actionBtnOrange: { padding: '4px 8px', border: '1px solid #f97316', backgroundColor: '#FFF', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#f97316', fontWeight: 'bold' },
+        actionBtnGray: { padding: '4px 8px', border: '1px solid #d1d5db', backgroundColor: '#F9FAFB', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#9ca3af' }
     };
 
     return (
@@ -265,16 +279,18 @@ export default function AdminMyeongdang({ session }) {
                         <th style={{...styles.tableHeader, width: '120px'}}>대표 썸네일</th>
                         <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px'}}>사례 제목</th>
                         <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px'}}>위치</th>
-                        <th style={{...styles.tableHeader, width: '120px'}}>등록일</th>
-                        <th style={{...styles.tableHeader, width: '100px'}}>전시 상태</th>
-                        <th style={{...styles.tableHeader, width: '80px'}}>관리</th>
+                        <th style={{...styles.tableHeader, width: '100px'}}>등록일</th>
+                        {/* 🚨 상위 고정 열 추가 */}
+                        <th style={{...styles.tableHeader, width: '90px'}}>상위 고정</th>
+                        <th style={{...styles.tableHeader, width: '90px'}}>전시 상태</th>
+                        <th style={{...styles.tableHeader, width: '60px'}}>관리</th>
                     </tr>
                 </thead>
                 <tbody>
                     {isLoading ? (
-                        <tr><td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize: '12px' }}>데이터를 불러오는 중입니다...</td></tr>
+                        <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize: '12px' }}>데이터를 불러오는 중입니다...</td></tr>
                     ) : mdPosts.length === 0 ? (
-                        <tr><td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize: '12px' }}>등록된 사례가 없습니다.</td></tr>
+                        <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize: '12px' }}>등록된 사례가 없습니다.</td></tr>
                     ) : (
                         mdPosts.map((p, idx) => (
                             <tr key={p.id} style={{ borderBottom: `1px solid ${styles.tableCell.borderBottom}`, backgroundColor: '#FFF' }}>
@@ -300,6 +316,16 @@ export default function AdminMyeongdang({ session }) {
                                 
                                 <td style={styles.tableCell}>
                                     {new Date(p.created_at).toLocaleDateString()}
+                                </td>
+
+                                {/* 🚨 상위 고정 버튼 영역 */}
+                                <td style={styles.tableCell}>
+                                    <button 
+                                        onClick={() => togglePin(p.id, p.is_pinned)} 
+                                        style={p.is_pinned ? styles.actionBtnOrange : styles.actionBtnGray}
+                                    >
+                                        {p.is_pinned ? '🔥 고정 ON' : '고정 OFF'}
+                                    </button>
                                 </td>
 
                                 <td style={styles.tableCell}>
