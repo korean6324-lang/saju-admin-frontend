@@ -5,12 +5,15 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
 import { 
     Map, MonitorPlay, Image as ImageIcon, Users, BarChart3, 
-    Bell, Wallet, Package, LogOut, Settings, ChevronRight, UserPlus, Sliders 
+    Bell, Wallet, Package, LogOut, Settings, ChevronRight, UserPlus, Sliders,
+    Search // 🚨 신규 메뉴 아이콘 추가
 } from 'lucide-react'; 
 
 // 개별 컴포넌트 임포트 (기존 소스 완벽 보존)
 import AdminOverview from '../components/admin/AdminOverview';
 import AdminMyeongdang from '../components/admin/AdminMyeongdang';
+// 🚨 신규: 고객 감정 의뢰 컴포넌트 임포트
+import AdminMyeongdangRequests from '../components/admin/AdminMyeongdangRequests';
 import AdminNotice from '../components/admin/AdminNotice';
 import AdminCash from '../components/admin/AdminCash';
 import AdminMedia from '../components/admin/AdminMedia';
@@ -82,7 +85,7 @@ export default function AdminDashboard() {
         return <div style={{ minHeight: '100vh', background: adminTheme.bg, color: adminTheme.textBright, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>어드민 시스템 접근 권한 확인 중...</div>;
     }
 
-    // 메뉴 구성 (기존 소스 완벽 보존)
+    // 메뉴 구성 (기존 소스 완벽 보존 + 신규 탭 추가)
     const menuItems = [
         { category: '서비스 관리', items: [
             { id: 'site_settings', icon: <Sliders size={18} />, label: '사이트 관리 (기본/정책)' }, 
@@ -94,6 +97,8 @@ export default function AdminDashboard() {
         ]},
         { category: '콘텐츠 관리', items: [
             { id: 'myeongdang', icon: <Map size={18} />, label: '천하대명당 DB' },
+            // 🚨 신규: 고객 감정 의뢰 관리 메뉴 버튼 추가
+            { id: 'myeongdang_requests', icon: <Search size={18} />, label: '고객 감정 의뢰 관리' },
             { id: 'media', icon: <MonitorPlay size={18} />, label: '명상 미디어' },
         ]},
         { category: '운영 및 마케팅', items: [
@@ -167,6 +172,10 @@ export default function AdminDashboard() {
                         {activeTab === 'overview' && <AdminOverview adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'partners' && <AdminPartners adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'myeongdang' && <AdminMyeongdang adminTheme={adminTheme} />}
+                        
+                        {/* 🚨 신규: 고객 감정 의뢰 관리 화면 렌더링 */}
+                        {activeTab === 'myeongdang_requests' && <AdminMyeongdangRequests adminTheme={adminTheme} />}
+
                         {activeTab === 'notice' && <AdminNotice adminTheme={adminTheme} />}
                         {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'media' && <AdminMedia adminTheme={adminTheme} />}
