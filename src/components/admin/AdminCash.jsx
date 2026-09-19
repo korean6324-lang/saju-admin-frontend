@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query'; 
-import { Wallet, Search, Save, CheckCircle2, TrendingUp, AlertCircle, ArrowRightLeft, CreditCard, ShoppingCart } from 'lucide-react';
+// 🚨 Vercel 빌드 에러(no-unused-vars) 방지를 위해 실제 사용하는 아이콘만 남기고 정리했습니다.
+import { Search, Save, CheckCircle2, ArrowRightLeft } from 'lucide-react';
 
 export default function AdminCash() {
     const queryClient = useQueryClient();
@@ -13,7 +14,7 @@ export default function AdminCash() {
     const [isSearching, setIsSearching] = useState(false);
     const [showCashUserDropdown, setShowCashUserDropdown] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState(null);
-    const [selectedUserEmail, setSelectedUserEmail] = useState('');
+    // 🚨 사용하지 않는 selectedUserEmail 상태는 Vercel 에러 방지를 위해 제거했습니다.
     const [cashAmount, setCashAmount] = useState('');
     const [cashType, setCashType] = useState('grant'); // 'grant' | 'deduct'
     const [cashMemo, setCashMemo] = useState('');
@@ -50,8 +51,6 @@ export default function AdminCash() {
     // ==========================================================
     // 2. 전체 캐시 트랜잭션 내역 조회 (React Query)
     // ==========================================================
-    // 🚨 (중요) payments 또는 cash_transactions 테이블이 DB에 구축되어 있어야 합니다.
-    // 여기서는 범용적으로 설계된 'cash_transactions' 테이블을 참조한다고 가정합니다.
     const { data: transactionsData, isLoading: isLoadingTx } = useQuery({
         queryKey: ['cashTransactions', txPage, txPageSize, txFilter],
         queryFn: async () => {
@@ -101,7 +100,7 @@ export default function AdminCash() {
             queryClient.invalidateQueries(['adminUsers']);
             queryClient.invalidateQueries(['cashTransactions']); // 트랜잭션 내역 즉시 갱신
             
-            setCashSearchTerm(''); setSelectedUserId(null); setSelectedUserEmail('');
+            setCashSearchTerm(''); setSelectedUserId(null); 
             setCashAmount(''); setCashMemo(''); setShowCashUserDropdown(false);
 
         } catch (error) {
@@ -198,7 +197,6 @@ export default function AdminCash() {
                                                 key={u.id} 
                                                 onClick={() => {
                                                     setSelectedUserId(u.id);
-                                                    setSelectedUserEmail(u.email);
                                                     setCashSearchTerm(u.email);
                                                     setShowCashUserDropdown(false);
                                                 }}
@@ -286,7 +284,8 @@ export default function AdminCash() {
                             <tr key={tx.id} style={{ backgroundColor: '#FFF' }}>
                                 <td style={styles.tableCell}>{new Date(tx.created_at).toLocaleString()}</td>
                                 
-                                <td style={{...styles.tableCell, fontWeight: 'bold', color: tx.transaction_type.includes('grant') || tx.transaction_type.includes('charge') ? '#059669' : '#ef4444'}}>
+                                {/* 🚨 에러 방어: tx.transaction_type이 비어있어도 사이트가 뻗지 않도록 ? 기호 추가 */}
+                                <td style={{...styles.tableCell, fontWeight: 'bold', color: tx.transaction_type?.includes('grant') || tx.transaction_type?.includes('charge') ? '#059669' : '#ef4444'}}>
                                     {tx.transaction_type === 'charge' && '충전(+)'}
                                     {tx.transaction_type === 'pay' && '결제(-)'}
                                     {tx.transaction_type === 'settlement' && '스토어 정산(-)'}
