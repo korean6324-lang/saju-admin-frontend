@@ -5,7 +5,7 @@ import { supabase } from '../api/supabaseClient';
 import { 
     Map, MonitorPlay, Image as ImageIcon, Users, BarChart3, 
     Bell, Wallet, LogOut, Settings, ChevronRight, UserPlus, Sliders,
-    Search // 🚨 아이콘 추가 완료 (미사용 Package 아이콘 없음)
+    Search 
 } from 'lucide-react'; 
 
 import AdminOverview from '../components/admin/AdminOverview';
@@ -84,11 +84,12 @@ export default function AdminDashboard() {
             { id: 'user_manage', icon: <UserPlus size={18} />, label: '사용자관리' },
             { id: 'overview', icon: <BarChart3 size={18} />, label: '대시보드 통계' },
             { id: 'partners', icon: <Users size={18} />, label: '회원 및 파트너 정책' },
+            // 🚨 복구 완료: 메뉴판에 화복당캐시 관리 연결!
             { id: 'cash', icon: <Wallet size={18} />, label: '화복당캐시 관리' },
         ]},
         { category: '콘텐츠 관리', items: [
             { id: 'myeongdang', icon: <Map size={18} />, label: '천하대명당 DB' },
-            // 🚨 지워졌던 메뉴 코드를 다시 복구했습니다!
+            // 🚨 복구 완료: 고객 감정 의뢰 관리 메뉴 유지!
             { id: 'myeongdang_requests', icon: <Search size={18} />, label: '고객 감정 의뢰 관리' },
             { id: 'media', icon: <MonitorPlay size={18} />, label: '명상 미디어' },
         ]},
@@ -162,13 +163,16 @@ export default function AdminDashboard() {
                         {activeTab === 'user_manage' && <AdminUserManage adminTheme={adminTheme} />}
                         {activeTab === 'overview' && <AdminOverview adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'partners' && <AdminPartners adminTheme={adminTheme} isDarkMode={false} />}
+                        
+                        {/* 🚨 복구 완료: 캐시 관리 화면 렌더링 연결! */}
+                        {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} />}
+
                         {activeTab === 'myeongdang' && <AdminMyeongdang adminTheme={adminTheme} />}
                         
-                        {/* 🚨 지워졌던 컴포넌트 렌더링 코드를 다시 복구했습니다! */}
+                        {/* 🚨 복구 완료: 고객 감정 의뢰 화면 렌더링 연결! */}
                         {activeTab === 'myeongdang_requests' && <AdminMyeongdangRequests adminTheme={adminTheme} />}
 
                         {activeTab === 'notice' && <AdminNotice adminTheme={adminTheme} />}
-                        {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'media' && <AdminMedia adminTheme={adminTheme} />}
                         {activeTab === 'banner' && <AdminBanner adminTheme={adminTheme} />}
                     </div>
