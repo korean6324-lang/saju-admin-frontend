@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query'; 
-import { Search, Save, CheckCircle2, ArrowRightLeft, Bell } from 'lucide-react'; // 🚨 Bell 아이콘 추가
+import { Search, Save, CheckCircle2, ArrowRightLeft, Bell } from 'lucide-react'; 
 
 export default function AdminCash() {
     const queryClient = useQueryClient();
@@ -14,17 +14,18 @@ export default function AdminCash() {
     const [showCashUserDropdown, setShowCashUserDropdown] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState(null);
     const [cashAmount, setCashAmount] = useState('');
-    const [cashType, setCashType] = useState('grant'); // 'grant' | 'deduct'
+    const [cashType, setCashType] = useState('grant'); 
     const [cashMemo, setCashMemo] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
     // 트랜잭션 내역 상태 관리
     const [txPage, setTxPage] = useState(1);
     const txPageSize = 15;
-    const [txFilter, setTxFilter] = useState('all'); // all, charge, pay, refund, settlement
+    const [txFilter, setTxFilter] = useState('all'); 
 
     // ==========================================================
-    // 🚨 [신규] 무통장 입금 승인 대기열 가져오기 및 처리
+    // 🚨 [수정됨] 무통장 입금 승인 대기열 가져오기 및 처리
+    // 에러 발생 시 조용히 사라지지 않도록 에러 로그를 출력하게 보강했습니다.
     // ==========================================================
     const { data: pendingRequests, refetch: refetchRequests } = useQuery({
         queryKey: ['pendingCashRequests'],
@@ -34,7 +35,11 @@ export default function AdminCash() {
                 .select('*, profiles:user_id(email, name)')
                 .eq('status', 'pending')
                 .order('created_at', { ascending: false });
-            if (error) return [];
+            
+            if (error) {
+                console.error("🚨 승인 대기열 불러오기 에러:", error);
+                return [];
+            }
             return data;
         }
     });
@@ -113,14 +118,17 @@ export default function AdminCash() {
             }
 
             const { data, count, error } = await query.order('created_at', { ascending: false }).range(from, to);
-            if (error) return { transactions: [], totalCount: 0 }; 
+            if (error) {
+                console.error("🚨 트랜잭션 내역 로드 에러:", error);
+                return { transactions: [], totalCount: 0 }; 
+            }
             return { transactions: data, totalCount: count || 0 };
         },
         keepPreviousData: true
     });
 
     // ==========================================================
-    // 3. 캐시 수동 지급/차감 처리 (🚨 에러 직관성 대폭 개선)
+    // 3. 캐시 수동 지급/차감 처리
     // ==========================================================
     const handleCashSubmit = async () => {
         if (!selectedUserId) return alert("대상 유저를 정확히 선택해주세요.");
@@ -133,7 +141,6 @@ export default function AdminCash() {
             const txTypeStr = cashType === 'grant' ? 'admin_grant' : 'admin_deduct';
             const defaultMemo = cashType === 'grant' ? '관리자 특별 지급' : '관리자 권한 차감';
 
-            // RPC 실행
             const { data, error } = await supabase.rpc('process_admin_cash_transaction', {
                 p_target_user_id: selectedUserId,
                 p_amount: finalAmount,
@@ -146,14 +153,13 @@ export default function AdminCash() {
             alert(`✅ 캐시 처리가 완료되었습니다.\n[처리 후 잔액: ${data.new_balance.toLocaleString()}C]`);
             
             queryClient.invalidateQueries(['adminUsers']);
-            queryClient.invalidateQueries(['cashTransactions']); // 트랜잭션 내역 즉시 갱신
+            queryClient.invalidateQueries(['cashTransactions']); 
             
             setCashSearchTerm(''); setSelectedUserId(null); 
             setCashAmount(''); setCashMemo(''); setShowCashUserDropdown(false);
 
         } catch (error) {
             console.error("캐시 처리 에러 상세:", error);
-            // 🚨 Object로 뭉뚱그려 나오던 에러를 강제로 풀어서 사용자에게 보여줍니다.
             const errMsg = error.message || error.details || error.hint || JSON.stringify(error);
             alert(`❌ 처리 실패: ${errMsg}`);
         } finally {
@@ -162,7 +168,7 @@ export default function AdminCash() {
     };
 
     // ==========================================================
-    // 🎨 엔터프라이즈 화이트 테마 스타일 (밀도 높은 폼)
+    // 🎨 엔터프라이즈 화이트 테마 스타일
     // ==========================================================
     const styles = {
         container: { backgroundColor: '#FFFFFF', padding: '24px', fontFamily: '"Malgun Gothic", "Pretendard", sans-serif', fontSize: '13px', color: '#333' },
@@ -178,7 +184,6 @@ export default function AdminCash() {
         radioLabel: { display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontWeight: 'bold' },
         submitBtn: { backgroundColor: '#0ea5e9', color: '#FFF', border: 'none', padding: '10px 40px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', borderRadius: '2px' },
         
-        // 테이블 스타일
         tableHeader: { backgroundColor: '#F8F9FA', borderTop: '2px solid #333', borderBottom: '1px solid #CCC', padding: '10px 8px', textAlign: 'center', fontWeight: 'bold', color: '#333', fontSize: '12px' },
         tableCell: { padding: '8px', borderBottom: '1px solid #E5E7EB', textAlign: 'center', verticalAlign: 'middle', fontSize: '12px', color: '#555' },
         actionBtn: { padding: '4px 8px', border: '1px solid #CCC', backgroundColor: '#FFF', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#333' }
@@ -189,13 +194,12 @@ export default function AdminCash() {
 
     return (
         <div style={styles.container}>
-            {/* 상단 타이틀 */}
             <div>
                 <h2 style={styles.headerTitle}>사마캐시 운영 및 정산 관리</h2>
                 <p style={styles.headerSub}>[운영 및 마케팅 &gt; 사마캐시 관리] 특정 유저에게 캐시를 직접 지급/차감하거나, 플랫폼 전체의 캐시 흐름을 조회합니다.</p>
             </div>
 
-            {/* 🚨 [신규] 무통장 입금 승인 대기열 (최상단 강조) */}
+            {/* 🚨 무통장 입금 승인 대기열 */}
             {pendingRequests && pendingRequests.length > 0 && (
                 <div style={{ marginBottom: '32px', border: '2px solid #059669', borderRadius: '4px', overflow: 'hidden' }}>
                     <div style={{ padding: '12px 16px', backgroundColor: '#059669', color: '#FFF', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -215,7 +219,7 @@ export default function AdminCash() {
                             {pendingRequests.map(req => (
                                 <tr key={req.id} style={{ backgroundColor: '#F0FDF4' }}>
                                     <td style={styles.tableCell}>{new Date(req.created_at).toLocaleString()}</td>
-                                    <td style={{...styles.tableCell, fontWeight: 'bold'}}>{req.profiles?.email}</td>
+                                    <td style={{...styles.tableCell, fontWeight: 'bold'}}>{req.profiles?.email || '알수없음'}</td>
                                     <td style={{...styles.tableCell, color: '#0ea5e9', fontWeight: 'bold'}}>{req.depositor_name}</td>
                                     <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#059669'}}>{req.amount.toLocaleString()} C</td>
                                     <td style={{...styles.tableCell, display: 'flex', justifyContent: 'center', gap: '4px'}}>
@@ -229,7 +233,7 @@ export default function AdminCash() {
                 </div>
             )}
 
-            {/* 1. 수동 지급/차감 폼 (엔터프라이즈 밀도형 표 구조) */}
+            {/* 수동 지급/차감 폼 */}
             <div style={{ ...styles.formBox, borderBottom: 'none' }}>
                 <div style={{ padding: '12px 16px', backgroundColor: '#1F2937', color: '#FFF', fontWeight: 'bold', fontSize: '13px', borderBottom: '1px solid #E5E7EB' }}>
                     관리자 권한 캐시 제어
@@ -270,7 +274,6 @@ export default function AdminCash() {
                                 />
                             </div>
 
-                            {/* 드롭다운 */}
                             {showCashUserDropdown && cashSearchTerm.length >= 2 && (
                                 <div style={{ position: 'absolute', top: '100%', left: 0, width: '100%', maxHeight: '200px', overflowY: 'auto', backgroundColor: '#FFF', border: '1px solid #CCC', zIndex: 10, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
                                     {isSearching ? (
@@ -323,13 +326,12 @@ export default function AdminCash() {
                 </button>
             </div>
 
-            {/* 2. 전체 캐시 트랜잭션 및 정산 내역 (확장성) */}
+            {/* 전체 캐시 트랜잭션 및 정산 내역 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <span style={{ fontWeight: 'bold', fontSize: '14px', marginRight: '16px' }}>
                         <ArrowRightLeft size={16} style={{verticalAlign:'middle'}}/> 캐시 변동 및 결제 전체 내역
                     </span>
-                    {/* 확장성을 고려한 필터 탭 */}
                     {[
                         { id: 'all', label: '전체 내역' },
                         { id: 'charge', label: '고객 충전 내역' },
@@ -362,7 +364,7 @@ export default function AdminCash() {
                     {isLoadingTx ? (
                         <tr><td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize:'12px' }}>결제/정산 데이터를 불러오는 중입니다...</td></tr>
                     ) : txList.length === 0 ? (
-                        <tr><td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize:'12px' }}>해당 조건의 결제/캐시 변동 내역이 없습니다. (cash_transactions 테이블 연동 필요)</td></tr>
+                        <tr><td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize:'12px' }}>해당 조건의 결제/캐시 변동 내역이 없습니다.</td></tr>
                     ) : (
                         txList.map((tx) => (
                             <tr key={tx.id} style={{ backgroundColor: '#FFF' }}>
