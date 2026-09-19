@@ -1,18 +1,16 @@
 // src/pages/AdminDashboard.jsx
-import React, { useState, useEffect } from 'react'; // 🚨 useEffect 추가
+import React, { useState, useEffect } from 'react'; 
 import { useNavigate } from 'react-router-dom';
-// 🚨 에러의 원인이었던 useQuery 임포트 삭제 (안정적인 useEffect로 대체)
 import { supabase } from '../api/supabaseClient';
 import { 
     Map, MonitorPlay, Image as ImageIcon, Users, BarChart3, 
-    Bell, Wallet, Package, LogOut, Settings, ChevronRight, UserPlus, Sliders,
-    Search // 🚨 신규 메뉴 아이콘 추가
+    Bell, Wallet, LogOut, Settings, ChevronRight, UserPlus, Sliders,
+    Search // 🚨 에러 원인이었던 Package 아이콘을 완벽히 삭제했습니다!
 } from 'lucide-react'; 
 
-// 개별 컴포넌트 임포트 (기존 소스 완벽 보존)
+// 개별 컴포넌트 임포트
 import AdminOverview from '../components/admin/AdminOverview';
 import AdminMyeongdang from '../components/admin/AdminMyeongdang';
-// 🚨 신규: 고객 감정 의뢰 컴포넌트 임포트
 import AdminMyeongdangRequests from '../components/admin/AdminMyeongdangRequests';
 import AdminNotice from '../components/admin/AdminNotice';
 import AdminCash from '../components/admin/AdminCash';
@@ -27,10 +25,8 @@ export default function AdminDashboard() {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('overview');
     
-    // 🚨 React Query 대신 1회성 상태 검사 변수 추가
     const [isChecking, setIsChecking] = useState(true);
 
-    // 🚀 [V3] 엔터프라이즈 화이트 모드 전용 컬러 팔레트 (기존 소스 완벽 보존)
     const adminTheme = {
         bg: '#F3F4F6',             
         panelBg: '#FFFFFF',        
@@ -50,7 +46,6 @@ export default function AdminDashboard() {
         shadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
     };
 
-    // 🚨 딱 한 번만 권한을 확인하고 튕김 현상을 방지하는 안전한 인증 로직
     useEffect(() => {
         const verifyAdmin = async () => {
             try {
@@ -69,7 +64,6 @@ export default function AdminDashboard() {
                     return;
                 }
                 
-                // 권한 확인 통과 시 화면 열어주기
                 setIsChecking(false);
             } catch (err) {
                 console.error("Admin verification error:", err);
@@ -85,7 +79,6 @@ export default function AdminDashboard() {
         return <div style={{ minHeight: '100vh', background: adminTheme.bg, color: adminTheme.textBright, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>어드민 시스템 접근 권한 확인 중...</div>;
     }
 
-    // 메뉴 구성 (기존 소스 완벽 보존 + 신규 탭 추가)
     const menuItems = [
         { category: '서비스 관리', items: [
             { id: 'site_settings', icon: <Sliders size={18} />, label: '사이트 관리 (기본/정책)' }, 
@@ -97,7 +90,6 @@ export default function AdminDashboard() {
         ]},
         { category: '콘텐츠 관리', items: [
             { id: 'myeongdang', icon: <Map size={18} />, label: '천하대명당 DB' },
-            // 🚨 신규: 고객 감정 의뢰 관리 메뉴 버튼 추가
             { id: 'myeongdang_requests', icon: <Search size={18} />, label: '고객 감정 의뢰 관리' },
             { id: 'media', icon: <MonitorPlay size={18} />, label: '명상 미디어' },
         ]},
@@ -173,7 +165,6 @@ export default function AdminDashboard() {
                         {activeTab === 'partners' && <AdminPartners adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'myeongdang' && <AdminMyeongdang adminTheme={adminTheme} />}
                         
-                        {/* 🚨 신규: 고객 감정 의뢰 관리 화면 렌더링 */}
                         {activeTab === 'myeongdang_requests' && <AdminMyeongdangRequests adminTheme={adminTheme} />}
 
                         {activeTab === 'notice' && <AdminNotice adminTheme={adminTheme} />}
