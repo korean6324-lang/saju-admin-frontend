@@ -5,10 +5,9 @@ import { supabase } from '../api/supabaseClient';
 import { 
     Map, MonitorPlay, Image as ImageIcon, Users, BarChart3, 
     Bell, Wallet, LogOut, Settings, ChevronRight, UserPlus, Sliders,
-    Search // 🚨 에러 원인이었던 Package 아이콘을 완벽히 삭제했습니다!
+    Search // 🚨 아이콘 추가 완료 (미사용 Package 아이콘 없음)
 } from 'lucide-react'; 
 
-// 개별 컴포넌트 임포트
 import AdminOverview from '../components/admin/AdminOverview';
 import AdminMyeongdang from '../components/admin/AdminMyeongdang';
 import AdminMyeongdangRequests from '../components/admin/AdminMyeongdangRequests';
@@ -24,7 +23,6 @@ import AdminSiteSettings from '../components/admin/AdminSiteSettings';
 export default function AdminDashboard() {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('overview');
-    
     const [isChecking, setIsChecking] = useState(true);
 
     const adminTheme = {
@@ -90,6 +88,7 @@ export default function AdminDashboard() {
         ]},
         { category: '콘텐츠 관리', items: [
             { id: 'myeongdang', icon: <Map size={18} />, label: '천하대명당 DB' },
+            // 🚨 지워졌던 메뉴 코드를 다시 복구했습니다!
             { id: 'myeongdang_requests', icon: <Search size={18} />, label: '고객 감정 의뢰 관리' },
             { id: 'media', icon: <MonitorPlay size={18} />, label: '명상 미디어' },
         ]},
@@ -165,6 +164,7 @@ export default function AdminDashboard() {
                         {activeTab === 'partners' && <AdminPartners adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'myeongdang' && <AdminMyeongdang adminTheme={adminTheme} />}
                         
+                        {/* 🚨 지워졌던 컴포넌트 렌더링 코드를 다시 복구했습니다! */}
                         {activeTab === 'myeongdang_requests' && <AdminMyeongdangRequests adminTheme={adminTheme} />}
 
                         {activeTab === 'notice' && <AdminNotice adminTheme={adminTheme} />}
