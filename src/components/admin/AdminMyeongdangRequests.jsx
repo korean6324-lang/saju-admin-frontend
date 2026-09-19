@@ -1,8 +1,8 @@
 // src/components/admin/AdminMyeongdangRequests.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
-// 🚨 에러의 원인이었던 미사용 아이콘(MapPin, Save)을 삭제했습니다!
-import { CheckCircle, Clock, X, MessageSquare } from 'lucide-react';
+// 🚨 삭제(Trash2) 및 숨김(EyeOff, Eye) 아이콘 추가
+import { CheckCircle, Clock, X, MessageSquare, Trash2, EyeOff, Eye } from 'lucide-react';
 
 export default function AdminMyeongdangRequests() {
     const [requests, setRequests] = useState([]);
@@ -66,6 +66,45 @@ export default function AdminMyeongdangRequests() {
         }
     };
 
+    // 🚨 [추가된 기능] 숨김 / 숨김 해제 처리
+    const handleToggleHide = async (id, currentHiddenStatus) => {
+        const confirmMsg = currentHiddenStatus 
+            ? '이 의뢰를 다시 관리자 목록에 표시하시겠습니까?' 
+            : '이 의뢰를 숨김 처리하시겠습니까?\n(고객에게는 결과가 계속 보이지만, 관리자 목록에서는 회색으로 숨겨집니다)';
+            
+        if (!window.confirm(confirmMsg)) return;
+        
+        try {
+            const { error } = await supabase
+                .from('myeongdang_requests')
+                .update({ is_hidden: !currentHiddenStatus })
+                .eq('id', id);
+            
+            if (error) throw error;
+            fetchRequests();
+        } catch (error) {
+            alert('숨김 상태 변경 중 오류가 발생했습니다.');
+        }
+    };
+
+    // 🚨 [추가된 기능] 영구 삭제 처리
+    const handleDelete = async (id) => {
+        if (!window.confirm('정말로 이 의뢰를 영구 삭제하시겠습니까?\n(데이터베이스에서 완전히 삭제되며, 고객의 화면에서도 사라집니다. 복구 불가)')) return;
+        
+        try {
+            const { error } = await supabase
+                .from('myeongdang_requests')
+                .delete()
+                .eq('id', id);
+            
+            if (error) throw error;
+            alert('의뢰가 완전히 삭제되었습니다.');
+            fetchRequests();
+        } catch (error) {
+            alert('삭제 중 오류가 발생했습니다.');
+        }
+    };
+
     // 화이트 톤 엔터프라이즈 디자인
     const styles = {
         container: { backgroundColor: '#FFFFFF', padding: '24px', fontFamily: '"Malgun Gothic", "Pretendard", sans-serif', fontSize: '13px', color: '#333', minHeight: '100vh' },
@@ -79,7 +118,7 @@ export default function AdminMyeongdangRequests() {
         <div style={styles.container}>
             <div>
                 <h2 style={styles.headerTitle}>고객 감정 의뢰 관리</h2>
-                <p style={styles.headerSub}>[콘텐츠 관리 &gt; 감정 의뢰 관리] 고객이 요청한 토지/건물 풍수 감정 내역을 확인하고 결과를 발송합니다.</p>
+                <p style={styles.headerSub}>[콘텐츠 관리 &gt; 감정 의뢰 관리] 고객이 요청한 토지/건물 풍수 감정 내역을 확인하고 결과를 발송하거나 내역을 관리합니다.</p>
             </div>
 
             <table style={{ width: '100%', borderCollapse: 'collapse', borderTop: '2px solid #333' }}>
@@ -90,7 +129,7 @@ export default function AdminMyeongdangRequests() {
                         <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px'}}>의뢰 제목</th>
                         <th style={{...styles.tableHeader, width: '120px'}}>의뢰 일자</th>
                         <th style={{...styles.tableHeader, width: '100px'}}>상태</th>
-                        <th style={{...styles.tableHeader, width: '100px'}}>관리</th>
+                        <th style={{...styles.tableHeader, width: '160px'}}>관리</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -102,9 +141,15 @@ export default function AdminMyeongdangRequests() {
                         requests.map((req, idx) => {
                             const images = parseImages(req.image_urls);
                             const isCompleted = req.status === 'completed';
+                            const isHidden = req.is_hidden;
+
                             return (
-                                <tr key={req.id} style={{ backgroundColor: '#FFF' }}>
-                                    <td style={styles.tableCell}>{requests.length - idx}</td>
+                                // 🚨 숨김 처리된 항목은 배경을 회색으로, 투명도를 낮추어 구분되게 합니다.
+                                <tr key={req.id} style={{ backgroundColor: isHidden ? '#F9FAFB' : '#FFF', opacity: isHidden ? 0.6 : 1 }}>
+                                    <td style={styles.tableCell}>
+                                        {requests.length - idx}
+                                        {isHidden && <div style={{ fontSize: '10px', color: '#999', marginTop: '4px' }}>(숨김)</div>}
+                                    </td>
                                     <td style={styles.tableCell}>
                                         <div style={{ width: '60px', height: '40px', backgroundColor: '#EEE', margin: '0 auto', overflow: 'hidden', border: '1px solid #DDD' }}>
                                             {images.length > 0 ? <img src={images[0]} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'NO IMG'}
@@ -122,9 +167,30 @@ export default function AdminMyeongdangRequests() {
                                         )}
                                     </td>
                                     <td style={styles.tableCell}>
-                                        <button onClick={() => openAppraisalModal(req)} style={{ padding: '6px 12px', backgroundColor: isCompleted ? '#FFF' : '#0ea5e9', border: isCompleted ? '1px solid #CCC' : 'none', color: isCompleted ? '#333' : '#FFF', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>
-                                            {isCompleted ? '결과 수정' : '감정하기'}
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                            {/* 감정하기 버튼 */}
+                                            <button onClick={() => openAppraisalModal(req)} style={{ padding: '6px 12px', backgroundColor: isCompleted ? '#FFF' : '#0ea5e9', border: isCompleted ? '1px solid #CCC' : 'none', color: isCompleted ? '#333' : '#FFF', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>
+                                                {isCompleted ? '결과 수정' : '감정하기'}
+                                            </button>
+                                            
+                                            {/* 숨김/표시 토글 버튼 */}
+                                            <button 
+                                                onClick={() => handleToggleHide(req.id, isHidden)} 
+                                                style={{ padding: '6px', backgroundColor: isHidden ? '#E5E7EB' : '#FFF', border: '1px solid #CCC', borderRadius: '4px', cursor: 'pointer', color: '#555', display: 'flex', alignItems: 'center' }} 
+                                                title={isHidden ? "숨김 해제" : "목록에서 숨기기"}
+                                            >
+                                                {isHidden ? <Eye size={14} /> : <EyeOff size={14} />}
+                                            </button>
+
+                                            {/* 영구 삭제 버튼 */}
+                                            <button 
+                                                onClick={() => handleDelete(req.id)} 
+                                                style={{ padding: '6px', backgroundColor: '#FFF', border: '1px solid #FECACA', borderRadius: '4px', cursor: 'pointer', color: '#EF4444', display: 'flex', alignItems: 'center' }} 
+                                                title="영구 삭제"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             )
