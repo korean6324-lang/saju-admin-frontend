@@ -31,7 +31,9 @@ export default function AdminMyeongdangRequests() {
         }
     };
 
-    // 🚨 [수정된 부분] 사진 경로만 있을 경우 수파베이스 주소를 자동으로 붙여주는 로직 적용
+    // ==========================================================
+    // 🚨 [수정된 부분] 존재하지 않는 버킷 에러 수정을 위해 진짜 버킷 이름(myeongdang_images)으로 변경
+    // ==========================================================
     const parseImages = (urls) => {
         if (!urls) return [];
         let parsed = [];
@@ -45,8 +47,8 @@ export default function AdminMyeongdangRequests() {
         return parsed.map(url => {
             if (url.startsWith('http')) return url;
             
-            // 주의: 의뢰 사진이 업로드되는 스토리지 버킷 이름이 'myeongdang_requests' 입니다.
-            const { data } = supabase.storage.from('myeongdang_requests').getPublicUrl(url);
+            // 🚨 주의: 의뢰 사진이 업로드되는 실제 스토리지 버킷 이름인 'myeongdang_images'로 변경 완료했습니다.
+            const { data } = supabase.storage.from('myeongdang_images').getPublicUrl(url);
             return data.publicUrl;
         });
     };
