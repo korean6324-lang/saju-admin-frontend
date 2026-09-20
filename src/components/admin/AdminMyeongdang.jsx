@@ -33,6 +33,30 @@ export default function AdminMyeongdang({ session }) {
         }
     });
 
+    // 🚨 [핵심 추가] 어떤 쓰레기 데이터가 들어와도 리액트가 뻗지 않도록 방어하는 무적 파서
+    const getSafeImages = (urls) => {
+        if (!urls) return [];
+        let parsedArray = [];
+        
+        if (Array.isArray(urls)) {
+            parsedArray = urls;
+        } else if (typeof urls === 'string') {
+            try {
+                const parsed = JSON.parse(urls);
+                parsedArray = Array.isArray(parsed) ? parsed : [parsed];
+            } catch (e) {
+                parsedArray = [urls]; 
+            }
+        }
+
+        return parsedArray.filter(Boolean).map(url => {
+            if (typeof url !== 'string') return '';
+            if (url.startsWith('http') || url.startsWith('data:')) return url;
+            const { data } = supabase.storage.from('myeongdang_images').getPublicUrl(url);
+            return data.publicUrl;
+        }).filter(url => url !== '');
+    };
+
     const handleMdImageSelect = (e) => {
         const files = Array.from(e.target.files);
         if (mdImages.length + files.length > 5) return alert("최대 5장까지만 업로드 가능합니다.");
@@ -115,7 +139,6 @@ export default function AdminMyeongdang({ session }) {
         else alert('상태 변경에 실패했습니다.');
     };
 
-    // 🚨 상위 고정(is_pinned) ON/OFF 토글 함수 (해제 시 순번 999로 초기화)
     const togglePin = async (id, currentPin) => {
         const { error } = await supabase.from('myeongdang_posts').update({ 
             is_pinned: !currentPin,
@@ -125,17 +148,14 @@ export default function AdminMyeongdang({ session }) {
         else alert('상위 고정 상태 변경에 실패했습니다.');
     };
 
-    // 🚨 [신규 추가] 화살표 클릭 시 순위(pin_order) 변경 로직
     const movePinOrder = async (id, currentOrder, direction) => {
         let order = (currentOrder === null || currentOrder === undefined) ? 999 : currentOrder;
         let newOrder;
 
         if (direction === 'up') {
-            // 위로(▲) 누르면 순위 숫자가 낮아짐 (1위가 최고)
             newOrder = order === 999 ? 1 : order - 1;
-            if (newOrder < 1) newOrder = 1; // 1위 이상 못 올라가게 방어
+            if (newOrder < 1) newOrder = 1; 
         } else {
-            // 아래로(▼) 누르면 순위 숫자가 커짐
             newOrder = order === 999 ? 2 : order + 1;
         }
 
@@ -152,12 +172,13 @@ export default function AdminMyeongdang({ session }) {
     };
 
     // ==============================================================================
-    // 🚀 3. 하드 딜리트(Hard Delete) 파이프라인
+    // 🚀 3. 하드 딜리트(Hard Delete) 파이프라인 (안전한 이미지 파싱 적용)
     // ==============================================================================
-    const delPost = async (id, imageUrls) => {
+    const delPost = async (id, rawImageUrls) => {
         if (!window.confirm("사례를 삭제하시겠습니까?\n🚨 스토리지에 저장된 원본 이미지 파일들도 영구 삭제됩니다.")) return;
         
         try {
+            const imageUrls = getSafeImages(rawImageUrls); // 🚨 삭제 전에도 안전하게 배열로 변환
             if (imageUrls && imageUrls.length > 0) {
                 const filePaths = imageUrls.map(url => {
                     const parts = url.split('/myeongdang_images/');
@@ -197,7 +218,6 @@ export default function AdminMyeongdang({ session }) {
         
         submitBtn: { backgroundColor: '#0ea5e9', color: '#FFF', border: 'none', padding: '10px 40px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', borderRadius: '2px', display: 'inline-flex', alignItems: 'center', gap: '6px' },
         
-        // 테이블
         tableHeader: { backgroundColor: '#F8F9FA', borderTop: '2px solid #333', borderBottom: '1px solid #CCC', padding: '10px 8px', textAlign: 'center', fontWeight: 'bold', color: '#333', fontSize: '12px' },
         tableCell: { padding: '8px', borderBottom: '1px solid #E5E7EB', textAlign: 'center', verticalAlign: 'middle', fontSize: '12px', color: '#555' },
         
@@ -207,7 +227,6 @@ export default function AdminMyeongdang({ session }) {
         actionBtnOrange: { padding: '4px 8px', border: '1px solid #f97316', backgroundColor: '#FFF', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#f97316', fontWeight: 'bold', width: '100%' },
         actionBtnGray: { padding: '4px 8px', border: '1px solid #d1d5db', backgroundColor: '#F9FAFB', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#9ca3af', width: '100%' },
 
-        // 🚨 [신규 추가] 화살표 버튼 스타일
         arrowBtn: { background: '#fff', border: '1px solid #fdba74', borderRadius: '2px', cursor: 'pointer', fontSize: '9px', padding: '2px 4px', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     };
 
@@ -219,9 +238,8 @@ export default function AdminMyeongdang({ session }) {
                 <p style={styles.headerSub}>[콘텐츠 관리 &gt; 천하대명당 DB] 풍수지리 명당 포트폴리오를 등록하고 전시 상태를 관리합니다.</p>
             </div>
 
-            {/* 1. 꽉 찬 표 형태의 등록 폼 (Whois 스타일) */}
+            {/* 1. 꽉 찬 표 형태의 등록 폼 */}
             <div style={styles.formBox}>
-                
                 <div style={styles.formRow}>
                     <div style={styles.formLabel}>· 사례 제목 <span style={{color:'#ef4444', marginLeft:'4px'}}>*</span></div>
                     <div style={styles.formContent}>
@@ -244,7 +262,6 @@ export default function AdminMyeongdang({ session }) {
                             <input type="file" multiple accept="image/*" onChange={handleMdImageSelect} style={{ display: 'none' }} />
                         </label>
                         
-                        {/* 미리보기 이미지 썸네일 */}
                         {mdImagePreviews.length > 0 && (
                             <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
                                 {mdImagePreviews.map((url, i) => (
@@ -289,7 +306,6 @@ export default function AdminMyeongdang({ session }) {
                 </div>
             </div>
 
-            {/* 등록 버튼 */}
             <div style={{ textAlign: 'center', marginBottom: '40px' }}>
                 <button onClick={handleSave} disabled={isSaving} style={{ ...styles.submitBtn, opacity: isSaving ? 0.6 : 1 }}>
                     <Save size={16} /> {isSaving ? "데이터 병렬 업로드 및 저장 중..." : "포트폴리오 등록하기"}
@@ -323,71 +339,74 @@ export default function AdminMyeongdang({ session }) {
                     ) : mdPosts.length === 0 ? (
                         <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize: '12px' }}>등록된 사례가 없습니다.</td></tr>
                     ) : (
-                        mdPosts.map((p, idx) => (
-                            <tr key={p.id} style={{ borderBottom: `1px solid ${styles.tableCell.borderBottom}`, backgroundColor: '#FFF' }}>
-                                <td style={styles.tableCell}>{idx + 1}</td>
-                                
-                                <td style={{...styles.tableCell, padding: '8px 0'}}>
-                                    <div style={{ width: '80px', height: '50px', backgroundColor: '#000', margin: '0 auto', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-                                        {p.image_urls && p.image_urls.length > 0 ? (
-                                            <img src={p.image_urls[0]} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: p.is_visible ? 1 : 0.4 }} />
-                                        ) : (
-                                            <span style={{color:'#666', fontSize:'10px', lineHeight:'50px'}}>NO IMG</span>
-                                        )}
-                                    </div>
-                                </td>
-                                
-                                <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px', fontWeight: 'bold', color: '#111'}}>
-                                    {p.title}
-                                </td>
-                                
-                                <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px'}}>
-                                    {p.location || '-'}
-                                </td>
-                                
-                                <td style={styles.tableCell}>
-                                    {new Date(p.created_at).toLocaleDateString()}
-                                </td>
+                        mdPosts.map((p, idx) => {
+                            // 🚨 리스트 렌더링 시 안전하게 이미지 파싱
+                            const safeImages = getSafeImages(p.image_urls);
+                            
+                            return (
+                                <tr key={p.id} style={{ borderBottom: `1px solid ${styles.tableCell.borderBottom}`, backgroundColor: '#FFF' }}>
+                                    <td style={styles.tableCell}>{idx + 1}</td>
+                                    
+                                    <td style={{...styles.tableCell, padding: '8px 0'}}>
+                                        <div style={{ width: '80px', height: '50px', backgroundColor: '#000', margin: '0 auto', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+                                            {safeImages.length > 0 ? (
+                                                <img src={safeImages[0]} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: p.is_visible ? 1 : 0.4 }} />
+                                            ) : (
+                                                <span style={{color:'#666', fontSize:'10px', lineHeight:'50px'}}>NO IMG</span>
+                                            )}
+                                        </div>
+                                    </td>
+                                    
+                                    <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px', fontWeight: 'bold', color: '#111'}}>
+                                        {p.title}
+                                    </td>
+                                    
+                                    <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px'}}>
+                                        {p.location || '-'}
+                                    </td>
+                                    
+                                    <td style={styles.tableCell}>
+                                        {new Date(p.created_at).toLocaleDateString()}
+                                    </td>
 
-                                {/* 🚨 상위 고정 버튼 및 순위 조절 화살표 영역 */}
-                                <td style={styles.tableCell}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                    <td style={styles.tableCell}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                            <button 
+                                                onClick={() => togglePin(p.id, p.is_pinned)} 
+                                                style={p.is_pinned ? styles.actionBtnOrange : styles.actionBtnGray}
+                                            >
+                                                {p.is_pinned ? '🔥 고정 ON' : '고정 OFF'}
+                                            </button>
+                                            
+                                            {p.is_pinned && (
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '2px', background: '#fff7ed', padding: '2px 4px', border: '1px solid #fed7aa', borderRadius: '4px', width: '100%', boxSizing: 'border-box' }}>
+                                                    <button onClick={() => movePinOrder(p.id, p.pin_order, 'up')} style={styles.arrowBtn} title="순위 올리기">▲</button>
+                                                    <span style={{ fontWeight: 'bold', color: '#ea580c', fontSize: '11px', width: '28px', textAlign: 'center' }}>
+                                                        {p.pin_order === 999 ? '-' : `${p.pin_order}위`}
+                                                    </span>
+                                                    <button onClick={() => movePinOrder(p.id, p.pin_order, 'down')} style={styles.arrowBtn} title="순위 내리기">▼</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+
+                                    <td style={styles.tableCell}>
                                         <button 
-                                            onClick={() => togglePin(p.id, p.is_pinned)} 
-                                            style={p.is_pinned ? styles.actionBtnOrange : styles.actionBtnGray}
+                                            onClick={() => toggleVis(p.id, p.is_visible)} 
+                                            style={p.is_visible ? styles.actionBtnBlue : styles.actionBtnRed}
                                         >
-                                            {p.is_pinned ? '🔥 고정 ON' : '고정 OFF'}
+                                            {p.is_visible ? '공개 중' : '숨김 처리됨'}
                                         </button>
-                                        
-                                        {/* 고정 상태일 때만 화살표와 순위 표시 */}
-                                        {p.is_pinned && (
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '2px', background: '#fff7ed', padding: '2px 4px', border: '1px solid #fed7aa', borderRadius: '4px', width: '100%', boxSizing: 'border-box' }}>
-                                                <button onClick={() => movePinOrder(p.id, p.pin_order, 'up')} style={styles.arrowBtn} title="순위 올리기">▲</button>
-                                                <span style={{ fontWeight: 'bold', color: '#ea580c', fontSize: '11px', width: '28px', textAlign: 'center' }}>
-                                                    {p.pin_order === 999 ? '-' : `${p.pin_order}위`}
-                                                </span>
-                                                <button onClick={() => movePinOrder(p.id, p.pin_order, 'down')} style={styles.arrowBtn} title="순위 내리기">▼</button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </td>
-
-                                <td style={styles.tableCell}>
-                                    <button 
-                                        onClick={() => toggleVis(p.id, p.is_visible)} 
-                                        style={p.is_visible ? styles.actionBtnBlue : styles.actionBtnRed}
-                                    >
-                                        {p.is_visible ? '공개 중' : '숨김 처리됨'}
-                                    </button>
-                                </td>
-                                
-                                <td style={styles.tableCell}>
-                                    <button onClick={() => delPost(p.id, p.image_urls)} style={{ background:'none', border:'none', color:'#ef4444', cursor:'pointer' }}>
-                                        <Trash2 size={16}/>
-                                    </button>
-                                </td>
-                            </tr>
-                        ))
+                                    </td>
+                                    
+                                    <td style={styles.tableCell}>
+                                        <button onClick={() => delPost(p.id, p.image_urls)} style={{ background:'none', border:'none', color:'#ef4444', cursor:'pointer' }}>
+                                            <Trash2 size={16}/>
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })
                     )}
                 </tbody>
             </table>
