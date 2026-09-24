@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, Save, X, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, Save, X, Edit, Trash2, ScrollText } from 'lucide-react'; // 🚨 ScrollText 아이콘 추가
 
 export default function AdminUserManage({ adminTheme }) {
     const queryClient = useQueryClient();
@@ -10,6 +10,10 @@ export default function AdminUserManage({ adminTheme }) {
     // 화면 전환 상태: 'list' (목록) | 'form' (추가/수정 폼)
     const [viewMode, setViewMode] = useState('list');
     
+    // 🚨 유저 개인 장부(포인트 내역) 모달 상태 관리 추가
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [selectedUser, setSelectedUser] = useState(null);
+
     // 폼 상태 관리
     const [formData, setFormData] = useState({
         id: '', // Supabase Auth에서는 Email이 ID 역할을 함
@@ -46,6 +50,24 @@ export default function AdminUserManage({ adminTheme }) {
     });
 
     // ==========================================================
+    // 🚀 1-2. 특정 회원의 포인트(장부) 내역 페칭
+    // ==========================================================
+    const { data: userHistory = [], isLoading: isLoadingHistory } = useQuery({
+        queryKey: ['adminUserHistory', selectedUser?.id],
+        queryFn: async () => {
+            if (!selectedUser?.id) return [];
+            const { data, error } = await supabase
+                .from('coin_history')
+                .select('*')
+                .eq('user_id', selectedUser.id)
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data || [];
+        },
+        enabled: !!selectedUser?.id && isHistoryModalOpen // 모달이 열려있고 유저가 선택되었을 때만 작동
+    });
+
+    // ==========================================================
     // 2. 폼 핸들러
     // ==========================================================
     const handleInputChange = (field, value) => {
@@ -79,16 +101,7 @@ export default function AdminUserManage({ adminTheme }) {
 
         setIsSaving(true);
         try {
-            // 🚨 CTO Note: Supabase 클라이언트에서 임의로 다른 Auth 유저를 생성하는 것은 보안상 막혀있습니다.
-            // 실제 서비스에서는 Edge Function(서버리스) 또는 별도의 백엔드 API를 호출하여 
-            // supabase.auth.admin.createUser() 로직을 실행해야 합니다.
-            // 여기서는 MVP 목적을 위해 DB Insert만 시뮬레이션 합니다.
-            
-            /* (백엔드 API 호출 예시)
-               await fetch('/api/create-admin', { method: 'POST', body: JSON.stringify(formData) });
-            */
-            
-            // 시뮬레이션 딜레이
+            // 실제 서비스에서는 Edge Function 등을 호출해야 함 (MVP 시뮬레이션)
             await new Promise(resolve => setTimeout(resolve, 800));
 
             alert("✅ 관리자 계정이 성공적으로 추가되었습니다.\n(※ 실제 Auth 생성은 백엔드 API 연동 필요)");
@@ -114,7 +127,7 @@ export default function AdminUserManage({ adminTheme }) {
         sectionTitle: { fontSize: '13px', fontWeight: 'bold', color: '#111', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' },
         sectionIcon: { width: '6px', height: '6px', backgroundColor: '#0ea5e9', display: 'inline-block' },
         
-        formBox: { border: '2px solid #E5E7EB', borderTop: '2px solid #ef4444', display: 'flex', flexDirection: 'column', marginBottom: '24px' }, // 레퍼런스의 빨간 테두리 반영
+        formBox: { border: '2px solid #E5E7EB', borderTop: '2px solid #ef4444', display: 'flex', flexDirection: 'column', marginBottom: '24px' }, 
         formRow: { display: 'flex', borderBottom: '1px solid #E5E7EB' },
         formLabel: { width: '140px', backgroundColor: '#F9FAFB', padding: '10px 16px', fontWeight: 'bold', color: '#444', borderRight: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', fontSize: '12px', flexShrink: 0 },
         formContent: { flex: 1, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', flexWrap: 'wrap', color: '#555' },
@@ -125,16 +138,14 @@ export default function AdminUserManage({ adminTheme }) {
         
         btnBlue: { backgroundColor: '#0ea5e9', color: '#FFF', border: 'none', padding: '6px 20px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', borderRadius: '2px', display: 'inline-flex', alignItems: 'center', gap: '4px' },
         btnGray: { backgroundColor: '#9CA3AF', color: '#FFF', border: 'none', padding: '6px 20px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', borderRadius: '2px', display: 'inline-flex', alignItems: 'center', gap: '4px' },
-        btnOutline: { border: '1px solid #CCC', background: '#FFF', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', color: '#333', borderRadius: '2px' },
+        btnOutline: { border: '1px solid #CCC', background: '#FFF', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', color: '#333', borderRadius: '2px', display: 'inline-flex', alignItems: 'center', gap: '4px' },
         
-        // 테이블
         tableHeader: { backgroundColor: '#F8F9FA', borderTop: '2px solid #333', borderBottom: '1px solid #CCC', padding: '10px 8px', textAlign: 'center', fontWeight: 'bold', color: '#333', fontSize: '12px' },
         tableCell: { padding: '8px', borderBottom: '1px solid #E5E7EB', textAlign: 'center', verticalAlign: 'middle', fontSize: '12px', color: '#555' },
     };
 
     return (
         <div style={styles.container}>
-            {/* 상단 타이틀 */}
             <div>
                 <h2 style={styles.headerTitle}>{viewMode === 'list' ? '관리자페이지에 사용자 추가하기' : '사용자 추가'}</h2>
                 <p style={styles.headerSub}>
@@ -144,9 +155,6 @@ export default function AdminUserManage({ adminTheme }) {
                 </p>
             </div>
 
-            {/* ========================================================== */}
-            {/* 뷰 모드: 리스트 (List) */}
-            {/* ========================================================== */}
             {viewMode === 'list' && (
                 <>
                     <div style={{ display: 'flex', alignItems: 'center', border: '2px solid #E5E7EB', padding: '12px', marginBottom: '24px', backgroundColor: '#F9FAFB' }}>
@@ -171,7 +179,8 @@ export default function AdminUserManage({ adminTheme }) {
                                 <th style={styles.tableHeader}>휴대폰</th>
                                 <th style={styles.tableHeader}>로그인</th>
                                 <th style={styles.tableHeader}>초기화면</th>
-                                <th style={styles.tableHeader}>관리</th>
+                                {/* 🚨 헤더 추가: 상세 내역 조회 */}
+                                <th style={{...styles.tableHeader, width: '160px'}}>상세 관리</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -186,7 +195,17 @@ export default function AdminUserManage({ adminTheme }) {
                                     <td style={styles.tableCell}>O</td>
                                     <td style={styles.tableCell}>환경설정</td>
                                     <td style={styles.tableCell}>
-                                        <button style={styles.btnOutline}>수정</button>
+                                        <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
+                                            <button style={styles.btnOutline}><Edit size={12} /> 수정</button>
+                                            
+                                            {/* 🚨 버튼 추가: 회원의 개인 장부(코인) 내역 보기 */}
+                                            <button 
+                                                onClick={() => { setSelectedUser(admin); setIsHistoryModalOpen(true); }}
+                                                style={{...styles.btnOutline, borderColor: '#D97706', color: '#D97706'}}
+                                            >
+                                                <ScrollText size={12} /> 장부 내역
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -201,9 +220,6 @@ export default function AdminUserManage({ adminTheme }) {
                 </>
             )}
 
-            {/* ========================================================== */}
-            {/* 뷰 모드: 추가/수정 폼 (Form) */}
-            {/* ========================================================== */}
             {viewMode === 'form' && (
                 <>
                     <div style={styles.sectionTitle}><div style={styles.sectionIcon}></div> 사용자 정보 입력</div>
@@ -324,6 +340,69 @@ export default function AdminUserManage({ adminTheme }) {
                         </button>
                     </div>
                 </>
+            )}
+
+            {/* ========================================================== */}
+            {/* 🚨 신규 모달: 특정 회원의 포인트(코인) 이용 및 정산 내역 장부 조회 */}
+            {/* ========================================================== */}
+            {isHistoryModalOpen && selectedUser && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                    <div className="fade-in" style={{ backgroundColor: '#FFF', borderRadius: '8px', width: '100%', maxWidth: '768px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+                        
+                        {/* 모달 헤더 */}
+                        <div style={{ padding: '16px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8F9FA', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
+                            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#111', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <ScrollText size={18} color="#D97706" />
+                                [{selectedUser.name || selectedUser.email}] 님의 개인 장부 (포인트 내역)
+                            </h3>
+                            <button onClick={() => setIsHistoryModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666' }}><X size={20} /></button>
+                        </div>
+
+                        {/* 모달 컨텐츠 (내역 테이블) */}
+                        <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', borderTop: '2px solid #333' }}>
+                                <thead>
+                                    <tr>
+                                        <th style={styles.tableHeader}>발생 일시</th>
+                                        <th style={styles.tableHeader}>거래 유형</th>
+                                        <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px'}}>상세 내역 (구매/판매 상품명)</th>
+                                        <th style={{...styles.tableHeader, textAlign: 'right', paddingRight: '16px'}}>변동액</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {isLoadingHistory ? (
+                                        <tr><td colSpan="4" style={{ padding: '60px', textAlign: 'center', color: '#666' }}>장부 내역을 불러오는 중입니다...</td></tr>
+                                    ) : userHistory.length > 0 ? (
+                                        userHistory.map(tx => {
+                                            const isPlus = tx.amount > 0;
+                                            return (
+                                                <tr key={tx.id} style={{ borderBottom: '1px solid #E5E7EB' }}>
+                                                    <td style={styles.tableCell}>{new Date(tx.created_at).toLocaleString()}</td>
+                                                    <td style={{...styles.tableCell, fontWeight: 'bold', color: isPlus ? '#059669' : '#ef4444'}}>
+                                                        {tx.trade_type === 'sell' ? '판매수익' : tx.trade_type === 'charge' ? '충전' : tx.trade_type === 'buy' ? '상품결제' : '포인트변동'}
+                                                    </td>
+                                                    <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px', color: '#444'}}>
+                                                        {tx.description}
+                                                    </td>
+                                                    <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', fontSize: '13px', color: isPlus ? '#059669' : '#ef4444'}}>
+                                                        {isPlus ? '+' : ''}{tx.amount.toLocaleString()} C
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    ) : (
+                                        <tr><td colSpan="4" style={{ padding: '60px', textAlign: 'center', color: '#999' }}>해당 회원의 포인트 거래 내역이 존재하지 않습니다.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* 모달 푸터 */}
+                        <div style={{ padding: '16px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', backgroundColor: '#F8F9FA', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px' }}>
+                            <button onClick={() => setIsHistoryModalOpen(false)} style={{ ...styles.btnGray, padding: '8px 30px' }}>닫기</button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
