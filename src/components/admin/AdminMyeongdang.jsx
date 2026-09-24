@@ -234,7 +234,8 @@ export default function AdminMyeongdang({ session }) {
         <div style={styles.container}>
             {/* 상단 타이틀 */}
             <div>
-                <h2 style={styles.headerTitle}>천하대명당 DB 관리</h2>
+                {/* 🚨 파트너도 관리할 수 있음을 명시 */}
+                <h2 style={styles.headerTitle}>천하대명당 DB 관리 <span style={{fontSize: '12px', color: '#0ea5e9', fontWeight: 'normal'}}>(관리자 및 파트너 전용)</span></h2>
                 <p style={styles.headerSub}>[콘텐츠 관리 &gt; 천하대명당 DB] 풍수지리 명당 포트폴리오를 등록하고 전시 상태를 관리합니다.</p>
             </div>
 
