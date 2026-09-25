@@ -79,7 +79,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                 .eq('role', 'partner')
                 .order('created_at', { ascending: false });
             if (error) throw error;
-            return data || []; // 🚨 에러 시 빈 배열 반환 보장
+            return data || []; 
         },
         enabled: defaultTab === 'partners'
     });
@@ -127,12 +127,12 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
     const [userTxList, setUserTxList] = useState([]);
     const [isLoadingTx, setIsLoadingTx] = useState(false);
 
-    // 🚨 특정 유저의 결제/포인트 내역 불러오기 (coin_history 동기화 완료)
+    // 🚨 기존 원본 장부인 cash_transactions 로 완벽 복구
     const fetchUserTransactions = async (userId) => {
         setIsLoadingTx(true);
         try {
             const { data, error } = await supabase
-                .from('coin_history')
+                .from('cash_transactions')
                 .select('*')
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false })
@@ -359,7 +359,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                             {isLoadingPartners ? (
                                 <tr><td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>로딩 중...</td></tr>
                             ) : (!approvedPartners || approvedPartners.length === 0) ? (
-                                // 🚨 에러 방어: 데이터가 null이거나 0일 때 map 함수를 타지 못하게 완벽 방어 처리
                                 <tr><td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>등록된 파트너가 없습니다.</td></tr>
                             ) : (
                                 approvedPartners.map((p, idx) => {
@@ -563,7 +562,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
 
                                             {/* 개인 결제/포인트 내역 테이블 */}
                                             <div>
-                                                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#111', marginBottom: '8px' }}>최근 결제 및 포인트 내역 (개인장부)</div>
+                                                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#111', marginBottom: '8px' }}>최근 결제 및 포인트 내역</div>
                                                 <div style={{ border: '1px solid #E5E7EB', borderRadius: '6px', overflow: 'hidden' }}>
                                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                                                         <thead>
@@ -576,21 +575,19 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                         </thead>
                                                         <tbody>
                                                             {isLoadingTx ? (
-                                                                <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>장부 내역을 불러오는 중입니다...</td></tr>
+                                                                <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>데이터 로딩중...</td></tr>
                                                             ) : (!userTxList || userTxList.length === 0) ? (
                                                                 <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>조회된 결제/변동 내역이 없습니다.</td></tr>
                                                             ) : (
                                                                 userTxList.map(tx => {
                                                                     const isPlus = tx.amount > 0;
-                                                                    let badgeLabel = '기타변동';
-                                                                    let badgeColor = '#666';
-
-                                                                    if (tx.trade_type === 'sell') { badgeLabel = '판매수익'; badgeColor = '#0ea5e9'; }
-                                                                    else if (tx.trade_type === 'buy') { badgeLabel = '상품결제'; badgeColor = '#ef4444'; }
-                                                                    else if (tx.trade_type === 'charge' || tx.trade_type === 'admin_grant') { badgeLabel = '충전/지급'; badgeColor = '#059669'; }
-                                                                    else if (tx.trade_type === 'admin_deduct') { badgeLabel = '관리자차감'; badgeColor = '#ef4444'; }
-                                                                    else if (tx.trade_type === 'subscription') { badgeLabel = '구독결제'; badgeColor = '#8B5CF6'; }
-                                                                    else if (tx.trade_type === 'settlement' || tx.trade_type === 'withdraw') { badgeLabel = '정산/출금'; badgeColor = '#D97706'; }
+                                                                    let badgeLabel = '기타변동'; let badgeColor = '#666';
+                                                                    if (tx.transaction_type === 'sell') { badgeLabel = '판매수익'; badgeColor = '#0ea5e9'; }
+                                                                    else if (tx.transaction_type === 'buy') { badgeLabel = '상품결제'; badgeColor = '#ef4444'; }
+                                                                    else if (['charge', 'admin_grant', 'point'].includes(tx.transaction_type)) { badgeLabel = '충전/지급'; badgeColor = '#059669'; }
+                                                                    else if (tx.transaction_type === 'admin_deduct') { badgeLabel = '관리자차감'; badgeColor = '#ef4444'; }
+                                                                    else if (tx.transaction_type === 'subscription') { badgeLabel = '구독결제'; badgeColor = '#8B5CF6'; }
+                                                                    else if (['settlement', 'withdraw'].includes(tx.transaction_type)) { badgeLabel = '정산/출금'; badgeColor = '#D97706'; }
 
                                                                     return (
                                                                         <tr key={tx.id} style={{ borderBottom: '1px solid #E5E7EB' }}>
