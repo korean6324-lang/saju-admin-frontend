@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Settings, FileText, Activity, Store, CheckCircle, XCircle, Clock, Users, Crown, ExternalLink, Filter, Wallet, Save } from 'lucide-react';
+import { Search, Settings, FileText, Activity, Store, CheckCircle, XCircle, Clock, Users, Crown, ExternalLink, Filter, Wallet, Save, Shield, User } from 'lucide-react';
 import { useAdminUsers } from './hooks/useAdminUsers';
 
 export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
@@ -46,7 +46,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
 
             alert('✅ 파트너 승인 및 상점 세팅이 완료되었습니다.');
             fetchApplications();
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] }); 
+            queryClient.invalidateQueries({ queryKey: ['adminUsersList'] }); 
             queryClient.invalidateQueries({ queryKey: ['approvedPartners'] }); 
         } catch (error) { alert('승인 처리 중 오류가 발생했습니다.'); }
     };
@@ -101,17 +101,36 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         return () => clearTimeout(timer);
     }, [searchInput]);
 
-    const currentFilterRoles = {
-        user: quickRole === 'all' || quickRole === 'user',
-        vip: quickRole === 'all' || quickRole === 'vip',
-        partner: quickRole === 'all' || quickRole === 'partner',
-        blocked: quickRole === 'blocked' 
-    };
-    if (quickRole === 'blocked') {
-        currentFilterRoles.user = false; currentFilterRoles.vip = false; currentFilterRoles.partner = false;
-    }
+    // 내부에서 4단계 등급을 완벽하게 필터링
+    const { data: usersData, isLoading: isLoadingUsers } = useQuery({
+        queryKey: ['adminUsersList', page, pageSize, debouncedSearch, quickRole, sortConfig],
+        queryFn: async () => {
+            let query = supabase.from('profiles').select('*', { count: 'exact' });
 
-    const { data, isLoading, isError } = useAdminUsers(page, pageSize, debouncedSearch, currentFilterRoles);
+            if (debouncedSearch) {
+                query = query.or(`${searchType}.ilike.%${debouncedSearch}%`);
+            }
+
+            if (quickRole === 'free') {
+                query = query.eq('role', 'user').or('membership_tier.eq.free,membership_tier.is.null');
+            } else if (quickRole === 'basic') {
+                query = query.eq('role', 'user').eq('membership_tier', 'basic');
+            } else if (quickRole === 'premium') {
+                query = query.eq('role', 'user').eq('membership_tier', 'premium');
+            } else if (quickRole === 'partner') {
+                query = query.eq('role', 'partner');
+            } else if (quickRole === 'blocked') {
+                query = query.eq('is_blocked', true);
+            }
+
+            query = query.order(sortConfig.key, { ascending: sortConfig.direction === 'asc' });
+            const from = (page - 1) * pageSize;
+            const { data, count, error } = await query.range(from, from + pageSize - 1);
+            
+            if (error) throw error;
+            return { users: data || [], totalCount: count || 0 };
+        }
+    });
 
     // 🚀 모달용 상태 관리
     const [selectedUser, setSelectedUser] = useState(null);
@@ -179,7 +198,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
             
             if(updatedProfile) setSelectedUser(prev => ({ ...prev, cash_balance: updatedProfile.cash_balance }));
             
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+            queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
             fetchUserTransactions(selectedUser.id);
             
             setCashAmount(''); setCashMemo('');
@@ -211,17 +230,24 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
             }
             
             alert(`✅ 파트너 권한 처리가 완료되었습니다.`);
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] }); 
+            queryClient.invalidateQueries({ queryKey: ['adminUsersList'] }); 
             queryClient.invalidateQueries({ queryKey: ['approvedPartners'] }); 
         } catch (error) { alert(`❌ 권한 처리 실패`); }
     };
 
+    // 🚨 차단 제어 연동: DB 변경 + 모달 UI 즉시 업데이트 처리
     const handleToggleBlock = async (e, userId, isBlocked) => {
         e.stopPropagation(); 
         if (!window.confirm(`회원을 ${isBlocked ? "차단 해제" : "차단"}하시겠습니까?`)) return;
         try {
             await supabase.from('profiles').update({ is_blocked: !isBlocked }).eq('id', userId);
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+            queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
+            
+            // 🚨 모달이 열려있을 때 즉시 상태 변경 (모달 껐다 켤 필요 없음)
+            if (selectedUser && selectedUser.id === userId) {
+                setSelectedUser(prev => ({ ...prev, is_blocked: !isBlocked }));
+            }
+            alert(`✅ 계정이 성공적으로 ${isBlocked ? '차단 해제' : '차단'} 되었습니다.`);
         } catch (error) { alert("처리 실패"); }
     };
 
@@ -232,13 +258,21 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
             await supabase.from('profiles').update({ admin_memo: memoText }).eq('id', selectedUser.id);
             alert("✅ 메모가 저장되었습니다.");
             setSelectedUser(prev => ({...prev, admin_memo: memoText}));
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+            queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
         } catch (error) { alert("메모 저장 실패"); }
         finally { setIsSavingMemo(false); }
     };
 
-    const usersList = data?.users || [];
-    const totalPages = Math.ceil((data?.totalCount || 0) / pageSize) || 1;
+    const getTierBadge = (role, tier) => {
+        if (role === 'admin') return <span style={{ backgroundColor: '#1F2937', color: '#FFF', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}>최고관리자</span>;
+        if (role === 'partner') return <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#E0F2FE', color: '#0369A1', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}><Store size={12}/> 파트너</div>;
+        if (tier === 'premium') return <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#FEF3C7', color: '#B45309', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}><Crown size={12}/> VIP 프리미엄</div>;
+        if (tier === 'basic') return <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#E0E7FF', color: '#3730A3', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}><Shield size={12}/> 베이직 구독</div>;
+        return <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#F3F4F6', color: '#4B5563', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}><User size={12}/> 무료회원</div>;
+    };
+
+    const usersList = usersData?.users || [];
+    const totalPages = Math.ceil((usersData?.totalCount || 0) / pageSize) || 1;
 
     const handleSort = (key) => {
         let direction = 'desc';
@@ -247,16 +281,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         }
         setSortConfig({ key, direction });
     };
-
-    const sortedUsersList = [...usersList].sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-        if (aValue === null || aValue === undefined) aValue = '';
-        if (bValue === null || bValue === undefined) bValue = '';
-        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-    });
 
     const getSortIcon = (key) => {
         if (sortConfig.key !== key) return <span style={{ color: '#ccc', fontSize: '10px', marginLeft: '4px' }}>↕</span>;
@@ -269,9 +293,9 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         headerSub: { fontSize: '12px', color: '#666', marginBottom: '24px' },
         tableHeader: { backgroundColor: '#F9FAFB', borderTop: '2px solid #333', borderBottom: '1px solid #CCC', padding: '12px 8px', textAlign: 'center', fontWeight: 'bold', color: '#333', cursor: 'pointer', userSelect: 'none', transition: 'background-color 0.2s' }, 
         tableCell: { padding: '10px 8px', borderBottom: '1px solid #E5E7EB', textAlign: 'center', verticalAlign: 'middle', fontSize: '12px', color: '#555' },
-        actionBtn: { padding: '4px 8px', border: '1px solid #CCC', backgroundColor: '#FFF', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: '#333' },
-        actionBtnBlue: { padding: '4px 8px', border: '1px solid #0ea5e9', backgroundColor: '#FFF', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: '#0ea5e9' },
-        actionBtnRed: { padding: '4px 8px', border: '1px solid #ef4444', backgroundColor: '#FFF', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: '#ef4444' },
+        actionBtn: { border: '1px solid #CCC', backgroundColor: '#FFF', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: '#333' },
+        actionBtnBlue: { border: '1px solid #0ea5e9', backgroundColor: '#FFF', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: '#0ea5e9' },
+        actionBtnRed: { border: '1px solid #ef4444', backgroundColor: '#FFF', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: '#ef4444' },
     };
 
     return (
@@ -378,7 +402,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                 {shop?.is_active ? <span style={{color: '#059669', fontWeight: 'bold', backgroundColor: '#ECFDF5', padding: '4px 8px', borderRadius: '4px'}}>운영중</span> : <span style={{color: '#ef4444', fontWeight: 'bold', backgroundColor: '#FEF2F2', padding: '4px 8px', borderRadius: '4px'}}>비활성/정지</span>}
                                             </td>
                                             <td style={styles.tableCell}>
-                                                <button onClick={(e) => handleUpgradePartner(e, p.id, 'partner')} style={{...styles.actionBtnRed, padding: '6px 12px'}}>권한 회수 (일반회원 강등)</button>
+                                                <button onClick={(e) => handleUpgradePartner(e, p.id, 'partner')} style={{...styles.actionBtnRed, padding: '4px 0', width: '80px', textAlign: 'center', boxSizing: 'border-box'}}>권한 회수</button>
                                             </td>
                                         </tr>
                                     );
@@ -404,9 +428,9 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                     style={{ padding: '8px 12px', border: '1px solid #D1D5DB', borderRadius: '6px', fontSize: '13px', outline: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#374151' }}
                                 >
                                     <option value="all">전체 등급 보기</option>
-                                    <option value="user">1. 일반회원</option>
+                                    <option value="user">🌱 무료회원</option>
                                     <option value="vip">2. 구독회원 (VIP)</option>
-                                    <option value="partner">3. 스토어 파트너</option>
+                                    <option value="partner">🤝 파트너</option>
                                     <option value="blocked">차단/탈퇴대기 회원</option>
                                 </select>
                             </div>
@@ -430,7 +454,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <div style={{ fontSize: '13px', color: '#4B5563' }}>검색결과: <span style={{fontWeight: 'bold', color: '#0ea5e9', fontSize: '15px'}}>{data?.totalCount?.toLocaleString() || 0}</span> 명</div>
+                            <div style={{ fontSize: '13px', color: '#4B5563' }}>검색결과: <span style={{fontWeight: 'bold', color: '#0ea5e9', fontSize: '15px'}}>{usersData?.totalCount?.toLocaleString() || 0}</span> 명</div>
                             <button style={{...styles.actionBtn, padding: '6px 12px'}}>엑셀저장 (Excel)</button>
                         </div>
                     </div>
@@ -438,54 +462,52 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                     <table style={{ width: '100%', borderCollapse: 'collapse', borderTop: '2px solid #333' }}>
                         <thead>
                             <tr>
-                                <th style={{...styles.tableHeader, width: '60px'}} onClick={() => handleSort('id')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>
-                                    번호
-                                </th>
-                                <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px'}} onClick={() => handleSort('email')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>
-                                    아이디 (이메일) {getSortIcon('email')}
-                                </th>
-                                <th style={{...styles.tableHeader, width: '120px'}} onClick={() => handleSort('name')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>
-                                    이름 {getSortIcon('name')}
-                                </th>
-                                <th style={{...styles.tableHeader, width: '100px'}} onClick={() => handleSort('role')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>
-                                    등급 {getSortIcon('role')}
-                                </th>
-                                <th style={{...styles.tableHeader, width: '80px'}} onClick={() => handleSort('is_blocked')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>
-                                    상태 {getSortIcon('is_blocked')}
-                                </th>
-                                <th style={{...styles.tableHeader, width: '120px', textAlign: 'right', paddingRight: '16px'}} onClick={() => handleSort('cash_balance')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>
-                                    보유 캐시 {getSortIcon('cash_balance')}
-                                </th>
-                                <th style={{...styles.tableHeader, width: '120px'}} onClick={() => handleSort('created_at')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>
-                                    가입일 {getSortIcon('created_at')}
-                                </th>
-                                <th style={{...styles.tableHeader, width: '180px', cursor: 'default'}}>
-                                    권한 관리
-                                </th>
+                                <th style={{...styles.tableHeader, width: '60px'}} onClick={() => handleSort('id')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>번호</th>
+                                <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px'}} onClick={() => handleSort('email')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>아이디 (이메일) {getSortIcon('email')}</th>
+                                <th style={{...styles.tableHeader, width: '120px'}} onClick={() => handleSort('name')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>이름 {getSortIcon('name')}</th>
+                                <th style={{...styles.tableHeader, width: '100px'}} onClick={() => handleSort('role')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>등급 {getSortIcon('role')}</th>
+                                <th style={{...styles.tableHeader, width: '80px'}} onClick={() => handleSort('is_blocked')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>상태 {getSortIcon('is_blocked')}</th>
+                                <th style={{...styles.tableHeader, width: '120px', textAlign: 'right', paddingRight: '16px'}} onClick={() => handleSort('cash_balance')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>보유 캐시 {getSortIcon('cash_balance')}</th>
+                                <th style={{...styles.tableHeader, width: '120px'}} onClick={() => handleSort('created_at')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>가입일 {getSortIcon('created_at')}</th>
+                                <th style={{...styles.tableHeader, width: '140px', cursor: 'default'}}>권한 관리</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {isLoading ? (
+                            {isLoadingUsers ? (
                                 <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>데이터 로딩 중...</td></tr>
-                            ) : (!sortedUsersList || sortedUsersList.length === 0) ? (
+                            ) : (!usersList || usersList.length === 0) ? (
                                 <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>조건에 일치하는 회원이 없습니다.</td></tr>
                             ) : (
-                                sortedUsersList.map((u, idx) => (
+                                [...usersList].sort((a, b) => {
+                                    let aVal = a[sortConfig.key] || ''; let bVal = b[sortConfig.key] || '';
+                                    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+                                    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+                                    return 0;
+                                }).map((u, idx) => (
                                     <tr key={u.id} style={{ backgroundColor: u.is_blocked ? '#fef2f2' : '#FFF' }}>
                                         <td style={styles.tableCell}>{pageSize * (page - 1) + idx + 1}</td>
                                         <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px'}}>
                                             <div onClick={() => { setSelectedUser(u); setModalTab('info'); }} style={{ color: '#0ea5e9', cursor: 'pointer', fontWeight: 'bold' }}>{u.email}</div>
                                         </td>
                                         <td style={styles.tableCell}>{u.name || '-'}</td>
-                                        <td style={styles.tableCell}>
-                                            {u.role === 'admin' && '최고관리자'}{u.role === 'partner' && <span style={{color: '#0ea5e9', fontWeight: 'bold'}}>스토어 파트너</span>}{u.role === 'user' && (u.is_vip ? <span style={{color: '#d97706', fontWeight: 'bold'}}>VIP회원</span> : '일반회원')}
-                                        </td>
+                                        <td style={styles.tableCell}>{getTierBadge(u.role, u.membership_tier)}</td>
                                         <td style={{...styles.tableCell, color: u.is_blocked ? '#ef4444' : '#333'}}>{u.is_blocked ? '차단' : '정상'}</td>
                                         <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold'}}>{u.cash_balance?.toLocaleString() || 0}</td>
                                         <td style={styles.tableCell}>{new Date(u.created_at).toLocaleDateString()}</td>
-                                        <td style={{...styles.tableCell, display: 'flex', gap: '4px', justifyContent: 'center'}}>
-                                            <button onClick={() => { setSelectedUser(u); setModalTab('info'); }} style={styles.actionBtn}>[상세/메모]</button>
-                                            <button onClick={(e) => handleUpgradePartner(e, u.id, u.role)} style={u.role === 'partner' ? styles.actionBtnRed : styles.actionBtnBlue}>{u.role === 'partner' ? '강등' : '파트너 승급'}</button>
+                                        <td style={{...styles.tableCell, display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center'}}>
+                                            {/* 🚨 [상세] 버튼 및 파트너/회원 토글 버튼 통일 */}
+                                            <button 
+                                                onClick={() => { setSelectedUser(u); setModalTab('info'); }} 
+                                                style={{...styles.actionBtn, padding: '4px 0', width: '50px', textAlign: 'center', boxSizing: 'border-box'}}
+                                            >
+                                                [상세]
+                                            </button>
+                                            <button 
+                                                onClick={(e) => handleUpgradePartner(e, u.id, u.role)} 
+                                                style={{ ...(u.role === 'partner' ? styles.actionBtnRed : styles.actionBtnBlue), padding: '4px 0', width: '56px', textAlign: 'center', boxSizing: 'border-box' }}
+                                            >
+                                                {u.role === 'partner' ? '회 원' : '파트너'}
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
@@ -499,7 +521,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                         <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ ...styles.actionBtn, padding: '6px 12px' }}>다음 ▶</button>
                     </div>
 
-                    {/* 🚀 회원 상세 정보 모달 (캐시/결제 탭 완벽 연동) */}
+                    {/* 🚀 회원 상세 정보 모달 */}
                     {selectedUser && (
                         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
                             <div style={{ width: '650px', backgroundColor: '#FFF', border: '1px solid #333', display: 'flex', flexDirection: 'column', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
@@ -520,8 +542,16 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                             <tbody>
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', width: '120px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>이메일(ID)</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.email}</td></tr>
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>가입일시</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{new Date(selectedUser.created_at).toLocaleString()}</td></tr>
+                                                
+                                                {/* 🚨 마지막 로그인 정보 및 접속 IP 추가 */}
+                                                <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>마지막 로그인</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.last_sign_in_at || selectedUser.last_login_at ? new Date(selectedUser.last_sign_in_at || selectedUser.last_login_at).toLocaleString() : '기록 없음'}</td></tr>
+                                                <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>접속 IP</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.last_sign_in_ip || selectedUser.last_login_ip || '기록 없음'}</td></tr>
+
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>현재 보유 캐시</td><td style={{ padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold', color: '#059669' }}>{selectedUser.cash_balance?.toLocaleString() || 0} C</td></tr>
-                                                <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>계정 상태 제어</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}><button onClick={(e) => handleToggleBlock(e, selectedUser.id, selectedUser.is_blocked)} style={{...(selectedUser.is_blocked ? styles.actionBtnRed : styles.actionBtnBlue), padding: '6px 12px'}}>{selectedUser.is_blocked ? '현재 차단됨 (클릭하여 해제)' : '정상 작동중 (클릭하여 차단)'}</button></td></tr>
+                                                <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>계정 상태 제어</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
+                                                    {/* 🚨 모달 내부 버튼 클릭 시 즉각 동기화 연동 */}
+                                                    <button onClick={(e) => handleToggleBlock(e, selectedUser.id, selectedUser.is_blocked)} style={{...(selectedUser.is_blocked ? styles.actionBtnRed : styles.actionBtnBlue), padding: '6px 12px'}}>{selectedUser.is_blocked ? '현재 차단됨 (클릭하여 해제)' : '정상 작동중 (클릭하여 차단)'}</button>
+                                                </td></tr>
                                             </tbody>
                                         </table>
                                     )}
