@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query'; 
-import { Search, CheckCircle2, ArrowRightLeft, Bell, CreditCard, Download } from 'lucide-react'; 
+import { Search, CheckCircle2, ArrowRightLeft, Bell, CreditCard, Download, Settings, FileText, Wallet, Save, X, ScrollText } from 'lucide-react'; 
 
 export default function AdminCash() {
     const queryClient = useQueryClient();
@@ -11,13 +11,106 @@ export default function AdminCash() {
     const [txPage, setTxPage] = useState(1);
     const txPageSize = 15;
     
-    // 🚀 [수정] 결제/정산 종류별 필터 상태 (all, point, subscription, item, settlement)
+    // 결제/정산 종류별 필터 상태
     const [txFilter, setTxFilter] = useState('all'); 
 
     // ==========================================================
-    // 1. [유지] 무통장 입금 승인 대기열 가져오기 및 처리
+    // 🚀 [추가] 유저 상세 모달 상태 관리
     // ==========================================================
-    const { data: pendingRequests, refetch: refetchRequests } = useQuery({
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+    const [modalTab, setModalTab] = useState('cash'); // info | memo | cash
+    const [memoText, setMemoText] = useState('');
+    const [isSavingMemo, setIsSavingMemo] = useState(false);
+    
+    // 모달 내 캐시/결제 관리용 상태
+    const [cashAmount, setCashAmount] = useState('');
+    const [cashType, setCashType] = useState('grant'); 
+    const [cashMemo, setCashMemo] = useState('');
+    const [isSavingCash, setIsSavingCash] = useState(false);
+    const [userTxList, setUserTxList] = useState([]);
+    const [isLoadingUserTx, setIsLoadingUserTx] = useState(false);
+
+    // 유저 장부 모달 열기 함수
+    const openUserModal = async (userId) => {
+        setIsUserModalOpen(true);
+        setModalTab('cash'); // 정산 페이지이므로 캐시 탭을 기본으로 엽니다.
+        setIsLoadingUserTx(true);
+        
+        try {
+            // 1. 프로필 정보 조회
+            const { data: profileData } = await supabase.from('profiles').select('*').eq('id', userId).single();
+            if (profileData) {
+                setSelectedUser(profileData);
+                setMemoText(profileData.admin_memo || '');
+            }
+            // 2. 해당 유저의 개인 장부(coin_history) 30건 조회
+            const { data: txData } = await supabase.from('coin_history').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(30);
+            setUserTxList(txData || []);
+        } catch (e) {
+            console.error("장부 조회 에러:", e);
+        } finally {
+            setIsLoadingUserTx(false);
+        }
+    };
+
+    // 모달 내부 기능 핸들러
+    const handleToggleBlock = async (e, userId, isBlocked) => {
+        e.stopPropagation(); 
+        if (!window.confirm(`회원을 ${isBlocked ? "차단 해제" : "차단"}하시겠습니까?`)) return;
+        try {
+            await supabase.from('profiles').update({ is_blocked: !isBlocked }).eq('id', userId);
+            setSelectedUser(prev => ({...prev, is_blocked: !isBlocked}));
+        } catch (error) { alert("처리 실패"); }
+    };
+
+    const handleSaveMemo = async () => {
+        if (!selectedUser) return;
+        setIsSavingMemo(true);
+        try {
+            await supabase.from('profiles').update({ admin_memo: memoText }).eq('id', selectedUser.id);
+            alert("✅ 메모가 저장되었습니다.");
+            setSelectedUser(prev => ({...prev, admin_memo: memoText}));
+        } catch (error) { alert("메모 저장 실패"); }
+        finally { setIsSavingMemo(false); }
+    };
+
+    const handleCashSubmit = async () => {
+        if (!selectedUser) return;
+        const amountNum = Number(cashAmount);
+        if (!cashAmount || isNaN(amountNum) || amountNum <= 0) return alert("금액은 0보다 커야 합니다.");
+        
+        setIsSavingCash(true);
+        try {
+            const finalAmount = cashType === 'grant' ? amountNum : -amountNum;
+            const txTypeStr = cashType === 'grant' ? 'admin_grant' : 'admin_deduct';
+            const defaultMemo = cashType === 'grant' ? '관리자 특별 지급' : '관리자 수동 차감';
+
+            const { error: rpcError } = await supabase.rpc('process_admin_cash_transaction', {
+                p_target_user_id: selectedUser.id,
+                p_amount: finalAmount,
+                p_transaction_type: txTypeStr,
+                p_description: cashMemo.trim() || defaultMemo
+            });
+            if (rpcError) throw rpcError;
+
+            const { data: updatedProfile } = await supabase.from('profiles').select('cash_balance').eq('id', selectedUser.id).single();
+            alert(`✅ 캐시 처리가 완료되었습니다.\n[처리 후 잔액: ${updatedProfile?.cash_balance?.toLocaleString() || 0}C]`);
+            if(updatedProfile) setSelectedUser(prev => ({ ...prev, cash_balance: updatedProfile.cash_balance }));
+            
+            // 처리 후 장부 다시 로드
+            const { data: txData } = await supabase.from('coin_history').select('*').eq('user_id', selectedUser.id).order('created_at', { ascending: false }).limit(30);
+            setUserTxList(txData || []);
+            queryClient.invalidateQueries(['cashTransactions']);
+            setCashAmount(''); setCashMemo('');
+        } catch (error) { alert(`❌ 처리 실패: ${error.message}`); } 
+        finally { setIsSavingCash(false); }
+    };
+
+    // ==========================================================
+    // 1. 무통장 입금 승인 대기열 가져오기 및 처리
+    // ==========================================================
+    const { data: pendingRequests = [], refetch: refetchRequests } = useQuery({
         queryKey: ['pendingCashRequests'],
         queryFn: async () => {
             const { data, error } = await supabase
@@ -28,9 +121,9 @@ export default function AdminCash() {
             
             if (error) {
                 console.error("🚨 승인 대기열 불러오기 에러:", error);
-                return [];
+                return []; 
             }
-            return data;
+            return data || [];
         }
     });
 
@@ -68,9 +161,9 @@ export default function AdminCash() {
     };
 
     // ==========================================================
-    // 2. [유지] 파트너 정산(출금) 승인 대기열 가져오기 및 처리
+    // 2. 파트너 정산(출금) 승인 대기열 가져오기 및 처리
     // ==========================================================
-    const { data: pendingWithdrawals, refetch: refetchWithdrawals } = useQuery({
+    const { data: pendingWithdrawals = [], refetch: refetchWithdrawals } = useQuery({
         queryKey: ['pendingWithdrawals'],
         queryFn: async () => {
             const { data, error } = await supabase
@@ -81,9 +174,9 @@ export default function AdminCash() {
             
             if (error) {
                 console.error("🚨 출금 대기열 불러오기 에러:", error);
-                return [];
+                return []; 
             }
-            return data;
+            return data || [];
         }
     });
 
@@ -130,7 +223,7 @@ export default function AdminCash() {
     };
 
     // ==========================================================
-    // 🚀 3. [신규] 전체 캐시 트랜잭션 내역 조회 (종류별 필터링 고도화)
+    // 3. 전체 캐시 트랜잭션 내역 조회 (coin_history 완벽 연동)
     // ==========================================================
     const { data: transactionsData, isLoading: isLoadingTx } = useQuery({
         queryKey: ['cashTransactions', txPage, txPageSize, txFilter],
@@ -138,21 +231,16 @@ export default function AdminCash() {
             const from = (txPage - 1) * txPageSize;
             const to = from + txPageSize - 1;
 
-            let query = supabase.from('cash_transactions').select('*, profiles:user_id(email, name)', { count: 'exact' });
+            let query = supabase.from('coin_history').select('*, profiles:user_id(email, name)', { count: 'exact' });
             
-            // 🚀 결제 종류별 필터 적용 
             if (txFilter === 'point') {
-                // 충전, 포인트, 수동지급, 수동차감
-                query = query.in('transaction_type', ['charge', 'point', 'admin_grant', 'admin_deduct']);
+                query = query.in('trade_type', ['charge', 'point', 'admin_grant', 'admin_deduct']);
             } else if (txFilter === 'subscription') {
-                // 구독 결제
-                query = query.or('transaction_type.eq.subscription,description.ilike.%구독%');
+                query = query.or('trade_type.eq.subscription,description.ilike.%구독%');
             } else if (txFilter === 'item') {
-                // 단건 상품 결제 (사주, 타로 등)
-                query = query.in('transaction_type', ['pay', 'item_purchase']);
+                query = query.in('trade_type', ['pay', 'item_purchase', 'buy']); 
             } else if (txFilter === 'settlement') {
-                // 파트너 정산 및 출금
-                query = query.in('transaction_type', ['settlement', 'withdraw']);
+                query = query.in('trade_type', ['settlement', 'withdraw', 'sell']); 
             }
 
             const { data, count, error } = await query.order('created_at', { ascending: false }).range(from, to);
@@ -160,34 +248,35 @@ export default function AdminCash() {
                 console.error("🚨 트랜잭션 내역 로드 에러:", error);
                 return { transactions: [], totalCount: 0 }; 
             }
-            return { transactions: data, totalCount: count || 0 };
+            return { transactions: data || [], totalCount: count || 0 };
         },
         keepPreviousData: true
     });
 
     // ==========================================================
-    // 🎨 스타일 정의 (불필요한 폼 스타일 제거 및 최적화)
+    // 🎨 스타일 정의 
     // ==========================================================
     const styles = {
         container: { backgroundColor: '#FFFFFF', padding: '24px', fontFamily: '"Malgun Gothic", "Pretendard", sans-serif', fontSize: '13px', color: '#333' },
         headerTitle: { fontSize: '20px', fontWeight: 'bold', color: '#111', marginBottom: '8px' },
         headerSub: { fontSize: '12px', color: '#666', marginBottom: '32px' },
-        
         tableHeader: { backgroundColor: '#F8F9FA', borderTop: '2px solid #333', borderBottom: '1px solid #CCC', padding: '12px 8px', textAlign: 'center', fontWeight: 'bold', color: '#333', fontSize: '13px' },
         tableCell: { padding: '10px 8px', borderBottom: '1px solid #E5E7EB', textAlign: 'center', verticalAlign: 'middle', fontSize: '12px', color: '#555' },
-        actionBtn: { padding: '6px 12px', border: '1px solid #CCC', backgroundColor: '#FFF', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', color: '#333', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }
+        actionBtn: { padding: '6px 12px', border: '1px solid #CCC', backgroundColor: '#FFF', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', color: '#333', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' },
+        actionBtnBlue: { padding: '4px 8px', border: '1px solid #0ea5e9', backgroundColor: '#FFF', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: '#0ea5e9' },
+        actionBtnRed: { padding: '4px 8px', border: '1px solid #ef4444', backgroundColor: '#FFF', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: '#ef4444' }
     };
 
     const txList = transactionsData?.transactions || [];
     const totalTxPages = Math.ceil((transactionsData?.totalCount || 0) / txPageSize) || 1;
 
-    // 🚀 [신규] 유형별 뱃지 렌더링 함수
+    // 유형별 뱃지 렌더링 함수
     const getTypeBadge = (type, desc = '') => {
         if (['charge', 'point', 'admin_grant'].includes(type)) return <span style={{color: '#2563EB', fontWeight: 'bold'}}>포인트 충전(+)</span>;
         if (['admin_deduct'].includes(type)) return <span style={{color: '#ef4444', fontWeight: 'bold'}}>포인트 차감(-)</span>;
         if (type === 'subscription' || desc.includes('구독')) return <span style={{color: '#8B5CF6', fontWeight: 'bold'}}>구독 결제(-)</span>;
-        if (['pay', 'item_purchase'].includes(type)) return <span style={{color: '#059669', fontWeight: 'bold'}}>건별 결제(-)</span>;
-        if (['settlement', 'withdraw'].includes(type)) return <span style={{color: '#D97706', fontWeight: 'bold'}}>스토어 정산</span>;
+        if (['pay', 'item_purchase', 'buy'].includes(type)) return <span style={{color: '#059669', fontWeight: 'bold'}}>상품결제(-)</span>;
+        if (['settlement', 'withdraw', 'sell'].includes(type)) return <span style={{color: '#D97706', fontWeight: 'bold'}}>스토어 정산(+)</span>;
         return <span style={{color: '#6B7280', fontWeight: 'bold'}}>기타 변동</span>;
     };
 
@@ -195,7 +284,7 @@ export default function AdminCash() {
         <div style={styles.container} className="fade-in">
             <div>
                 <h2 style={styles.headerTitle}>결제 및 정산 포인트 관리</h2>
-                <p style={styles.headerSub}>[정산관리 &gt; 정산 및 포인트] 플랫폼 내에서 발생한 포인트 충전, 상품/구독 결제 내역 및 파트너 정산 흐름을 통합 조회합니다.</p>
+                <p style={styles.headerSub}>[정산관리 &gt; 정산 및 포인트] 💡 내역의 계정(이메일)을 클릭하시면 해당 회원의 상세 장부 모달창이 열립니다.</p>
             </div>
 
             {/* 파트너 출금(정산) 승인 대기열 */}
@@ -208,7 +297,7 @@ export default function AdminCash() {
                         <thead>
                             <tr>
                                 <th style={styles.tableHeader}>신청일시</th>
-                                <th style={styles.tableHeader}>파트너 계정 (이메일/이름)</th>
+                                <th style={styles.tableHeader}>파트너 계정 (이메일 클릭 시 장부)</th>
                                 <th style={styles.tableHeader}>계좌 정보 (은행/계좌/예금주)</th>
                                 <th style={{...styles.tableHeader, textAlign: 'right', paddingRight: '16px'}}>출금 신청액</th>
                                 <th style={styles.tableHeader}>심사 및 처리</th>
@@ -219,7 +308,10 @@ export default function AdminCash() {
                                 <tr key={req.id} style={{ backgroundColor: '#EFF6FF' }}>
                                     <td style={styles.tableCell}>{new Date(req.created_at).toLocaleString()}</td>
                                     <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px'}}>
-                                        <div style={{ fontWeight: 'bold', color: '#111' }}>{req.profiles?.email || '알수없음'}</div>
+                                        {/* 🚨 [적용] 이메일 클릭 시 모달 오픈 */}
+                                        <div onClick={() => openUserModal(req.partner_id)} style={{ fontWeight: 'bold', color: '#2563EB', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                            {req.profiles?.email || '알수없음'} <ScrollText size={12} color="#D97706" />
+                                        </div>
                                         <div style={{ fontSize: '11px', color: '#666' }}>{req.profiles?.name || '이름미지정'}</div>
                                     </td>
                                     <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px'}}>
@@ -250,7 +342,7 @@ export default function AdminCash() {
                         <thead>
                             <tr>
                                 <th style={styles.tableHeader}>신청일시</th>
-                                <th style={styles.tableHeader}>계정(이메일)</th>
+                                <th style={styles.tableHeader}>계정 (이메일 클릭 시 장부)</th>
                                 <th style={styles.tableHeader}>입금자명</th>
                                 <th style={{...styles.tableHeader, textAlign: 'right', paddingRight: '16px'}}>신청 금액</th>
                                 <th style={styles.tableHeader}>처리</th>
@@ -260,7 +352,12 @@ export default function AdminCash() {
                             {pendingRequests.map(req => (
                                 <tr key={req.id} style={{ backgroundColor: '#F0FDF4' }}>
                                     <td style={styles.tableCell}>{new Date(req.created_at).toLocaleString()}</td>
-                                    <td style={{...styles.tableCell, fontWeight: 'bold'}}>{req.profiles?.email || '알수없음'}</td>
+                                    <td style={{...styles.tableCell, fontWeight: 'bold'}}>
+                                        {/* 🚨 [적용] 이메일 클릭 시 모달 오픈 */}
+                                        <div onClick={() => openUserModal(req.user_id)} style={{ color: '#059669', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                            {req.profiles?.email || '알수없음'} <ScrollText size={12} color="#D97706" />
+                                        </div>
+                                    </td>
                                     <td style={{...styles.tableCell, color: '#0ea5e9', fontWeight: 'bold'}}>{req.depositor_name}</td>
                                     <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#059669'}}>{req.amount.toLocaleString()} C</td>
                                     <td style={{...styles.tableCell, display: 'flex', justifyContent: 'center', gap: '4px'}}>
@@ -274,7 +371,7 @@ export default function AdminCash() {
                 </div>
             )}
 
-            {/* 🚀 전체 캐시 트랜잭션 및 종류별 필터 탭 */}
+            {/* 전체 캐시 트랜잭션 및 종류별 필터 탭 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '12px', borderBottom: '2px solid #E5E7EB', paddingBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontWeight: '900', fontSize: '16px', marginRight: '16px', color: '#111' }}>
@@ -315,7 +412,7 @@ export default function AdminCash() {
                     <tr>
                         <th style={{...styles.tableHeader, width: '180px'}}>결제/변동 일시</th>
                         <th style={{...styles.tableHeader, width: '130px'}}>유형 (구분)</th>
-                        <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px'}}>관련 유저 (이메일/이름)</th>
+                        <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px'}}>관련 유저 (이메일 클릭 시 장부)</th>
                         <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px'}}>상세 내역 (상품명 등)</th>
                         <th style={{...styles.tableHeader, width: '140px', textAlign: 'right', paddingRight: '16px'}}>결제/변동 금액</th>
                     </tr>
@@ -331,11 +428,14 @@ export default function AdminCash() {
                                 <td style={styles.tableCell}>{new Date(tx.created_at).toLocaleString()}</td>
                                 
                                 <td style={{...styles.tableCell, fontSize: '13px'}}>
-                                    {getTypeBadge(tx.transaction_type, tx.description)}
+                                    {getTypeBadge(tx.trade_type, tx.description)}
                                 </td>
                                 
                                 <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px'}}>
-                                    <div style={{ fontWeight: 'bold', color: '#111' }}>{tx.profiles?.email || '알수없음'}</div>
+                                    {/* 🚨 [적용] 이메일 클릭 시 모달 오픈 */}
+                                    <div onClick={() => openUserModal(tx.user_id)} style={{ fontWeight: 'bold', color: '#0ea5e9', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                        {tx.profiles?.email || '알수없음'} <ScrollText size={12} color="#D97706" />
+                                    </div>
                                     <div style={{ fontSize: '11px', color: '#666' }}>{tx.profiles?.name || ''}</div>
                                 </td>
                                 
@@ -365,6 +465,119 @@ export default function AdminCash() {
                     </div>
                 )}
             </div>
+
+            {/* 🚀 [신규] 회원 상세 정보 및 개인 장부(결제) 모달창 */}
+            {isUserModalOpen && selectedUser && (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100000 }}>
+                    <div className="fade-in" style={{ width: '650px', backgroundColor: '#FFF', border: '1px solid #333', display: 'flex', flexDirection: 'column', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+                        <div style={{ backgroundColor: '#1F2937', color: '#FFF', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '15px' }}>{selectedUser.name || '이름없음'} ({selectedUser.email}) 님의 상세 관리</span>
+                            <button onClick={() => setIsUserModalOpen(false)} style={{ background: 'none', border: 'none', color: '#FFF', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+                        </div>
+                        <div style={{ display: 'flex', backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                            <button onClick={() => setModalTab('info')} style={{ flex: 1, padding: '12px', border: 'none', background: modalTab === 'info' ? '#FFF' : 'transparent', borderBottom: modalTab === 'info' ? '2px solid #0ea5e9' : 'none', fontWeight: modalTab === 'info' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '13px' }}><Settings size={14} style={{verticalAlign:'middle', marginRight:'4px'}}/> 회원기본정보</button>
+                            <button onClick={() => setModalTab('memo')} style={{ flex: 1, padding: '12px', border: 'none', background: modalTab === 'memo' ? '#FFF' : 'transparent', borderBottom: modalTab === 'memo' ? '2px solid #0ea5e9' : 'none', fontWeight: modalTab === 'memo' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '13px' }}><FileText size={14} style={{verticalAlign:'middle', marginRight:'4px'}}/> 관리자 메모</button>
+                            <button onClick={() => setModalTab('cash')} style={{ flex: 1, padding: '12px', border: 'none', background: modalTab === 'cash' ? '#FFF' : 'transparent', borderBottom: modalTab === 'cash' ? '2px solid #0ea5e9' : 'none', fontWeight: modalTab === 'cash' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '13px', color: modalTab === 'cash' ? '#0ea5e9' : '#333' }}><Wallet size={14} style={{verticalAlign:'middle', marginRight:'4px'}}/> 캐시/결제 내역 (장부)</button>
+                        </div>
+                        
+                        <div style={{ padding: '24px', minHeight: '350px', maxHeight: '500px', overflowY: 'auto' }}>
+                            {/* 탭 1: 기본 정보 */}
+                            {modalTab === 'info' && (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                    <tbody>
+                                        <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', width: '120px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>이메일(ID)</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.email}</td></tr>
+                                        <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>가입일시</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{new Date(selectedUser.created_at).toLocaleString()}</td></tr>
+                                        <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>현재 보유 캐시</td><td style={{ padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold', color: '#059669' }}>{selectedUser.cash_balance?.toLocaleString() || 0} C</td></tr>
+                                        <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>계정 상태 제어</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}><button onClick={(e) => handleToggleBlock(e, selectedUser.id, selectedUser.is_blocked)} style={{...(selectedUser.is_blocked ? styles.actionBtnRed : styles.actionBtnBlue), padding: '6px 12px'}}>{selectedUser.is_blocked ? '현재 차단됨 (클릭하여 해제)' : '정상 작동중 (클릭하여 차단)'}</button></td></tr>
+                                    </tbody>
+                                </table>
+                            )}
+
+                            {/* 탭 2: 메모 */}
+                            {modalTab === 'memo' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <div style={{ fontSize: '12px', color: '#ef4444', fontWeight: 'bold' }}>※ 고객에게 노출되지 않는 관리자 전용 메모 공간입니다.</div>
+                                    <textarea value={memoText} onChange={(e) => setMemoText(e.target.value)} placeholder="이슈 사항, 블랙리스트 사유 등을 상세히 기록하세요." style={{ width: '100%', height: '150px', padding: '12px', border: '1px solid #D1D5DB', borderRadius: '4px', outline: 'none', resize: 'vertical', fontSize: '13px' }} />
+                                    <div style={{ textAlign: 'center' }}><button onClick={handleSaveMemo} disabled={isSavingMemo} style={{ ...styles.actionBtnBlue, padding: '8px 40px', fontSize: '13px' }}>{isSavingMemo ? '저장 중...' : '메모 저장하기'}</button></div>
+                                </div>
+                            )}
+
+                            {/* 탭 3: 캐시/결제 내역 관리 */}
+                            {modalTab === 'cash' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                    
+                                    {/* 수동 지급/차감 컨트롤 */}
+                                    <div style={{ border: '1px solid #E5E7EB', borderRadius: '6px', padding: '16px', backgroundColor: '#F9FAFB' }}>
+                                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#111', marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                                            <span>관리자 권한 캐시 제어</span>
+                                            <span style={{color: '#0ea5e9'}}>현재 잔액: {selectedUser.cash_balance?.toLocaleString() || 0} C</span>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+                                            <select value={cashType} onChange={e => setCashType(e.target.value)} style={{ padding: '8px', border: '1px solid #CCC', borderRadius: '4px', fontSize: '12px', outline: 'none', backgroundColor: '#FFF' }}>
+                                                <option value="grant">지급하기 (+)</option>
+                                                <option value="deduct">차감하기 (-)</option>
+                                            </select>
+                                            <input type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} placeholder="제어 금액 (숫자만)" style={{ flex: 1, padding: '8px', border: '1px solid #CCC', borderRadius: '4px', fontSize: '12px', outline: 'none' }} />
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '12px' }}>
+                                            <input type="text" value={cashMemo} onChange={e => setCashMemo(e.target.value)} placeholder="처리 사유 메모 (선택)" style={{ flex: 1, padding: '8px', border: '1px solid #CCC', borderRadius: '4px', fontSize: '12px', outline: 'none' }} />
+                                            <button onClick={handleCashSubmit} disabled={isSavingCash} style={{ padding: '8px 24px', backgroundColor: cashType === 'grant' ? '#059669' : '#ef4444', color: '#FFF', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', opacity: isSavingCash ? 0.6 : 1 }}>
+                                                <Save size={14} style={{verticalAlign:'middle', marginRight:'4px'}}/> 적용
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 개인 결제/포인트 내역 테이블 */}
+                                    <div>
+                                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#111', marginBottom: '8px' }}>해당 회원의 개인 장부 (결제/수익)</div>
+                                        <div style={{ border: '1px solid #E5E7EB', borderRadius: '6px', overflow: 'hidden' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                                <thead>
+                                                    <tr style={{ backgroundColor: '#F3F4F6', borderBottom: '1px solid #CCC' }}>
+                                                        <th style={{ padding: '8px', textAlign: 'left' }}>일시</th>
+                                                        <th style={{ padding: '8px', textAlign: 'center' }}>유형</th>
+                                                        <th style={{ padding: '8px', textAlign: 'left' }}>상세 내역</th>
+                                                        <th style={{ padding: '8px', textAlign: 'right' }}>금액</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {isLoadingUserTx ? (
+                                                        <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>장부 내역을 불러오는 중입니다...</td></tr>
+                                                    ) : (!userTxList || userTxList.length === 0) ? (
+                                                        <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>조회된 결제/변동 내역이 없습니다.</td></tr>
+                                                    ) : (
+                                                        userTxList.map(tx => {
+                                                            const isPlus = tx.amount > 0;
+                                                            let badgeLabel = '기타변동'; let badgeColor = '#666';
+                                                            if (tx.trade_type === 'sell') { badgeLabel = '판매수익'; badgeColor = '#0ea5e9'; }
+                                                            else if (tx.trade_type === 'buy') { badgeLabel = '상품결제'; badgeColor = '#ef4444'; }
+                                                            else if (tx.trade_type === 'charge' || tx.trade_type === 'admin_grant') { badgeLabel = '충전/지급'; badgeColor = '#059669'; }
+                                                            else if (tx.trade_type === 'admin_deduct') { badgeLabel = '관리자차감'; badgeColor = '#ef4444'; }
+                                                            else if (tx.trade_type === 'subscription') { badgeLabel = '구독결제'; badgeColor = '#8B5CF6'; }
+                                                            else if (tx.trade_type === 'settlement' || tx.trade_type === 'withdraw') { badgeLabel = '정산/출금'; badgeColor = '#D97706'; }
+
+                                                            return (
+                                                                <tr key={tx.id} style={{ borderBottom: '1px solid #E5E7EB' }}>
+                                                                    <td style={{ padding: '8px', color: '#666' }}>{new Date(tx.created_at).toLocaleString()}</td>
+                                                                    <td style={{ padding: '8px', textAlign: 'center' }}><span style={{color: badgeColor, fontWeight: 'bold'}}>{badgeLabel}</span></td>
+                                                                    <td style={{ padding: '8px', color: '#333' }}>{tx.description}</td>
+                                                                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: isPlus ? '#059669' : '#ef4444' }}>
+                                                                        {isPlus ? '+' : ''}{tx.amount.toLocaleString()} C
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

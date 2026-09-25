@@ -70,7 +70,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
     // ==========================================================
     // 2. 승인된 파트너 전용 조회 로직
     // ==========================================================
-    const { data: approvedPartners, isLoading: isLoadingPartners } = useQuery({
+    const { data: approvedPartners = [], isLoading: isLoadingPartners } = useQuery({
         queryKey: ['approvedPartners'],
         queryFn: async () => {
             const { data, error } = await supabase
@@ -79,7 +79,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                 .eq('role', 'partner')
                 .order('created_at', { ascending: false });
             if (error) throw error;
-            return data;
+            return data || []; // 🚨 에러 시 빈 배열 반환 보장
         },
         enabled: defaultTab === 'partners'
     });
@@ -115,7 +115,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
 
     // 🚀 모달용 상태 관리
     const [selectedUser, setSelectedUser] = useState(null);
-    const [modalTab, setModalTab] = useState('info'); // info | memo | cash
+    const [modalTab, setModalTab] = useState('info'); 
     const [memoText, setMemoText] = useState('');
     const [isSavingMemo, setIsSavingMemo] = useState(false);
 
@@ -127,7 +127,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
     const [userTxList, setUserTxList] = useState([]);
     const [isLoadingTx, setIsLoadingTx] = useState(false);
 
-    // 🚨 [수정 완료] 특정 유저의 결제/포인트 내역 불러오기 (coin_history 완벽 연동)
+    // 🚨 특정 유저의 결제/포인트 내역 불러오기 (coin_history 동기화 완료)
     const fetchUserTransactions = async (userId) => {
         setIsLoadingTx(true);
         try {
@@ -136,7 +136,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                 .select('*')
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false })
-                .limit(30); // 최근 30건
+                .limit(30); 
             if (error) throw error;
             setUserTxList(data || []);
         } catch (err) {
@@ -164,7 +164,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
             const txTypeStr = cashType === 'grant' ? 'admin_grant' : 'admin_deduct';
             const defaultMemo = cashType === 'grant' ? '관리자 특별 지급' : '관리자 수동 차감';
 
-            // 🚨 관리자 지급/차감 기능 DB 장부 자동 기록 연결 완료
             const { error: rpcError } = await supabase.rpc('process_admin_cash_transaction', {
                 p_target_user_id: selectedUser.id,
                 p_amount: finalAmount,
@@ -174,19 +173,15 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
 
             if (rpcError) throw rpcError;
 
-            // 처리 성공 후 유저의 현재 잔액을 다시 불러오기
             const { data: updatedProfile } = await supabase.from('profiles').select('cash_balance').eq('id', selectedUser.id).single();
 
             alert(`✅ 캐시 처리가 완료되었습니다.\n[처리 후 잔액: ${updatedProfile?.cash_balance?.toLocaleString() || 0}C]`);
             
-            // 모달 내 현재 잔액 즉시 업데이트 반영
             if(updatedProfile) setSelectedUser(prev => ({ ...prev, cash_balance: updatedProfile.cash_balance }));
             
-            // 부모 테이블 데이터 및 트랜잭션 목록 리로드
             queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
             fetchUserTransactions(selectedUser.id);
             
-            // 폼 초기화
             setCashAmount(''); setCashMemo('');
         } catch (error) {
             const errMsg = error.message || error.details || JSON.stringify(error);
@@ -306,7 +301,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                             <tbody>
                                 {isLoadingApps ? (
                                     <tr><td colSpan="5" style={{ padding: '60px', textAlign: 'center', color: '#9CA3AF' }}>데이터를 불러오는 중입니다...</td></tr>
-                                ) : applications.length === 0 ? (
+                                ) : (!applications || applications.length === 0) ? (
                                     <tr><td colSpan="5" style={{ padding: '60px', textAlign: 'center', color: '#9CA3AF' }}><Store size={48} color="#E5E7EB" style={{ margin: '0 auto 12px auto', display: 'block' }} />해당 조건의 입점 신청 내역이 없습니다.</td></tr>
                                 ) : (
                                     applications.map((app) => {
@@ -363,7 +358,8 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                         <tbody>
                             {isLoadingPartners ? (
                                 <tr><td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>로딩 중...</td></tr>
-                            ) : approvedPartners?.length === 0 ? (
+                            ) : (!approvedPartners || approvedPartners.length === 0) ? (
+                                // 🚨 에러 방어: 데이터가 null이거나 0일 때 map 함수를 타지 못하게 완벽 방어 처리
                                 <tr><td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>등록된 파트너가 없습니다.</td></tr>
                             ) : (
                                 approvedPartners.map((p, idx) => {
@@ -472,7 +468,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                         <tbody>
                             {isLoading ? (
                                 <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>데이터 로딩 중...</td></tr>
-                            ) : sortedUsersList.length === 0 ? (
+                            ) : (!sortedUsersList || sortedUsersList.length === 0) ? (
                                 <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>조건에 일치하는 회원이 없습니다.</td></tr>
                             ) : (
                                 sortedUsersList.map((u, idx) => (
@@ -515,7 +511,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                 <div style={{ display: 'flex', backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
                                     <button onClick={() => setModalTab('info')} style={{ flex: 1, padding: '12px', border: 'none', background: modalTab === 'info' ? '#FFF' : 'transparent', borderBottom: modalTab === 'info' ? '2px solid #0ea5e9' : 'none', fontWeight: modalTab === 'info' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '13px' }}><Settings size={14} style={{verticalAlign:'middle', marginRight:'4px'}}/> 회원기본정보</button>
                                     <button onClick={() => { setModalTab('memo'); setMemoText(selectedUser.admin_memo || ''); }} style={{ flex: 1, padding: '12px', border: 'none', background: modalTab === 'memo' ? '#FFF' : 'transparent', borderBottom: modalTab === 'memo' ? '2px solid #0ea5e9' : 'none', fontWeight: modalTab === 'memo' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '13px' }}><FileText size={14} style={{verticalAlign:'middle', marginRight:'4px'}}/> 관리자 메모</button>
-                                    {/* 🚀 캐시/결제 내역 관리 탭 */}
                                     <button onClick={() => setModalTab('cash')} style={{ flex: 1, padding: '12px', border: 'none', background: modalTab === 'cash' ? '#FFF' : 'transparent', borderBottom: modalTab === 'cash' ? '2px solid #0ea5e9' : 'none', fontWeight: modalTab === 'cash' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '13px', color: modalTab === 'cash' ? '#0ea5e9' : '#333' }}><Wallet size={14} style={{verticalAlign:'middle', marginRight:'4px'}}/> 캐시/결제 내역</button>
                                 </div>
                                 
@@ -541,7 +536,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                         </div>
                                     )}
 
-                                    {/* 🚀 탭 3: 캐시/결제 내역 관리 (coin_history 완벽 연동됨) */}
+                                    {/* 탭 3: 캐시/결제 내역 관리 */}
                                     {modalTab === 'cash' && (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                             
@@ -582,7 +577,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                         <tbody>
                                                             {isLoadingTx ? (
                                                                 <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>장부 내역을 불러오는 중입니다...</td></tr>
-                                                            ) : userTxList.length === 0 ? (
+                                                            ) : (!userTxList || userTxList.length === 0) ? (
                                                                 <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>조회된 결제/변동 내역이 없습니다.</td></tr>
                                                             ) : (
                                                                 userTxList.map(tx => {
