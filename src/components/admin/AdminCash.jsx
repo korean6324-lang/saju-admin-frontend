@@ -1,5 +1,5 @@
 // src/components/admin/AdminCash.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query'; 
 import { Search, CheckCircle2, ArrowRightLeft, Bell, CreditCard, Download, Settings, FileText, Wallet, Save, X, ScrollText } from 'lucide-react'; 
@@ -15,7 +15,7 @@ export default function AdminCash() {
     const [txFilter, setTxFilter] = useState('all'); 
 
     // ==========================================================
-    // 🚀 [추가] 유저 상세 모달 상태 관리
+    // 🚀 유저 상세 모달 상태 관리
     // ==========================================================
     const [selectedUser, setSelectedUser] = useState(null);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -31,7 +31,7 @@ export default function AdminCash() {
     const [userTxList, setUserTxList] = useState([]);
     const [isLoadingUserTx, setIsLoadingUserTx] = useState(false);
 
-    // 🚨 유저 장부 모달 열기 함수 (기존 cash_transactions 장부로 롤백 및 연동)
+    // 🚨 유저 장부 모달 열기 함수 (기존 cash_transactions 장부로 완벽 롤백)
     const openUserModal = async (userId) => {
         setIsUserModalOpen(true);
         setModalTab('cash'); // 정산 페이지이므로 캐시 탭을 기본으로 엽니다.
@@ -121,7 +121,7 @@ export default function AdminCash() {
             
             if (error) {
                 console.error("🚨 승인 대기열 불러오기 에러:", error);
-                return []; // 에러 시 빈 배열 반환하여 map 에러 방지
+                return []; 
             }
             return data || [];
         }
@@ -174,7 +174,7 @@ export default function AdminCash() {
             
             if (error) {
                 console.error("🚨 출금 대기열 불러오기 에러:", error);
-                return []; // 에러 시 빈 배열 반환
+                return []; 
             }
             return data || [];
         }
@@ -223,7 +223,7 @@ export default function AdminCash() {
     };
 
     // ==========================================================
-    // 🚨 3. 전체 캐시 트랜잭션 내역 조회 (원래 테이블 cash_transactions 롤백)
+    // 🚨 3. 전체 캐시 트랜잭션 내역 조회 (원래 테이블 cash_transactions 로 복구)
     // ==========================================================
     const { data: transactionsData, isLoading: isLoadingTx } = useQuery({
         queryKey: ['cashTransactions', txPage, txPageSize, txFilter],
@@ -233,15 +233,14 @@ export default function AdminCash() {
 
             let query = supabase.from('cash_transactions').select('*, profiles:user_id(email, name)', { count: 'exact' });
             
-            // 🚀 결제 종류별 필터 적용 
             if (txFilter === 'point') {
                 query = query.in('transaction_type', ['charge', 'point', 'admin_grant', 'admin_deduct']);
             } else if (txFilter === 'subscription') {
                 query = query.or('transaction_type.eq.subscription,description.ilike.%구독%');
             } else if (txFilter === 'item') {
-                query = query.in('transaction_type', ['pay', 'item_purchase', 'buy']); // P2P 구매 반영
+                query = query.in('transaction_type', ['pay', 'item_purchase', 'buy']); 
             } else if (txFilter === 'settlement') {
-                query = query.in('transaction_type', ['settlement', 'withdraw', 'sell']); // P2P 판매 수익 반영
+                query = query.in('transaction_type', ['settlement', 'withdraw', 'sell']); 
             }
 
             const { data, count, error } = await query.order('created_at', { ascending: false }).range(from, to);
@@ -421,7 +420,7 @@ export default function AdminCash() {
                 </thead>
                 <tbody>
                     {isLoadingTx ? (
-                        <tr><td colSpan="5" style={{ padding: '60px', textAlign: 'center', color: '#999', fontSize:'13px' }}>결제 및 정산 데이터를 불러오는 중...</td></tr>
+                        <tr><td colSpan="5" style={{ padding: '60px', textAlign: 'center', color: '#999', fontSize:'13px' }}>결제 및 정산 데이터를 불러오는 중입니다...</td></tr>
                     ) : (!txList || txList.length === 0) ? (
                         <tr><td colSpan="5" style={{ padding: '60px', textAlign: 'center', color: '#999', fontSize:'13px' }}>해당 조건의 결제/캐시 변동 내역이 없습니다.</td></tr>
                     ) : (
@@ -434,7 +433,7 @@ export default function AdminCash() {
                                 </td>
                                 
                                 <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px'}}>
-                                    {/* 🚨 [적용] 이메일 클릭 시 모달 오픈 */}
+                                    {/* 🚨 [적용] 유저 이메일 클릭 시 모달 오픈 */}
                                     <div onClick={() => openUserModal(tx.user_id)} style={{ fontWeight: 'bold', color: '#0ea5e9', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                         {tx.profiles?.email || '알수없음'} <ScrollText size={12} color="#D97706" />
                                     </div>
@@ -454,7 +453,6 @@ export default function AdminCash() {
                 </tbody>
             </table>
 
-            {/* 페이징 UI */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
                 <div style={{ fontSize: '12px', color: '#6B7280' }}>
                     총 조회된 내역: <span style={{ fontWeight: 'bold', color: '#111827' }}>{transactionsData?.totalCount?.toLocaleString() || 0}</span> 건
