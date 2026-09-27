@@ -251,6 +251,48 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         } catch (error) { alert("처리 실패"); }
     };
 
+    // 🚨 [추가됨] 등급 변경 핸들러 함수
+    const [isUpdatingTier, setIsUpdatingTier] = useState(false);
+    
+    const handleChangeUserTier = async (newTier) => {
+        if (!selectedUser) return;
+        if (!window.confirm('이 회원의 등급을 변경하시겠습니까?')) return;
+        
+        setIsUpdatingTier(true);
+        try {
+            // 이전에 작성한 백엔드 API 호출 경로 (Next.js App Router 기준)
+            const response = await fetch(`/api/admin/users/${selectedUser.id}/role`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tier: newTier }), 
+            });
+
+            if (!response.ok) throw new Error('등급 변경 실패');
+            
+            // 프론트엔드 모달 UI 즉시 반영
+            let updatedRole = selectedUser.role;
+            let updatedTier = selectedUser.membership_tier;
+            
+            if (newTier === 'partner') {
+                updatedRole = 'partner';
+            } else {
+                updatedRole = 'user';
+                updatedTier = newTier;
+            }
+            
+            setSelectedUser(prev => ({ ...prev, role: updatedRole, membership_tier: updatedTier }));
+            
+            // 리스트 데이터 새로고침
+            queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
+            alert('✅ 회원 등급이 성공적으로 변경되었습니다.');
+            
+        } catch (error) {
+            alert('❌ 등급 변경 중 오류가 발생했습니다.');
+        } finally {
+            setIsUpdatingTier(false);
+        }
+    };
+
     const handleSaveMemo = async () => {
         if (!selectedUser) return;
         setIsSavingMemo(true);
@@ -546,6 +588,25 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                 {/* 🚨 마지막 로그인 정보 및 접속 IP 추가 */}
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>마지막 로그인</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.last_sign_in_at || selectedUser.last_login_at ? new Date(selectedUser.last_sign_in_at || selectedUser.last_login_at).toLocaleString() : '기록 없음'}</td></tr>
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>접속 IP</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.last_sign_in_ip || selectedUser.last_login_ip || '기록 없음'}</td></tr>
+
+                                                {/* 🚨 새로 추가된 회원 등급 변경 UI */}
+                                                <tr>
+                                                    <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>회원 등급 변경</td>
+                                                    <td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
+                                                        <select 
+                                                            disabled={isUpdatingTier}
+                                                            value={selectedUser.role === 'partner' ? 'partner' : (selectedUser.membership_tier || 'free')}
+                                                            onChange={(e) => handleChangeUserTier(e.target.value)}
+                                                            style={{ padding: '6px 12px', border: '1px solid #CCC', borderRadius: '4px', fontSize: '13px', outline: 'none', cursor: 'pointer', backgroundColor: '#FFF' }}
+                                                        >
+                                                            <option value="free">🌱 무료회원</option>
+                                                            <option value="basic">🛡️ 일반 구독회원</option>
+                                                            <option value="premium">👑 VIP 프리미엄 구독</option>
+                                                            <option value="partner">🤝 스토어 파트너</option>
+                                                        </select>
+                                                        {isUpdatingTier && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#0ea5e9' }}>변경 중...</span>}
+                                                    </td>
+                                                </tr>
 
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>현재 보유 캐시</td><td style={{ padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold', color: '#059669' }}>{selectedUser.cash_balance?.toLocaleString() || 0} C</td></tr>
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>계정 상태 제어</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
