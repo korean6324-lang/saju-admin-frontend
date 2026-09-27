@@ -146,7 +146,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
     const [userTxList, setUserTxList] = useState([]);
     const [isLoadingTx, setIsLoadingTx] = useState(false);
 
-    // 🚨 기존 원본 장부인 cash_transactions 로 완벽 복구
     const fetchUserTransactions = async (userId) => {
         setIsLoadingTx(true);
         try {
@@ -165,7 +164,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         }
     };
 
-    // 모달 탭이 'cash'일 때만 트랜잭션 불러오기
     useEffect(() => {
         if (selectedUser && modalTab === 'cash') {
             fetchUserTransactions(selectedUser.id);
@@ -235,7 +233,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         } catch (error) { alert(`❌ 권한 처리 실패`); }
     };
 
-    // 🚨 차단 제어 연동: DB 변경 + 모달 UI 즉시 업데이트 처리
     const handleToggleBlock = async (e, userId, isBlocked) => {
         e.stopPropagation(); 
         if (!window.confirm(`회원을 ${isBlocked ? "차단 해제" : "차단"}하시겠습니까?`)) return;
@@ -243,7 +240,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
             await supabase.from('profiles').update({ is_blocked: !isBlocked }).eq('id', userId);
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
             
-            // 🚨 모달이 열려있을 때 즉시 상태 변경 (모달 껐다 켤 필요 없음)
             if (selectedUser && selectedUser.id === userId) {
                 setSelectedUser(prev => ({ ...prev, is_blocked: !isBlocked }));
             }
@@ -251,7 +247,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         } catch (error) { alert("처리 실패"); }
     };
 
-    // 🚨 [추가됨] 등급 변경 핸들러 함수
+    // 🚨 [수정됨] Supabase를 직접 호출하도록 수정된 등급 변경 로직
     const [isUpdatingTier, setIsUpdatingTier] = useState(false);
     
     const handleChangeUserTier = async (newTier) => {
@@ -260,33 +256,39 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         
         setIsUpdatingTier(true);
         try {
-            // 이전에 작성한 백엔드 API 호출 경로 (Next.js App Router 기준)
-            const response = await fetch(`/api/admin/users/${selectedUser.id}/role`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tier: newTier }), 
-            });
+            let updatedRole = newTier === 'partner' ? 'partner' : 'user';
+            
+            // 1. 프로필 테이블 등급 업데이트
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({ 
+                    role: updatedRole, 
+                    membership_tier: newTier === 'partner' ? selectedUser.membership_tier : newTier
+                })
+                .eq('id', selectedUser.id);
 
-            if (!response.ok) throw new Error('등급 변경 실패');
-            
-            // 프론트엔드 모달 UI 즉시 반영
-            let updatedRole = selectedUser.role;
-            let updatedTier = selectedUser.membership_tier;
-            
-            if (newTier === 'partner') {
-                updatedRole = 'partner';
+            if (profileError) throw profileError;
+
+            // 2. 파트너 선택/해제 시 상점(Shop) 상태 동기화 처리
+            if (updatedRole === 'partner') {
+                const { data: existingShop } = await supabase.from('partner_shops').select('partner_id').eq('partner_id', selectedUser.id).maybeSingle();
+                if (!existingShop) {
+                    await supabase.from('partner_shops').insert([{ partner_id: selectedUser.id, shop_name: '신규 상점', is_active: true }]);
+                } else {
+                    await supabase.from('partner_shops').update({ is_active: true }).eq('partner_id', selectedUser.id);
+                }
             } else {
-                updatedRole = 'user';
-                updatedTier = newTier;
+                await supabase.from('partner_shops').update({ is_active: false }).eq('partner_id', selectedUser.id);
             }
             
-            setSelectedUser(prev => ({ ...prev, role: updatedRole, membership_tier: updatedTier }));
-            
-            // 리스트 데이터 새로고침
+            // 3. UI 갱신
+            setSelectedUser(prev => ({ ...prev, role: updatedRole, membership_tier: newTier === 'partner' ? prev.membership_tier : newTier }));
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
+            queryClient.invalidateQueries({ queryKey: ['approvedPartners'] }); 
             alert('✅ 회원 등급이 성공적으로 변경되었습니다.');
             
         } catch (error) {
+            console.error("등급 변경 오류:", error);
             alert('❌ 등급 변경 중 오류가 발생했습니다.');
         } finally {
             setIsUpdatingTier(false);
@@ -585,11 +587,10 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', width: '120px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>이메일(ID)</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.email}</td></tr>
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>가입일시</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{new Date(selectedUser.created_at).toLocaleString()}</td></tr>
                                                 
-                                                {/* 🚨 마지막 로그인 정보 및 접속 IP 추가 */}
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>마지막 로그인</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.last_sign_in_at || selectedUser.last_login_at ? new Date(selectedUser.last_sign_in_at || selectedUser.last_login_at).toLocaleString() : '기록 없음'}</td></tr>
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>접속 IP</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.last_sign_in_ip || selectedUser.last_login_ip || '기록 없음'}</td></tr>
 
-                                                {/* 🚨 새로 추가된 회원 등급 변경 UI */}
+                                                {/* 🚨 수정된 회원 등급 변경 UI */}
                                                 <tr>
                                                     <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>회원 등급 변경</td>
                                                     <td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
@@ -610,7 +611,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
 
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>현재 보유 캐시</td><td style={{ padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold', color: '#059669' }}>{selectedUser.cash_balance?.toLocaleString() || 0} C</td></tr>
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>계정 상태 제어</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
-                                                    {/* 🚨 모달 내부 버튼 클릭 시 즉각 동기화 연동 */}
                                                     <button onClick={(e) => handleToggleBlock(e, selectedUser.id, selectedUser.is_blocked)} style={{...(selectedUser.is_blocked ? styles.actionBtnRed : styles.actionBtnBlue), padding: '6px 12px'}}>{selectedUser.is_blocked ? '현재 차단됨 (클릭하여 해제)' : '정상 작동중 (클릭하여 차단)'}</button>
                                                 </td></tr>
                                             </tbody>
