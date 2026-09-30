@@ -75,7 +75,8 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('id, email, name, cash_balance, created_at, partner_shops(shop_name, custom_domain, is_active)')
+                // 🚨 캐시를 제거하고 타로권, 종합권 컬럼을 불러옵니다.
+                .select('id, email, name, tarot_ticket_count, general_ticket_count, created_at, partner_shops(shop_name, custom_domain, is_active)')
                 .eq('role', 'partner')
                 .order('created_at', { ascending: false });
             if (error) throw error;
@@ -409,16 +410,18 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                 <th style={{...styles.tableHeader, width: '50px', cursor: 'default'}}>No</th>
                                 <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px', cursor: 'default'}}>파트너 계정 (이메일/이름)</th>
                                 <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px', cursor: 'default'}}>상점명 / 도메인</th>
-                                <th style={{...styles.tableHeader, textAlign: 'right', paddingRight: '16px', cursor: 'default'}}>보유 캐시</th>
+                                {/* 🚨 캐시 컬럼 제거 후 타로/종합 컬럼 추가 */}
+                                <th style={{...styles.tableHeader, textAlign: 'right', paddingRight: '16px', cursor: 'default'}}>타로 열람권</th>
+                                <th style={{...styles.tableHeader, textAlign: 'right', paddingRight: '16px', cursor: 'default'}}>종합 열람권</th>
                                 <th style={{...styles.tableHeader, width: '120px', cursor: 'default'}}>상점 상태</th>
                                 <th style={{...styles.tableHeader, width: '180px', cursor: 'default'}}>권한 제어</th>
                             </tr>
                         </thead>
                         <tbody>
                             {isLoadingPartners ? (
-                                <tr><td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>로딩 중...</td></tr>
+                                <tr><td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>로딩 중...</td></tr>
                             ) : (!approvedPartners || approvedPartners.length === 0) ? (
-                                <tr><td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>등록된 파트너가 없습니다.</td></tr>
+                                <tr><td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>등록된 파트너가 없습니다.</td></tr>
                             ) : (
                                 approvedPartners.map((p, idx) => {
                                     const shop = p.partner_shops && p.partner_shops.length > 0 ? p.partner_shops[0] : null;
@@ -432,7 +435,8 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                 <div style={{ fontWeight: '900', color: '#0ea5e9' }}>{shop?.shop_name || '미설정 상점'}</div>
                                                 {shop?.custom_domain && <div style={{ fontSize: '11px', color: '#666', display: 'flex', alignItems: 'center', gap: '4px' }}><ExternalLink size={10}/> bokhouse.com/p/{shop.custom_domain}</div>}
                                             </td>
-                                            <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#059669'}}>{p.cash_balance?.toLocaleString() || 0} C</td>
+                                            <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#C5A059'}}>{p.tarot_ticket_count || 0} 장</td>
+                                            <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#0ea5e9'}}>{p.general_ticket_count || 0} 장</td>
                                             <td style={styles.tableCell}>
                                                 {shop?.is_active ? <span style={{color: '#059669', fontWeight: 'bold', backgroundColor: '#ECFDF5', padding: '4px 8px', borderRadius: '4px'}}>운영중</span> : <span style={{color: '#ef4444', fontWeight: 'bold', backgroundColor: '#FEF2F2', padding: '4px 8px', borderRadius: '4px'}}>비활성/정지</span>}
                                             </td>
@@ -502,16 +506,18 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                 <th style={{...styles.tableHeader, width: '120px'}} onClick={() => handleSort('name')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>이름 {getSortIcon('name')}</th>
                                 <th style={{...styles.tableHeader, width: '100px'}} onClick={() => handleSort('role')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>등급 {getSortIcon('role')}</th>
                                 <th style={{...styles.tableHeader, width: '80px'}} onClick={() => handleSort('is_blocked')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>상태 {getSortIcon('is_blocked')}</th>
-                                <th style={{...styles.tableHeader, width: '120px', textAlign: 'right', paddingRight: '16px'}} onClick={() => handleSort('cash_balance')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>보유 캐시 {getSortIcon('cash_balance')}</th>
+                                {/* 🚨 캐시 컬럼 제거 후 타로/종합 컬럼 추가 */}
+                                <th style={{...styles.tableHeader, width: '100px', textAlign: 'right', paddingRight: '16px'}} onClick={() => handleSort('tarot_ticket_count')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>타로권 {getSortIcon('tarot_ticket_count')}</th>
+                                <th style={{...styles.tableHeader, width: '100px', textAlign: 'right', paddingRight: '16px'}} onClick={() => handleSort('general_ticket_count')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>종합권 {getSortIcon('general_ticket_count')}</th>
                                 <th style={{...styles.tableHeader, width: '120px'}} onClick={() => handleSort('created_at')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>가입일 {getSortIcon('created_at')}</th>
                                 <th style={{...styles.tableHeader, width: '140px', cursor: 'default'}}>권한 관리</th>
                             </tr>
                         </thead>
                         <tbody>
                             {isLoadingUsers ? (
-                                <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>데이터 로딩 중...</td></tr>
+                                <tr><td colSpan="9" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>데이터 로딩 중...</td></tr>
                             ) : (!usersList || usersList.length === 0) ? (
-                                <tr><td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>조건에 일치하는 회원이 없습니다.</td></tr>
+                                <tr><td colSpan="9" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>조건에 일치하는 회원이 없습니다.</td></tr>
                             ) : (
                                 [...usersList].sort((a, b) => {
                                     let aVal = a[sortConfig.key] || ''; let bVal = b[sortConfig.key] || '';
@@ -527,7 +533,9 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                         <td style={styles.tableCell}>{u.name || '-'}</td>
                                         <td style={styles.tableCell}>{getTierBadge(u.role, u.membership_tier)}</td>
                                         <td style={{...styles.tableCell, color: u.is_blocked ? '#ef4444' : '#333'}}>{u.is_blocked ? '차단' : '정상'}</td>
-                                        <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold'}}>{u.cash_balance?.toLocaleString() || 0}</td>
+                                        {/* 🚨 리스트에 타로권, 종합권 표시 */}
+                                        <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#C5A059'}}>{u.tarot_ticket_count || 0}</td>
+                                        <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#0ea5e9'}}>{u.general_ticket_count || 0}</td>
                                         <td style={styles.tableCell}>{new Date(u.created_at).toLocaleDateString()}</td>
                                         <td style={{...styles.tableCell, display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center'}}>
                                             <button 
@@ -593,6 +601,8 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                         {isUpdatingTier && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#0ea5e9' }}>변경 중...</span>}
                                                     </td>
                                                 </tr>
+                                                
+                                                {/* 🚨 [잔재 정리] 모달창에 남아있던 "보유 캐시" 줄 완전히 삭제 완료! */}
                                                 
                                                 {/* 🚨 타로 열람권 섹션 */}
                                                 <tr>
