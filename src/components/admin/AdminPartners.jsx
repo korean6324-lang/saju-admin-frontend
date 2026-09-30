@@ -138,6 +138,44 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
     const [memoText, setMemoText] = useState('');
     const [isSavingMemo, setIsSavingMemo] = useState(false);
 
+    // 🚀 타로 열람권 제어용 상태 관리 (새로 추가됨)
+    const [isUpdatingTicket, setIsUpdatingTicket] = useState(false);
+
+    const handleUpdateTicket = async (changeAmount) => {
+        if (!selectedUser) return;
+        const currentTickets = selectedUser.tarot_ticket_count || 0;
+        
+        if (changeAmount < 0 && currentTickets < Math.abs(changeAmount)) {
+            alert("보유한 열람권보다 더 많이 차감할 수 없습니다.");
+            return;
+        }
+
+        const actionText = changeAmount > 0 ? `${changeAmount}장 지급` : `${Math.abs(changeAmount)}장 차감`;
+        if (!window.confirm(`해당 회원에게 타로 열람권을 ${actionText} 하시겠습니까?`)) return;
+
+        setIsUpdatingTicket(true);
+        try {
+            const newTicketCount = currentTickets + changeAmount;
+            const { error } = await supabase
+                .from('profiles')
+                .update({ tarot_ticket_count: newTicketCount })
+                .eq('id', selectedUser.id);
+
+            if (error) throw error;
+
+            alert(`✅ 정상적으로 처리되었습니다. (현재 잔여: ${newTicketCount}장)`);
+            
+            // 화면 동기화
+            setSelectedUser(prev => ({ ...prev, tarot_ticket_count: newTicketCount }));
+            queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
+        } catch (error) {
+            console.error("열람권 업데이트 실패:", error);
+            alert("열람권 수정 중 오류가 발생했습니다.");
+        } finally {
+            setIsUpdatingTicket(false);
+        }
+    };
+
     // 🚀 개인 캐시/결제 관리용 상태
     const [cashAmount, setCashAmount] = useState('');
     const [cashType, setCashType] = useState('grant'); 
@@ -247,7 +285,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         } catch (error) { alert("처리 실패"); }
     };
 
-    // 🚨 [수정됨] Supabase를 직접 호출하도록 수정된 등급 변경 로직
+    // 🚨 Supabase를 직접 호출하도록 수정된 등급 변경 로직
     const [isUpdatingTier, setIsUpdatingTier] = useState(false);
     
     const handleChangeUserTier = async (newTier) => {
@@ -539,7 +577,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                         <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold'}}>{u.cash_balance?.toLocaleString() || 0}</td>
                                         <td style={styles.tableCell}>{new Date(u.created_at).toLocaleDateString()}</td>
                                         <td style={{...styles.tableCell, display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center'}}>
-                                            {/* 🚨 [상세] 버튼 및 파트너/회원 토글 버튼 통일 */}
                                             <button 
                                                 onClick={() => { setSelectedUser(u); setModalTab('info'); }} 
                                                 style={{...styles.actionBtn, padding: '4px 0', width: '50px', textAlign: 'center', boxSizing: 'border-box'}}
@@ -590,7 +627,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>마지막 로그인</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.last_sign_in_at || selectedUser.last_login_at ? new Date(selectedUser.last_sign_in_at || selectedUser.last_login_at).toLocaleString() : '기록 없음'}</td></tr>
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>접속 IP</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.last_sign_in_ip || selectedUser.last_login_ip || '기록 없음'}</td></tr>
 
-                                                {/* 🚨 수정된 회원 등급 변경 UI */}
                                                 <tr>
                                                     <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>회원 등급 변경</td>
                                                     <td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
@@ -610,6 +646,24 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                 </tr>
 
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>현재 보유 캐시</td><td style={{ padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold', color: '#059669' }}>{selectedUser.cash_balance?.toLocaleString() || 0} C</td></tr>
+                                                
+                                                {/* 🚨 새로 추가된 '타로 열람권' 관리 섹션 */}
+                                                <tr>
+                                                    <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>타로 열람권</td>
+                                                    <td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                                            <span style={{ fontSize: '15px', fontWeight: '800', color: '#C5A059' }}>
+                                                                {selectedUser.tarot_ticket_count || 0} 장
+                                                            </span>
+                                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                                <button type="button" disabled={isUpdatingTicket} onClick={() => handleUpdateTicket(1)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+1 지급</button>
+                                                                <button type="button" disabled={isUpdatingTicket} onClick={() => handleUpdateTicket(5)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+5 지급</button>
+                                                                <button type="button" disabled={isUpdatingTicket || (selectedUser.tarot_ticket_count || 0) <= 0} onClick={() => handleUpdateTicket(-1)} style={{ background: '#EF4444', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>-1 차감</button>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>계정 상태 제어</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
                                                     <button onClick={(e) => handleToggleBlock(e, selectedUser.id, selectedUser.is_blocked)} style={{...(selectedUser.is_blocked ? styles.actionBtnRed : styles.actionBtnBlue), padding: '6px 12px'}}>{selectedUser.is_blocked ? '현재 차단됨 (클릭하여 해제)' : '정상 작동중 (클릭하여 차단)'}</button>
                                                 </td></tr>
