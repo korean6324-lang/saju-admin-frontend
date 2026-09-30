@@ -136,9 +136,9 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
     const [memoText, setMemoText] = useState('');
     const [isSavingMemo, setIsSavingMemo] = useState(false);
 
-    // 🚀 [기존] 타로 열람권 제어 로직
-    const [isUpdatingTicket, setIsUpdatingTicket] = useState(false);
-    const handleUpdateTicket = async (changeAmount) => {
+    // 🚀 [기존] 타로 전용 열람권 제어 로직 (독립 유지)
+    const [isUpdatingTarotTicket, setIsUpdatingTarotTicket] = useState(false);
+    const handleUpdateTarotTicket = async (changeAmount) => {
         if (!selectedUser) return;
         const currentTickets = selectedUser.tarot_ticket_count || 0;
         
@@ -150,7 +150,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         const actionText = changeAmount > 0 ? `${changeAmount}장 지급` : `${Math.abs(changeAmount)}장 차감`;
         if (!window.confirm(`해당 회원에게 타로 열람권을 ${actionText} 하시겠습니까?`)) return;
 
-        setIsUpdatingTicket(true);
+        setIsUpdatingTarotTicket(true);
         try {
             const newTicketCount = currentTickets + changeAmount;
             const { error } = await supabase
@@ -160,49 +160,47 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
 
             if (error) throw error;
 
-            alert(`✅ 정상적으로 처리되었습니다. (현재 잔여: ${newTicketCount}장)`);
+            alert(`✅ 정상적으로 처리되었습니다. (현재 타로 잔여: ${newTicketCount}장)`);
             setSelectedUser(prev => ({ ...prev, tarot_ticket_count: newTicketCount }));
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
         } catch (error) {
-            console.error("열람권 업데이트 실패:", error);
             alert("열람권 수정 중 오류가 발생했습니다.");
         } finally {
-            setIsUpdatingTicket(false);
+            setIsUpdatingTarotTicket(false);
         }
     };
 
-    // 🚀 [신규 추가] 사주 열람권 제어 로직
-    const [isUpdatingSajuTicket, setIsUpdatingSajuTicket] = useState(false);
-    const handleUpdateSajuTicket = async (changeAmount) => {
+    // 🚀 [수정됨] 사주/궁합/택일/작명 통합 종합 열람권 제어 로직 (general_ticket_count 사용)
+    const [isUpdatingGeneralTicket, setIsUpdatingGeneralTicket] = useState(false);
+    const handleUpdateGeneralTicket = async (changeAmount) => {
         if (!selectedUser) return;
-        const currentSajuTickets = selectedUser.saju_ticket_count || 0;
+        const currentGeneralTickets = selectedUser.general_ticket_count || 0;
         
-        if (changeAmount < 0 && currentSajuTickets < Math.abs(changeAmount)) {
-            alert("보유한 사주 열람권보다 더 많이 차감할 수 없습니다.");
+        if (changeAmount < 0 && currentGeneralTickets < Math.abs(changeAmount)) {
+            alert("보유한 종합 열람권보다 더 많이 차감할 수 없습니다.");
             return;
         }
 
         const actionText = changeAmount > 0 ? `${changeAmount}장 지급` : `${Math.abs(changeAmount)}장 차감`;
-        if (!window.confirm(`해당 회원에게 사주 열람권을 ${actionText} 하시겠습니까?`)) return;
+        if (!window.confirm(`해당 회원에게 종합 열람권(사주/궁합/택일/작명)을 ${actionText} 하시겠습니까?`)) return;
 
-        setIsUpdatingSajuTicket(true);
+        setIsUpdatingGeneralTicket(true);
         try {
-            const newTicketCount = currentSajuTickets + changeAmount;
+            const newTicketCount = currentGeneralTickets + changeAmount;
             const { error } = await supabase
                 .from('profiles')
-                .update({ saju_ticket_count: newTicketCount }) // DB 컬럼명: saju_ticket_count
+                .update({ general_ticket_count: newTicketCount }) // 🚨 general_ticket_count 컬럼 사용
                 .eq('id', selectedUser.id);
 
             if (error) throw error;
 
-            alert(`✅ 정상적으로 처리되었습니다. (현재 잔여: ${newTicketCount}장)`);
-            setSelectedUser(prev => ({ ...prev, saju_ticket_count: newTicketCount }));
+            alert(`✅ 정상적으로 처리되었습니다. (현재 종합 잔여: ${newTicketCount}장)`);
+            setSelectedUser(prev => ({ ...prev, general_ticket_count: newTicketCount }));
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
         } catch (error) {
-            console.error("사주 열람권 업데이트 실패:", error);
             alert("열람권 수정 중 오류가 발생했습니다.");
         } finally {
-            setIsUpdatingSajuTicket(false);
+            setIsUpdatingGeneralTicket(false);
         }
     };
 
@@ -352,7 +350,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
             alert('✅ 회원 등급이 성공적으로 변경되었습니다.');
             
         } catch (error) {
-            console.error("등급 변경 오류:", error);
             alert('❌ 등급 변경 중 오류가 발생했습니다.');
         } finally {
             setIsUpdatingTier(false);
@@ -650,9 +647,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', width: '120px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>이메일(ID)</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.email}</td></tr>
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>가입일시</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{new Date(selectedUser.created_at).toLocaleString()}</td></tr>
                                                 
-                                                <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>마지막 로그인</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.last_sign_in_at || selectedUser.last_login_at ? new Date(selectedUser.last_sign_in_at || selectedUser.last_login_at).toLocaleString() : '기록 없음'}</td></tr>
-                                                <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>접속 IP</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.last_sign_in_ip || selectedUser.last_login_ip || '기록 없음'}</td></tr>
-
                                                 <tr>
                                                     <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>회원 등급 변경</td>
                                                     <td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
@@ -673,7 +667,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
 
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>현재 보유 캐시</td><td style={{ padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold', color: '#059669' }}>{selectedUser.cash_balance?.toLocaleString() || 0} C</td></tr>
                                                 
-                                                {/* 🚨 타로 열람권 관리 섹션 */}
+                                                {/* 🚨 [수정됨] 타로 열람권 섹션 */}
                                                 <tr>
                                                     <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>타로 열람권</td>
                                                     <td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
@@ -682,26 +676,29 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                                 {selectedUser.tarot_ticket_count || 0} 장
                                                             </span>
                                                             <div style={{ display: 'flex', gap: '6px' }}>
-                                                                <button type="button" disabled={isUpdatingTicket} onClick={() => handleUpdateTicket(1)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+1 지급</button>
-                                                                <button type="button" disabled={isUpdatingTicket} onClick={() => handleUpdateTicket(5)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+5 지급</button>
-                                                                <button type="button" disabled={isUpdatingTicket || (selectedUser.tarot_ticket_count || 0) <= 0} onClick={() => handleUpdateTicket(-1)} style={{ background: '#EF4444', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>-1 차감</button>
+                                                                <button type="button" disabled={isUpdatingTarotTicket} onClick={() => handleUpdateTarotTicket(1)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+1 지급</button>
+                                                                <button type="button" disabled={isUpdatingTarotTicket} onClick={() => handleUpdateTarotTicket(5)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+5 지급</button>
+                                                                <button type="button" disabled={isUpdatingTarotTicket || (selectedUser.tarot_ticket_count || 0) <= 0} onClick={() => handleUpdateTarotTicket(-1)} style={{ background: '#EF4444', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>-1 차감</button>
                                                             </div>
                                                         </div>
                                                     </td>
                                                 </tr>
 
-                                                {/* 🚨 [신규 추가] 사주 열람권 관리 섹션 */}
+                                                {/* 🚨 [수정됨] 사주/궁합/택일/작명 통합 종합 열람권 섹션 */}
                                                 <tr>
-                                                    <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>사주 열람권</td>
+                                                    <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>
+                                                        종합 열람권<br/>
+                                                        <span style={{fontSize: '11px', color: '#666', fontWeight: 'normal'}}>(사주/궁합/택일/작명)</span>
+                                                    </td>
                                                     <td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                                             <span style={{ fontSize: '15px', fontWeight: '800', color: '#0ea5e9' }}>
-                                                                {selectedUser.saju_ticket_count || 0} 장
+                                                                {selectedUser.general_ticket_count || 0} 장
                                                             </span>
                                                             <div style={{ display: 'flex', gap: '6px' }}>
-                                                                <button type="button" disabled={isUpdatingSajuTicket} onClick={() => handleUpdateSajuTicket(1)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+1 지급</button>
-                                                                <button type="button" disabled={isUpdatingSajuTicket} onClick={() => handleUpdateSajuTicket(5)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+5 지급</button>
-                                                                <button type="button" disabled={isUpdatingSajuTicket || (selectedUser.saju_ticket_count || 0) <= 0} onClick={() => handleUpdateSajuTicket(-1)} style={{ background: '#EF4444', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>-1 차감</button>
+                                                                <button type="button" disabled={isUpdatingGeneralTicket} onClick={() => handleUpdateGeneralTicket(1)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+1 지급</button>
+                                                                <button type="button" disabled={isUpdatingGeneralTicket} onClick={() => handleUpdateGeneralTicket(5)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+5 지급</button>
+                                                                <button type="button" disabled={isUpdatingGeneralTicket || (selectedUser.general_ticket_count || 0) <= 0} onClick={() => handleUpdateGeneralTicket(-1)} style={{ background: '#EF4444', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>-1 차감</button>
                                                             </div>
                                                         </div>
                                                     </td>
