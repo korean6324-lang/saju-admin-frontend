@@ -101,7 +101,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         return () => clearTimeout(timer);
     }, [searchInput]);
 
-    // 내부에서 4단계 등급을 완벽하게 필터링
     const { data: usersData, isLoading: isLoadingUsers } = useQuery({
         queryKey: ['adminUsersList', page, pageSize, debouncedSearch, quickRole, sortConfig],
         queryFn: async () => {
@@ -132,15 +131,13 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         }
     });
 
-    // 🚀 모달용 상태 관리
     const [selectedUser, setSelectedUser] = useState(null);
     const [modalTab, setModalTab] = useState('info'); 
     const [memoText, setMemoText] = useState('');
     const [isSavingMemo, setIsSavingMemo] = useState(false);
 
-    // 🚀 타로 열람권 제어용 상태 관리 (새로 추가됨)
+    // 🚀 [기존] 타로 열람권 제어 로직
     const [isUpdatingTicket, setIsUpdatingTicket] = useState(false);
-
     const handleUpdateTicket = async (changeAmount) => {
         if (!selectedUser) return;
         const currentTickets = selectedUser.tarot_ticket_count || 0;
@@ -164,8 +161,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
             if (error) throw error;
 
             alert(`✅ 정상적으로 처리되었습니다. (현재 잔여: ${newTicketCount}장)`);
-            
-            // 화면 동기화
             setSelectedUser(prev => ({ ...prev, tarot_ticket_count: newTicketCount }));
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
         } catch (error) {
@@ -173,6 +168,41 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
             alert("열람권 수정 중 오류가 발생했습니다.");
         } finally {
             setIsUpdatingTicket(false);
+        }
+    };
+
+    // 🚀 [신규 추가] 사주 열람권 제어 로직
+    const [isUpdatingSajuTicket, setIsUpdatingSajuTicket] = useState(false);
+    const handleUpdateSajuTicket = async (changeAmount) => {
+        if (!selectedUser) return;
+        const currentSajuTickets = selectedUser.saju_ticket_count || 0;
+        
+        if (changeAmount < 0 && currentSajuTickets < Math.abs(changeAmount)) {
+            alert("보유한 사주 열람권보다 더 많이 차감할 수 없습니다.");
+            return;
+        }
+
+        const actionText = changeAmount > 0 ? `${changeAmount}장 지급` : `${Math.abs(changeAmount)}장 차감`;
+        if (!window.confirm(`해당 회원에게 사주 열람권을 ${actionText} 하시겠습니까?`)) return;
+
+        setIsUpdatingSajuTicket(true);
+        try {
+            const newTicketCount = currentSajuTickets + changeAmount;
+            const { error } = await supabase
+                .from('profiles')
+                .update({ saju_ticket_count: newTicketCount }) // DB 컬럼명: saju_ticket_count
+                .eq('id', selectedUser.id);
+
+            if (error) throw error;
+
+            alert(`✅ 정상적으로 처리되었습니다. (현재 잔여: ${newTicketCount}장)`);
+            setSelectedUser(prev => ({ ...prev, saju_ticket_count: newTicketCount }));
+            queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
+        } catch (error) {
+            console.error("사주 열람권 업데이트 실패:", error);
+            alert("열람권 수정 중 오류가 발생했습니다.");
+        } finally {
+            setIsUpdatingSajuTicket(false);
         }
     };
 
@@ -285,7 +315,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         } catch (error) { alert("처리 실패"); }
     };
 
-    // 🚨 Supabase를 직접 호출하도록 수정된 등급 변경 로직
     const [isUpdatingTier, setIsUpdatingTier] = useState(false);
     
     const handleChangeUserTier = async (newTier) => {
@@ -296,7 +325,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         try {
             let updatedRole = newTier === 'partner' ? 'partner' : 'user';
             
-            // 1. 프로필 테이블 등급 업데이트
             const { error: profileError } = await supabase
                 .from('profiles')
                 .update({ 
@@ -307,7 +335,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
 
             if (profileError) throw profileError;
 
-            // 2. 파트너 선택/해제 시 상점(Shop) 상태 동기화 처리
             if (updatedRole === 'partner') {
                 const { data: existingShop } = await supabase.from('partner_shops').select('partner_id').eq('partner_id', selectedUser.id).maybeSingle();
                 if (!existingShop) {
@@ -319,7 +346,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                 await supabase.from('partner_shops').update({ is_active: false }).eq('partner_id', selectedUser.id);
             }
             
-            // 3. UI 갱신
             setSelectedUser(prev => ({ ...prev, role: updatedRole, membership_tier: newTier === 'partner' ? prev.membership_tier : newTier }));
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
             queryClient.invalidateQueries({ queryKey: ['approvedPartners'] }); 
@@ -647,7 +673,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
 
                                                 <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>현재 보유 캐시</td><td style={{ padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold', color: '#059669' }}>{selectedUser.cash_balance?.toLocaleString() || 0} C</td></tr>
                                                 
-                                                {/* 🚨 새로 추가된 '타로 열람권' 관리 섹션 */}
+                                                {/* 🚨 타로 열람권 관리 섹션 */}
                                                 <tr>
                                                     <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>타로 열람권</td>
                                                     <td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
@@ -659,6 +685,23 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                                 <button type="button" disabled={isUpdatingTicket} onClick={() => handleUpdateTicket(1)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+1 지급</button>
                                                                 <button type="button" disabled={isUpdatingTicket} onClick={() => handleUpdateTicket(5)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+5 지급</button>
                                                                 <button type="button" disabled={isUpdatingTicket || (selectedUser.tarot_ticket_count || 0) <= 0} onClick={() => handleUpdateTicket(-1)} style={{ background: '#EF4444', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>-1 차감</button>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+
+                                                {/* 🚨 [신규 추가] 사주 열람권 관리 섹션 */}
+                                                <tr>
+                                                    <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>사주 열람권</td>
+                                                    <td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                                            <span style={{ fontSize: '15px', fontWeight: '800', color: '#0ea5e9' }}>
+                                                                {selectedUser.saju_ticket_count || 0} 장
+                                                            </span>
+                                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                                <button type="button" disabled={isUpdatingSajuTicket} onClick={() => handleUpdateSajuTicket(1)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+1 지급</button>
+                                                                <button type="button" disabled={isUpdatingSajuTicket} onClick={() => handleUpdateSajuTicket(5)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+5 지급</button>
+                                                                <button type="button" disabled={isUpdatingSajuTicket || (selectedUser.saju_ticket_count || 0) <= 0} onClick={() => handleUpdateSajuTicket(-1)} style={{ background: '#EF4444', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>-1 차감</button>
                                                             </div>
                                                         </div>
                                                     </td>
