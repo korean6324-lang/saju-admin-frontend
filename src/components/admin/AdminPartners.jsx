@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Settings, FileText, Activity, Store, CheckCircle, XCircle, Clock, Users, Crown, ExternalLink, Filter, Wallet, Save, Shield, User } from 'lucide-react';
+import { Search, Settings, FileText, Store, CheckCircle, XCircle, Clock, Users, Crown, ExternalLink, Filter, Shield, User } from 'lucide-react';
 import { useAdminUsers } from './hooks/useAdminUsers';
 
 export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
@@ -136,7 +136,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
     const [memoText, setMemoText] = useState('');
     const [isSavingMemo, setIsSavingMemo] = useState(false);
 
-    // 🚀 [기존] 타로 전용 열람권 제어 로직 (독립 유지)
+    // 🚀 타로 전용 열람권 제어 로직
     const [isUpdatingTarotTicket, setIsUpdatingTarotTicket] = useState(false);
     const handleUpdateTarotTicket = async (changeAmount) => {
         if (!selectedUser) return;
@@ -170,7 +170,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         }
     };
 
-    // 🚀 [수정됨] 사주/궁합/택일/작명 통합 종합 열람권 제어 로직 (general_ticket_count 사용)
+    // 🚀 사주/궁합/택일/작명 통합 종합 열람권 제어 로직 (general_ticket_count 사용)
     const [isUpdatingGeneralTicket, setIsUpdatingGeneralTicket] = useState(false);
     const handleUpdateGeneralTicket = async (changeAmount) => {
         if (!selectedUser) return;
@@ -189,7 +189,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
             const newTicketCount = currentGeneralTickets + changeAmount;
             const { error } = await supabase
                 .from('profiles')
-                .update({ general_ticket_count: newTicketCount }) // 🚨 general_ticket_count 컬럼 사용
+                .update({ general_ticket_count: newTicketCount })
                 .eq('id', selectedUser.id);
 
             if (error) throw error;
@@ -201,76 +201,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
             alert("열람권 수정 중 오류가 발생했습니다.");
         } finally {
             setIsUpdatingGeneralTicket(false);
-        }
-    };
-
-    // 🚀 개인 캐시/결제 관리용 상태
-    const [cashAmount, setCashAmount] = useState('');
-    const [cashType, setCashType] = useState('grant'); 
-    const [cashMemo, setCashMemo] = useState('');
-    const [isSavingCash, setIsSavingCash] = useState(false);
-    const [userTxList, setUserTxList] = useState([]);
-    const [isLoadingTx, setIsLoadingTx] = useState(false);
-
-    const fetchUserTransactions = async (userId) => {
-        setIsLoadingTx(true);
-        try {
-            const { data, error } = await supabase
-                .from('cash_transactions')
-                .select('*')
-                .eq('user_id', userId)
-                .order('created_at', { ascending: false })
-                .limit(30); 
-            if (error) throw error;
-            setUserTxList(data || []);
-        } catch (err) {
-            console.error("장부 조회 에러:", err);
-        } finally {
-            setIsLoadingTx(false);
-        }
-    };
-
-    useEffect(() => {
-        if (selectedUser && modalTab === 'cash') {
-            fetchUserTransactions(selectedUser.id);
-        }
-    }, [selectedUser, modalTab]);
-
-    const handleCashSubmit = async () => {
-        if (!selectedUser) return;
-        const amountNum = Number(cashAmount);
-        if (!cashAmount || isNaN(amountNum) || amountNum <= 0) return alert("금액은 0보다 커야 합니다.");
-        
-        setIsSavingCash(true);
-        try {
-            const finalAmount = cashType === 'grant' ? amountNum : -amountNum;
-            const txTypeStr = cashType === 'grant' ? 'admin_grant' : 'admin_deduct';
-            const defaultMemo = cashType === 'grant' ? '관리자 특별 지급' : '관리자 수동 차감';
-
-            const { error: rpcError } = await supabase.rpc('process_admin_cash_transaction', {
-                p_target_user_id: selectedUser.id,
-                p_amount: finalAmount,
-                p_transaction_type: txTypeStr,
-                p_description: cashMemo.trim() || defaultMemo
-            });
-
-            if (rpcError) throw rpcError;
-
-            const { data: updatedProfile } = await supabase.from('profiles').select('cash_balance').eq('id', selectedUser.id).single();
-
-            alert(`✅ 캐시 처리가 완료되었습니다.\n[처리 후 잔액: ${updatedProfile?.cash_balance?.toLocaleString() || 0}C]`);
-            
-            if(updatedProfile) setSelectedUser(prev => ({ ...prev, cash_balance: updatedProfile.cash_balance }));
-            
-            queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
-            fetchUserTransactions(selectedUser.id);
-            
-            setCashAmount(''); setCashMemo('');
-        } catch (error) {
-            const errMsg = error.message || error.details || JSON.stringify(error);
-            alert(`❌ 처리 실패: 잔액이 부족하거나 오류가 발생했습니다. (${errMsg})`);
-        } finally {
-            setIsSavingCash(false);
         }
     };
 
@@ -636,7 +566,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                 <div style={{ display: 'flex', backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
                                     <button onClick={() => setModalTab('info')} style={{ flex: 1, padding: '12px', border: 'none', background: modalTab === 'info' ? '#FFF' : 'transparent', borderBottom: modalTab === 'info' ? '2px solid #0ea5e9' : 'none', fontWeight: modalTab === 'info' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '13px' }}><Settings size={14} style={{verticalAlign:'middle', marginRight:'4px'}}/> 회원기본정보</button>
                                     <button onClick={() => { setModalTab('memo'); setMemoText(selectedUser.admin_memo || ''); }} style={{ flex: 1, padding: '12px', border: 'none', background: modalTab === 'memo' ? '#FFF' : 'transparent', borderBottom: modalTab === 'memo' ? '2px solid #0ea5e9' : 'none', fontWeight: modalTab === 'memo' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '13px' }}><FileText size={14} style={{verticalAlign:'middle', marginRight:'4px'}}/> 관리자 메모</button>
-                                    <button onClick={() => setModalTab('cash')} style={{ flex: 1, padding: '12px', border: 'none', background: modalTab === 'cash' ? '#FFF' : 'transparent', borderBottom: modalTab === 'cash' ? '2px solid #0ea5e9' : 'none', fontWeight: modalTab === 'cash' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '13px', color: modalTab === 'cash' ? '#0ea5e9' : '#333' }}><Wallet size={14} style={{verticalAlign:'middle', marginRight:'4px'}}/> 캐시/결제 내역</button>
                                 </div>
                                 
                                 <div style={{ padding: '24px', minHeight: '350px', maxHeight: '500px', overflowY: 'auto' }}>
@@ -664,10 +593,8 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                         {isUpdatingTier && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#0ea5e9' }}>변경 중...</span>}
                                                     </td>
                                                 </tr>
-
-                                                <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>현재 보유 캐시</td><td style={{ padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold', color: '#059669' }}>{selectedUser.cash_balance?.toLocaleString() || 0} C</td></tr>
                                                 
-                                                {/* 🚨 [수정됨] 타로 열람권 섹션 */}
+                                                {/* 🚨 타로 열람권 섹션 */}
                                                 <tr>
                                                     <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>타로 열람권</td>
                                                     <td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
@@ -684,7 +611,7 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                                     </td>
                                                 </tr>
 
-                                                {/* 🚨 [수정됨] 사주/궁합/택일/작명 통합 종합 열람권 섹션 */}
+                                                {/* 🚨 사주/궁합/택일/작명 통합 종합 열람권 섹션 */}
                                                 <tr>
                                                     <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>
                                                         종합 열람권<br/>
@@ -717,79 +644,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                                             <div style={{ fontSize: '12px', color: '#ef4444', fontWeight: 'bold' }}>※ 고객에게 노출되지 않는 관리자 전용 메모 공간입니다.</div>
                                             <textarea value={memoText} onChange={(e) => setMemoText(e.target.value)} placeholder="이슈 사항, 블랙리스트 사유 등을 상세히 기록하세요." style={{ width: '100%', height: '150px', padding: '12px', border: '1px solid #D1D5DB', borderRadius: '4px', outline: 'none', resize: 'vertical', fontSize: '13px' }} />
                                             <div style={{ textAlign: 'center' }}><button onClick={handleSaveMemo} disabled={isSavingMemo} style={{ ...styles.actionBtnBlue, padding: '8px 40px', fontSize: '13px' }}>{isSavingMemo ? '저장 중...' : '메모 저장하기'}</button></div>
-                                        </div>
-                                    )}
-
-                                    {/* 탭 3: 캐시/결제 내역 관리 */}
-                                    {modalTab === 'cash' && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                            
-                                            {/* 수동 지급/차감 컨트롤 */}
-                                            <div style={{ border: '1px solid #E5E7EB', borderRadius: '6px', padding: '16px', backgroundColor: '#F9FAFB' }}>
-                                                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#111', marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
-                                                    <span>관리자 권한 캐시 제어</span>
-                                                    <span style={{color: '#0ea5e9'}}>현재 잔액: {selectedUser.cash_balance?.toLocaleString() || 0} C</span>
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-                                                    <select value={cashType} onChange={e => setCashType(e.target.value)} style={{ padding: '8px', border: '1px solid #CCC', borderRadius: '4px', fontSize: '12px', outline: 'none', backgroundColor: '#FFF' }}>
-                                                        <option value="grant">지급하기 (+)</option>
-                                                        <option value="deduct">차감하기 (-)</option>
-                                                    </select>
-                                                    <input type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} placeholder="제어 금액 (숫자만)" style={{ flex: 1, padding: '8px', border: '1px solid #CCC', borderRadius: '4px', fontSize: '12px', outline: 'none' }} />
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '12px' }}>
-                                                    <input type="text" value={cashMemo} onChange={e => setCashMemo(e.target.value)} placeholder="처리 사유 메모 (선택)" style={{ flex: 1, padding: '8px', border: '1px solid #CCC', borderRadius: '4px', fontSize: '12px', outline: 'none' }} />
-                                                    <button onClick={handleCashSubmit} disabled={isSavingCash} style={{ padding: '8px 24px', backgroundColor: cashType === 'grant' ? '#059669' : '#ef4444', color: '#FFF', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', opacity: isSavingCash ? 0.6 : 1 }}>
-                                                        <Save size={14} style={{verticalAlign:'middle', marginRight:'4px'}}/> 적용
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {/* 개인 결제/포인트 내역 테이블 */}
-                                            <div>
-                                                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#111', marginBottom: '8px' }}>최근 결제 및 포인트 내역</div>
-                                                <div style={{ border: '1px solid #E5E7EB', borderRadius: '6px', overflow: 'hidden' }}>
-                                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                                                        <thead>
-                                                            <tr style={{ backgroundColor: '#F3F4F6', borderBottom: '1px solid #CCC' }}>
-                                                                <th style={{ padding: '8px', textAlign: 'left' }}>일시</th>
-                                                                <th style={{ padding: '8px', textAlign: 'center' }}>유형</th>
-                                                                <th style={{ padding: '8px', textAlign: 'left' }}>상세 내역</th>
-                                                                <th style={{ padding: '8px', textAlign: 'right' }}>금액</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {isLoadingTx ? (
-                                                                <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>데이터 로딩중...</td></tr>
-                                                            ) : (!userTxList || userTxList.length === 0) ? (
-                                                                <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>조회된 결제/변동 내역이 없습니다.</td></tr>
-                                                            ) : (
-                                                                userTxList.map(tx => {
-                                                                    const isPlus = tx.amount > 0;
-                                                                    let badgeLabel = '기타변동'; let badgeColor = '#666';
-                                                                    if (tx.transaction_type === 'sell') { badgeLabel = '판매수익'; badgeColor = '#0ea5e9'; }
-                                                                    else if (tx.transaction_type === 'buy') { badgeLabel = '상품결제'; badgeColor = '#ef4444'; }
-                                                                    else if (['charge', 'admin_grant', 'point'].includes(tx.transaction_type)) { badgeLabel = '충전/지급'; badgeColor = '#059669'; }
-                                                                    else if (tx.transaction_type === 'admin_deduct') { badgeLabel = '관리자차감'; badgeColor = '#ef4444'; }
-                                                                    else if (tx.transaction_type === 'subscription') { badgeLabel = '구독결제'; badgeColor = '#8B5CF6'; }
-                                                                    else if (['settlement', 'withdraw'].includes(tx.transaction_type)) { badgeLabel = '정산/출금'; badgeColor = '#D97706'; }
-
-                                                                    return (
-                                                                        <tr key={tx.id} style={{ borderBottom: '1px solid #E5E7EB' }}>
-                                                                            <td style={{ padding: '8px', color: '#666' }}>{new Date(tx.created_at).toLocaleString()}</td>
-                                                                            <td style={{ padding: '8px', textAlign: 'center' }}><span style={{color: badgeColor, fontWeight: 'bold'}}>{badgeLabel}</span></td>
-                                                                            <td style={{ padding: '8px', color: '#333' }}>{tx.description}</td>
-                                                                            <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: isPlus ? '#059669' : '#ef4444' }}>
-                                                                                {isPlus ? '+' : ''}{tx.amount.toLocaleString()} C
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                })
-                                                            )}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
                                         </div>
                                     )}
                                 </div>
