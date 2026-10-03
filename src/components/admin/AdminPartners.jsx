@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Settings, FileText, Store, CheckCircle, XCircle, Clock, Users, Crown, ExternalLink, Filter, Shield, User } from 'lucide-react';
+import { Search, Settings, FileText, Store, CheckCircle, XCircle, Clock, Users, Crown, ExternalLink, Filter, Shield, User, ChevronRight, X } from 'lucide-react';
 import { useAdminUsers } from './hooks/useAdminUsers';
 
 export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
@@ -61,10 +61,10 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
     };
 
     const getCategoryBadge = (cat) => {
-        if (cat === 'media') return { label: '미디어(음원/VOD)', bg: 'rgba(59,130,246,0.1)', color: '#3B82F6' };
-        if (cat === 'character') return { label: '캐릭터/굿즈', bg: 'rgba(245,158,11,0.1)', color: '#F59E0B' };
-        if (cat === 'jewelry') return { label: '운기석/주얼리', bg: 'rgba(139,92,246,0.1)', color: '#8B5CF6' };
-        return { label: '기타', bg: '#F3F4F6', color: '#6B7280' };
+        if (cat === 'media') return { label: '미디어(음원/VOD)', bg: '#E5F0FF', color: '#007AFF' };
+        if (cat === 'character') return { label: '캐릭터/굿즈', bg: '#FFF5E5', color: '#FF9500' };
+        if (cat === 'jewelry') return { label: '운기석/주얼리', bg: '#F4E8FF', color: '#AF52DE' };
+        return { label: '기타', bg: '#F2F2F7', color: '#8E8E93' };
     };
 
     // ==========================================================
@@ -75,7 +75,6 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('profiles')
-                // 🚨 캐시를 제거하고 타로권, 종합권 컬럼을 불러옵니다.
                 .select('id, email, name, tarot_ticket_count, general_ticket_count, created_at, partner_shops(shop_name, custom_domain, is_active)')
                 .eq('role', 'partner')
                 .order('created_at', { ascending: false });
@@ -137,72 +136,42 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
     const [memoText, setMemoText] = useState('');
     const [isSavingMemo, setIsSavingMemo] = useState(false);
 
-    // 🚀 타로 전용 열람권 제어 로직
     const [isUpdatingTarotTicket, setIsUpdatingTarotTicket] = useState(false);
     const handleUpdateTarotTicket = async (changeAmount) => {
         if (!selectedUser) return;
         const currentTickets = selectedUser.tarot_ticket_count || 0;
-        
-        if (changeAmount < 0 && currentTickets < Math.abs(changeAmount)) {
-            alert("보유한 열람권보다 더 많이 차감할 수 없습니다.");
-            return;
-        }
-
+        if (changeAmount < 0 && currentTickets < Math.abs(changeAmount)) return alert("보유한 열람권보다 더 많이 차감할 수 없습니다.");
         const actionText = changeAmount > 0 ? `${changeAmount}장 지급` : `${Math.abs(changeAmount)}장 차감`;
-        if (!window.confirm(`해당 회원에게 타로 열람권을 ${actionText} 하시겠습니까?`)) return;
+        if (!window.confirm(`타로 열람권을 ${actionText} 하시겠습니까?`)) return;
 
         setIsUpdatingTarotTicket(true);
         try {
             const newTicketCount = currentTickets + changeAmount;
-            const { error } = await supabase
-                .from('profiles')
-                .update({ tarot_ticket_count: newTicketCount })
-                .eq('id', selectedUser.id);
-
+            const { error } = await supabase.from('profiles').update({ tarot_ticket_count: newTicketCount }).eq('id', selectedUser.id);
             if (error) throw error;
-
-            alert(`✅ 정상적으로 처리되었습니다. (현재 타로 잔여: ${newTicketCount}장)`);
+            alert(`✅ 완료 (현재: ${newTicketCount}장)`);
             setSelectedUser(prev => ({ ...prev, tarot_ticket_count: newTicketCount }));
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
-        } catch (error) {
-            alert("열람권 수정 중 오류가 발생했습니다.");
-        } finally {
-            setIsUpdatingTarotTicket(false);
-        }
+        } catch (error) { alert("열람권 수정 오류"); } finally { setIsUpdatingTarotTicket(false); }
     };
 
-    // 🚀 사주/궁합/택일/작명 통합 종합 열람권 제어 로직 (general_ticket_count 사용)
     const [isUpdatingGeneralTicket, setIsUpdatingGeneralTicket] = useState(false);
     const handleUpdateGeneralTicket = async (changeAmount) => {
         if (!selectedUser) return;
         const currentGeneralTickets = selectedUser.general_ticket_count || 0;
-        
-        if (changeAmount < 0 && currentGeneralTickets < Math.abs(changeAmount)) {
-            alert("보유한 종합 열람권보다 더 많이 차감할 수 없습니다.");
-            return;
-        }
-
+        if (changeAmount < 0 && currentGeneralTickets < Math.abs(changeAmount)) return alert("보유한 열람권보다 더 많이 차감할 수 없습니다.");
         const actionText = changeAmount > 0 ? `${changeAmount}장 지급` : `${Math.abs(changeAmount)}장 차감`;
-        if (!window.confirm(`해당 회원에게 종합 열람권(사주/궁합/택일/작명)을 ${actionText} 하시겠습니까?`)) return;
+        if (!window.confirm(`종합 열람권을 ${actionText} 하시겠습니까?`)) return;
 
         setIsUpdatingGeneralTicket(true);
         try {
             const newTicketCount = currentGeneralTickets + changeAmount;
-            const { error } = await supabase
-                .from('profiles')
-                .update({ general_ticket_count: newTicketCount })
-                .eq('id', selectedUser.id);
-
+            const { error } = await supabase.from('profiles').update({ general_ticket_count: newTicketCount }).eq('id', selectedUser.id);
             if (error) throw error;
-
-            alert(`✅ 정상적으로 처리되었습니다. (현재 종합 잔여: ${newTicketCount}장)`);
+            alert(`✅ 완료 (현재: ${newTicketCount}장)`);
             setSelectedUser(prev => ({ ...prev, general_ticket_count: newTicketCount }));
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
-        } catch (error) {
-            alert("열람권 수정 중 오류가 발생했습니다.");
-        } finally {
-            setIsUpdatingGeneralTicket(false);
-        }
+        } catch (error) { alert("열람권 수정 오류"); } finally { setIsUpdatingGeneralTicket(false); }
     };
 
     const handleUpgradePartner = async (e, userId, currentRole) => {
@@ -212,22 +181,17 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
 
         try {
             await supabase.from('profiles').update({ role: newRole }).eq('id', userId);
-            
             if (newRole === 'partner') {
                 const { data: existingShop } = await supabase.from('partner_shops').select('partner_id').eq('partner_id', userId).maybeSingle();
-                if (!existingShop) {
-                    await supabase.from('partner_shops').insert([{ partner_id: userId, shop_name: '신규 상점', is_active: true }]);
-                } else {
-                    await supabase.from('partner_shops').update({ is_active: true }).eq('partner_id', userId);
-                }
+                if (!existingShop) await supabase.from('partner_shops').insert([{ partner_id: userId, shop_name: '신규 상점', is_active: true }]);
+                else await supabase.from('partner_shops').update({ is_active: true }).eq('partner_id', userId);
             } else {
                 await supabase.from('partner_shops').update({ is_active: false }).eq('partner_id', userId);
             }
-            
-            alert(`✅ 파트너 권한 처리가 완료되었습니다.`);
+            alert(`✅ 권한 처리 완료`);
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] }); 
             queryClient.invalidateQueries({ queryKey: ['approvedPartners'] }); 
-        } catch (error) { alert(`❌ 권한 처리 실패`); }
+        } catch (error) { alert(`❌ 처리 실패`); }
     };
 
     const handleToggleBlock = async (e, userId, isBlocked) => {
@@ -236,41 +200,25 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         try {
             await supabase.from('profiles').update({ is_blocked: !isBlocked }).eq('id', userId);
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
-            
-            if (selectedUser && selectedUser.id === userId) {
-                setSelectedUser(prev => ({ ...prev, is_blocked: !isBlocked }));
-            }
-            alert(`✅ 계정이 성공적으로 ${isBlocked ? '차단 해제' : '차단'} 되었습니다.`);
+            if (selectedUser && selectedUser.id === userId) setSelectedUser(prev => ({ ...prev, is_blocked: !isBlocked }));
+            alert(`✅ 처리 완료`);
         } catch (error) { alert("처리 실패"); }
     };
 
     const [isUpdatingTier, setIsUpdatingTier] = useState(false);
-    
     const handleChangeUserTier = async (newTier) => {
         if (!selectedUser) return;
-        if (!window.confirm('이 회원의 등급을 변경하시겠습니까?')) return;
-        
+        if (!window.confirm('등급을 변경하시겠습니까?')) return;
         setIsUpdatingTier(true);
         try {
             let updatedRole = newTier === 'partner' ? 'partner' : 'user';
-            
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({ 
-                    role: updatedRole, 
-                    membership_tier: newTier === 'partner' ? selectedUser.membership_tier : newTier
-                })
-                .eq('id', selectedUser.id);
-
+            const { error: profileError } = await supabase.from('profiles').update({ role: updatedRole, membership_tier: newTier === 'partner' ? selectedUser.membership_tier : newTier }).eq('id', selectedUser.id);
             if (profileError) throw profileError;
 
             if (updatedRole === 'partner') {
                 const { data: existingShop } = await supabase.from('partner_shops').select('partner_id').eq('partner_id', selectedUser.id).maybeSingle();
-                if (!existingShop) {
-                    await supabase.from('partner_shops').insert([{ partner_id: selectedUser.id, shop_name: '신규 상점', is_active: true }]);
-                } else {
-                    await supabase.from('partner_shops').update({ is_active: true }).eq('partner_id', selectedUser.id);
-                }
+                if (!existingShop) await supabase.from('partner_shops').insert([{ partner_id: selectedUser.id, shop_name: '신규 상점', is_active: true }]);
+                else await supabase.from('partner_shops').update({ is_active: true }).eq('partner_id', selectedUser.id);
             } else {
                 await supabase.from('partner_shops').update({ is_active: false }).eq('partner_id', selectedUser.id);
             }
@@ -278,13 +226,8 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
             setSelectedUser(prev => ({ ...prev, role: updatedRole, membership_tier: newTier === 'partner' ? prev.membership_tier : newTier }));
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
             queryClient.invalidateQueries({ queryKey: ['approvedPartners'] }); 
-            alert('✅ 회원 등급이 성공적으로 변경되었습니다.');
-            
-        } catch (error) {
-            alert('❌ 등급 변경 중 오류가 발생했습니다.');
-        } finally {
-            setIsUpdatingTier(false);
-        }
+            alert('✅ 변경 완료');
+        } catch (error) { alert('❌ 오류 발생'); } finally { setIsUpdatingTier(false); }
     };
 
     const handleSaveMemo = async () => {
@@ -292,19 +235,18 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
         setIsSavingMemo(true);
         try {
             await supabase.from('profiles').update({ admin_memo: memoText }).eq('id', selectedUser.id);
-            alert("✅ 메모가 저장되었습니다.");
+            alert("✅ 저장 완료");
             setSelectedUser(prev => ({...prev, admin_memo: memoText}));
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
-        } catch (error) { alert("메모 저장 실패"); }
-        finally { setIsSavingMemo(false); }
+        } catch (error) { alert("저장 실패"); } finally { setIsSavingMemo(false); }
     };
 
     const getTierBadge = (role, tier) => {
-        if (role === 'admin') return <span style={{ backgroundColor: '#1F2937', color: '#FFF', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}>최고관리자</span>;
-        if (role === 'partner') return <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#E0F2FE', color: '#0369A1', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}><Store size={12}/> 파트너</div>;
-        if (tier === 'premium') return <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#FEF3C7', color: '#B45309', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}><Crown size={12}/> VIP 프리미엄</div>;
-        if (tier === 'basic') return <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#E0E7FF', color: '#3730A3', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}><Shield size={12}/> 베이직 구독</div>;
-        return <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#F3F4F6', color: '#4B5563', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}><User size={12}/> 무료회원</div>;
+        if (role === 'admin') return <span className="ios-badge admin">ADMIN</span>;
+        if (role === 'partner') return <span className="ios-badge partner">파트너</span>;
+        if (tier === 'premium') return <span className="ios-badge premium">VIP</span>;
+        if (tier === 'basic') return <span className="ios-badge basic">구독</span>;
+        return <span className="ios-badge free">무료</span>;
     };
 
     const usersList = usersData?.users || [];
@@ -312,74 +254,174 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
 
     const handleSort = (key) => {
         let direction = 'desc';
-        if (sortConfig.key === key && sortConfig.direction === 'desc') {
-            direction = 'asc';
-        }
+        if (sortConfig.key === key && sortConfig.direction === 'desc') direction = 'asc';
         setSortConfig({ key, direction });
     };
 
     const getSortIcon = (key) => {
-        if (sortConfig.key !== key) return <span style={{ color: '#ccc', fontSize: '10px', marginLeft: '4px' }}>↕</span>;
-        return <span style={{ color: '#0ea5e9', fontSize: '10px', marginLeft: '4px' }}>{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>;
-    };
-
-    const styles = {
-        container: { backgroundColor: '#FFFFFF', padding: '24px', fontFamily: '"Malgun Gothic", "Pretendard", sans-serif', fontSize: '13px', color: '#333', minHeight: '800px' },
-        headerTitle: { fontSize: '20px', fontWeight: 'bold', color: '#111', marginBottom: '8px' },
-        headerSub: { fontSize: '12px', color: '#666', marginBottom: '24px' },
-        tableHeader: { backgroundColor: '#F9FAFB', borderTop: '2px solid #333', borderBottom: '1px solid #CCC', padding: '12px 8px', textAlign: 'center', fontWeight: 'bold', color: '#333', cursor: 'pointer', userSelect: 'none', transition: 'background-color 0.2s' }, 
-        tableCell: { padding: '10px 8px', borderBottom: '1px solid #E5E7EB', textAlign: 'center', verticalAlign: 'middle', fontSize: '12px', color: '#555' },
-        actionBtn: { border: '1px solid #CCC', backgroundColor: '#FFF', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: '#333' },
-        actionBtnBlue: { border: '1px solid #0ea5e9', backgroundColor: '#FFF', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: '#0ea5e9' },
-        actionBtnRed: { border: '1px solid #ef4444', backgroundColor: '#FFF', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: '#ef4444' },
+        if (sortConfig.key !== key) return <span style={{ color: '#C7C7CC', fontSize: '10px', marginLeft: '4px' }}>↕</span>;
+        return <span style={{ color: '#007AFF', fontSize: '10px', marginLeft: '4px' }}>{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>;
     };
 
     return (
-        <div style={styles.container}>
-            {/* 1. 입점 심사 대기열 화면 */}
+        <div className="ios-wrap fade-in">
+            <style dangerouslySetInnerHTML={{ __html: `
+                .ios-wrap {
+                    width: 100%; box-sizing: border-box;
+                    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif;
+                    background-color: transparent;
+                }
+
+                .ios-title { font-size: 24px; font-weight: 800; color: #1C1C1E; margin: 0 0 6px 0; letter-spacing: -0.5px; }
+                .ios-desc { font-size: 13px; color: #8E8E93; margin: 0 0 24px 0; font-weight: 500; }
+
+                /* Segment Controls */
+                .ios-segment { display: inline-flex; background-color: #E5E5EA; border-radius: 8px; padding: 2px; margin-bottom: 16px; }
+                .ios-segment-btn {
+                    padding: 6px 14px; font-size: 12px; font-weight: 600; color: #8E8E93;
+                    border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 4px;
+                }
+                .ios-segment-btn.active { background-color: #FFFFFF; color: #1C1C1E; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+
+                /* Search & Filter Bar */
+                .ios-toolbar {
+                    display: flex; justify-content: space-between; align-items: center;
+                    background: #FFFFFF; border-radius: 12px; padding: 10px 16px; margin-bottom: 16px;
+                    border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+                }
+                .ios-search-box {
+                    display: flex; align-items: center; background: #F2F2F7; border-radius: 8px; padding: 4px 10px; flex: 1; max-width: 320px;
+                }
+                .ios-search-input {
+                    border: none; background: transparent; outline: none; font-size: 13px; padding: 4px; width: 100%; color: #1C1C1E; font-weight: 500;
+                }
+                .ios-select {
+                    border: none; background: transparent; outline: none; font-size: 13px; color: #1C1C1E; font-weight: 600; padding: 4px;
+                }
+
+                /* iOS Table (List Look) */
+                .ios-table-wrap {
+                    background-color: #FFFFFF; border-radius: 12px; overflow: hidden;
+                    border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+                }
+                .ios-table { width: 100%; border-collapse: collapse; }
+                .ios-th {
+                    background-color: #F9F9FB; padding: 12px 10px; text-align: left;
+                    font-size: 11px; font-weight: 700; color: #8E8E93; border-bottom: 0.5px solid #E5E5EA;
+                    text-transform: uppercase; letter-spacing: -0.2px; cursor: pointer;
+                }
+                .ios-td {
+                    padding: 12px 10px; border-bottom: 0.5px solid #E5E5EA;
+                    font-size: 13px; color: #1C1C1E; font-weight: 500; vertical-align: middle;
+                }
+                .ios-tr:last-child .ios-td { border-bottom: none; }
+                .ios-tr:hover { background-color: #F9F9FB; }
+                .ios-tr.blocked { background-color: #FFF0F0; }
+
+                /* Badges */
+                .ios-badge { display: inline-flex; align-items: center; padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+                .ios-badge.admin { background: #1C1C1E; color: #FFF; }
+                .ios-badge.partner { background: #E5F0FF; color: #007AFF; }
+                .ios-badge.premium { background: #FFF5E5; color: #FF9500; }
+                .ios-badge.basic { background: #E5FBEB; color: #34C759; }
+                .ios-badge.free { background: #F2F2F7; color: #8E8E93; }
+
+                /* Micro Buttons */
+                .ios-btn-micro {
+                    border: none; background: #F2F2F7; color: #007AFF; font-size: 11px; font-weight: 700;
+                    padding: 4px 8px; border-radius: 6px; cursor: pointer; transition: 0.2s; white-space: nowrap;
+                }
+                .ios-btn-micro:active { transform: scale(0.95); opacity: 0.8; }
+                .ios-btn-micro.danger { color: #FF3B30; background: #FFE5E5; }
+                .ios-btn-micro.success { color: #34C759; background: #E5FBEB; }
+                .ios-btn-micro.outline { background: transparent; border: 1px solid #E5E5EA; color: #1C1C1E; }
+
+                /* Modal */
+                .ios-modal-overlay {
+                    position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+                    display: flex; justify-content: center; align-items: center; z-index: 10000; padding: 20px; animation: fadeIn 0.2s ease-out;
+                }
+                .ios-modal-card {
+                    background: #F2F2F7; width: 100%; max-width: 500px; border-radius: 20px; overflow: hidden;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.15); animation: slideUp 0.3s cubic-bezier(0.2, 0.85, 0.32, 1.2);
+                    display: flex; flex-direction: column; max-height: 90vh;
+                }
+                .ios-modal-header {
+                    padding: 16px 20px; background: #FFFFFF; display: flex; justify-content: space-between; align-items: center;
+                    border-bottom: 0.5px solid #E5E5EA;
+                }
+                .ios-modal-title { font-size: 16px; font-weight: 700; color: #1C1C1E; margin: 0; }
+                .ios-modal-close { background: #F2F2F7; border: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #8E8E93; cursor: pointer; }
+                .ios-modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+                
+                /* Inset Group inside Modal */
+                .ios-inset-group { background: #FFFFFF; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+                .ios-inset-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 0.5px solid #E5E5EA; min-height: 44px; }
+                .ios-inset-row:last-child { border-bottom: none; }
+                .ios-inset-label { font-size: 13px; font-weight: 600; color: #1C1C1E; }
+                .ios-inset-value { font-size: 13px; font-weight: 500; color: #8E8E93; text-align: right; }
+
+                .ios-textarea {
+                    width: 100%; border: none; outline: none; background: transparent; font-size: 14px;
+                    color: #1C1C1E; line-height: 1.5; resize: vertical; min-height: 120px; font-family: inherit;
+                }
+                
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+            `}} />
+
+            {/* 1. 입점 심사 대기열 */}
             {defaultTab === 'applications' && (
-                <div className="fade-in">
-                    <div><h2 style={styles.headerTitle}>스토어 파트너 입점 심사</h2><p style={styles.headerSub}>고객이 신청한 스토어 입점 내역을 심사하고 파트너 권한을 부여합니다.</p></div>
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                        {[ { id: 'pending', label: '심사 대기중', icon: <Clock size={16} /> }, { id: 'approved', label: '승인 완료', icon: <CheckCircle size={16} /> }, { id: 'rejected', label: '반려/거절', icon: <XCircle size={16} /> } ].map(tab => (
-                            <button key={tab.id} onClick={() => setAppFilter(tab.id)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', border: `1px solid ${appFilter === tab.id ? '#111827' : '#D1D5DB'}`, backgroundColor: appFilter === tab.id ? '#111827' : '#FFF', color: appFilter === tab.id ? '#FFF' : '#4B5563', fontSize: '13px', cursor: 'pointer', fontWeight: appFilter === tab.id ? 'bold' : 'normal', borderRadius: '6px', transition: '0.2s' }}>
-                                {tab.icon} {tab.label}
-                            </button>
-                        ))}
+                <div>
+                    <h2 className="ios-title">스토어 입점 심사</h2>
+                    <p className="ios-desc">고객이 신청한 스토어 입점 내역을 심사하고 파트너 권한을 부여합니다.</p>
+
+                    <div className="ios-segment">
+                        <div className={`ios-segment-btn ${appFilter === 'pending' ? 'active' : ''}`} onClick={() => setAppFilter('pending')}>대기중</div>
+                        <div className={`ios-segment-btn ${appFilter === 'approved' ? 'active' : ''}`} onClick={() => setAppFilter('approved')}>승인완료</div>
+                        <div className={`ios-segment-btn ${appFilter === 'rejected' ? 'active' : ''}`} onClick={() => setAppFilter('rejected')}>반려됨</div>
                     </div>
-                    <div style={{ backgroundColor: '#FFF', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+
+                    <div className="ios-table-wrap">
+                        <table className="ios-table">
                             <thead>
                                 <tr>
-                                    <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px', cursor: 'default'}}>신청 일시</th>
-                                    <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px', cursor: 'default'}}>신청자 계정 (이메일/이름)</th>
-                                    <th style={{...styles.tableHeader, cursor: 'default'}}>판매 희망 카테고리</th>
-                                    <th style={{...styles.tableHeader, cursor: 'default'}}>브랜드명 (활동명)</th>
-                                    <th style={{...styles.tableHeader, cursor: 'default'}}>처리</th>
+                                    <th className="ios-th">신청일시</th>
+                                    <th className="ios-th">신청자 (계정)</th>
+                                    <th className="ios-th">판매 분야</th>
+                                    <th className="ios-th">브랜드명</th>
+                                    <th className="ios-th" style={{ textAlign: 'right', paddingRight: '16px' }}>관리</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {isLoadingApps ? (
-                                    <tr><td colSpan="5" style={{ padding: '60px', textAlign: 'center', color: '#9CA3AF' }}>데이터를 불러오는 중입니다...</td></tr>
-                                ) : (!applications || applications.length === 0) ? (
-                                    <tr><td colSpan="5" style={{ padding: '60px', textAlign: 'center', color: '#9CA3AF' }}><Store size={48} color="#E5E7EB" style={{ margin: '0 auto 12px auto', display: 'block' }} />해당 조건의 입점 신청 내역이 없습니다.</td></tr>
+                                    <tr><td colSpan="5" className="ios-td" style={{ textAlign: 'center', padding: '40px', color: '#8E8E93' }}>데이터 동기화 중...</td></tr>
+                                ) : (!applications.length) ? (
+                                    <tr><td colSpan="5" className="ios-td" style={{ textAlign: 'center', padding: '40px', color: '#8E8E93' }}>신청 내역이 없습니다.</td></tr>
                                 ) : (
-                                    applications.map((app) => {
+                                    applications.map(app => {
                                         const badge = getCategoryBadge(app.target_category);
                                         return (
-                                            <tr key={app.id} style={{ transition: 'background-color 0.2s', ':hover': { backgroundColor: '#F9FAFB' } }}>
-                                                <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px'}}>{new Date(app.created_at).toLocaleString()}</td>
-                                                <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px'}}><div style={{ fontWeight: 'bold', color: '#111' }}>{app.profiles?.name || '이름없음'}</div><div style={{ color: '#6B7280', fontSize: '12px' }}>{app.profiles?.email || '이메일없음'}</div></td>
-                                                <td style={styles.tableCell}><span style={{ backgroundColor: badge.bg, color: badge.color, padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold', fontSize: '12px' }}>{badge.label}</span></td>
-                                                <td style={{...styles.tableCell, fontWeight: 'bold', color: '#0ea5e9'}}>{app.brand_name}</td>
-                                                <td style={styles.tableCell}>
+                                            <tr key={app.id} className="ios-tr">
+                                                <td className="ios-td" style={{ color: '#8E8E93', fontSize: '12px' }}>{new Date(app.created_at).toLocaleDateString()}</td>
+                                                <td className="ios-td">
+                                                    <div style={{ fontWeight: '600' }}>{app.profiles?.name || '이름없음'}</div>
+                                                    <div style={{ fontSize: '11px', color: '#8E8E93' }}>{app.profiles?.email}</div>
+                                                </td>
+                                                <td className="ios-td">
+                                                    <span style={{ background: badge.bg, color: badge.color, padding: '3px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: '700' }}>{badge.label}</span>
+                                                </td>
+                                                <td className="ios-td" style={{ fontWeight: '700' }}>{app.brand_name}</td>
+                                                <td className="ios-td" style={{ textAlign: 'right', paddingRight: '16px' }}>
                                                     {appFilter === 'pending' ? (
-                                                        <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
-                                                            <button onClick={() => handleApproveApp(app)} style={{ padding: '6px 14px', backgroundColor: '#059669', color: '#FFF', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>승인 (상점개설)</button>
-                                                            <button onClick={() => handleRejectApp(app.id)} style={{ padding: '6px 14px', backgroundColor: '#FFF', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>반려</button>
+                                                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                                                            <button className="ios-btn-micro success" onClick={() => handleApproveApp(app)}>승인</button>
+                                                            <button className="ios-btn-micro danger" onClick={() => handleRejectApp(app.id)}>반려</button>
                                                         </div>
                                                     ) : (
-                                                        <span style={{ color: appFilter === 'approved' ? '#059669' : '#ef4444', fontWeight: 'bold' }}>{appFilter === 'approved' ? '승인완료' : '거절/반려됨'}</span>
+                                                        <span style={{ fontSize: '12px', fontWeight: '700', color: appFilter === 'approved' ? '#34C759' : '#FF3B30' }}>
+                                                            {appFilter === 'approved' ? '승인됨' : '반려됨'}
+                                                        </span>
                                                     )}
                                                 </td>
                                             </tr>
@@ -392,268 +434,215 @@ export default function AdminPartners({ adminTheme, defaultTab = 'users' }) {
                 </div>
             )}
 
-            {/* 2. 승인된 파트너 전용 관리 화면 */}
+            {/* 2. 승인된 파트너 현황 */}
             {defaultTab === 'partners' && (
-                <div className="fade-in">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px' }}>
-                        <div>
-                            <h2 style={{ ...styles.headerTitle, color: '#0ea5e9', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Crown size={24}/> 활성 파트너 현황
-                            </h2>
-                            <p style={styles.headerSub}>상점이 개설된 파트너 리스트입니다. (도메인, 운영 상태 확인 가능)</p>
-                        </div>
-                        <div style={{ fontSize: '13px', fontWeight: 'bold' }}>총 파트너: <span style={{color:'#0ea5e9', fontSize:'16px'}}>{approvedPartners?.length || 0}</span> 개소</div>
+                <div>
+                    <h2 className="ios-title">활성 파트너 현황</h2>
+                    <p className="ios-desc">승인되어 상점을 운영 중인 파트너 리스트입니다.</p>
+
+                    <div className="ios-table-wrap">
+                        <table className="ios-table">
+                            <thead>
+                                <tr>
+                                    <th className="ios-th">파트너 계정</th>
+                                    <th className="ios-th">상점명 / 도메인</th>
+                                    <th className="ios-th" style={{ textAlign: 'right' }}>타로권</th>
+                                    <th className="ios-th" style={{ textAlign: 'right' }}>종합권</th>
+                                    <th className="ios-th" style={{ textAlign: 'center' }}>상태</th>
+                                    <th className="ios-th" style={{ textAlign: 'right', paddingRight: '16px' }}>관리</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {isLoadingPartners ? (
+                                    <tr><td colSpan="6" className="ios-td" style={{ textAlign: 'center', padding: '40px', color: '#8E8E93' }}>로딩 중...</td></tr>
+                                ) : (!approvedPartners.length) ? (
+                                    <tr><td colSpan="6" className="ios-td" style={{ textAlign: 'center', padding: '40px', color: '#8E8E93' }}>등록된 파트너가 없습니다.</td></tr>
+                                ) : (
+                                    approvedPartners.map(p => {
+                                        const shop = p.partner_shops?.[0];
+                                        return (
+                                            <tr key={p.id} className="ios-tr">
+                                                <td className="ios-td">
+                                                    <div style={{ fontWeight: '600' }}>{p.name || '이름미상'}</div>
+                                                    <div style={{ fontSize: '11px', color: '#8E8E93' }}>{p.email}</div>
+                                                </td>
+                                                <td className="ios-td">
+                                                    <div style={{ fontWeight: '700', color: '#007AFF' }}>{shop?.shop_name || '미설정'}</div>
+                                                    {shop?.custom_domain && <div style={{ fontSize: '11px', color: '#8E8E93' }}>/{shop.custom_domain}</div>}
+                                                </td>
+                                                <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#FF9500' }}>{p.tarot_ticket_count || 0}</td>
+                                                <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#007AFF' }}>{p.general_ticket_count || 0}</td>
+                                                <td className="ios-td" style={{ textAlign: 'center' }}>
+                                                    {shop?.is_active ? <span className="ios-badge basic">운영중</span> : <span className="ios-badge" style={{background:'#FFE5E5', color:'#FF3B30'}}>정지</span>}
+                                                </td>
+                                                <td className="ios-td" style={{ textAlign: 'right', paddingRight: '16px' }}>
+                                                    <button className="ios-btn-micro danger" onClick={(e) => handleUpgradePartner(e, p.id, 'partner')}>권한 회수</button>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })
+                                )}
+                            </tbody>
+                        </table>
                     </div>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', borderTop: '2px solid #0ea5e9' }}>
-                        <thead>
-                            <tr>
-                                <th style={{...styles.tableHeader, width: '50px', cursor: 'default'}}>No</th>
-                                <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px', cursor: 'default'}}>파트너 계정 (이메일/이름)</th>
-                                <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px', cursor: 'default'}}>상점명 / 도메인</th>
-                                {/* 🚨 캐시 컬럼 제거 후 타로/종합 컬럼 추가 */}
-                                <th style={{...styles.tableHeader, textAlign: 'right', paddingRight: '16px', cursor: 'default'}}>타로 열람권</th>
-                                <th style={{...styles.tableHeader, textAlign: 'right', paddingRight: '16px', cursor: 'default'}}>종합 열람권</th>
-                                <th style={{...styles.tableHeader, width: '120px', cursor: 'default'}}>상점 상태</th>
-                                <th style={{...styles.tableHeader, width: '180px', cursor: 'default'}}>권한 제어</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {isLoadingPartners ? (
-                                <tr><td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>로딩 중...</td></tr>
-                            ) : (!approvedPartners || approvedPartners.length === 0) ? (
-                                <tr><td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>등록된 파트너가 없습니다.</td></tr>
-                            ) : (
-                                approvedPartners.map((p, idx) => {
-                                    const shop = p.partner_shops && p.partner_shops.length > 0 ? p.partner_shops[0] : null;
-                                    return (
-                                        <tr key={p.id} style={{ backgroundColor: '#FFF', borderBottom: '1px solid #E5E7EB' }}>
-                                            <td style={styles.tableCell}>{idx + 1}</td>
-                                            <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px'}}>
-                                                <div style={{ fontWeight: 'bold', color: '#333' }}>{p.email}</div><div style={{ color: '#888', fontSize: '11px' }}>{p.name || '이름미상'}</div>
-                                            </td>
-                                            <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px'}}>
-                                                <div style={{ fontWeight: '900', color: '#0ea5e9' }}>{shop?.shop_name || '미설정 상점'}</div>
-                                                {shop?.custom_domain && <div style={{ fontSize: '11px', color: '#666', display: 'flex', alignItems: 'center', gap: '4px' }}><ExternalLink size={10}/> bokhouse.com/p/{shop.custom_domain}</div>}
-                                            </td>
-                                            <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#C5A059'}}>{p.tarot_ticket_count || 0} 장</td>
-                                            <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#0ea5e9'}}>{p.general_ticket_count || 0} 장</td>
-                                            <td style={styles.tableCell}>
-                                                {shop?.is_active ? <span style={{color: '#059669', fontWeight: 'bold', backgroundColor: '#ECFDF5', padding: '4px 8px', borderRadius: '4px'}}>운영중</span> : <span style={{color: '#ef4444', fontWeight: 'bold', backgroundColor: '#FEF2F2', padding: '4px 8px', borderRadius: '4px'}}>비활성/정지</span>}
-                                            </td>
-                                            <td style={styles.tableCell}>
-                                                <button onClick={(e) => handleUpgradePartner(e, p.id, 'partner')} style={{...styles.actionBtnRed, padding: '4px 0', width: '80px', textAlign: 'center', boxSizing: 'border-box'}}>권한 회수</button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
                 </div>
             )}
 
-            {/* 3. 전체 회원 리스트 관리 화면 */}
+            {/* 3. 전체 회원 리스트 */}
             {defaultTab === 'users' && (
-                <div className="fade-in">
-                    <div><h2 style={styles.headerTitle}>전체 회원 리스트 및 수동 권한 제어</h2><p style={styles.headerSub}>플랫폼에 가입한 모든 회원을 검색하고 등급별로 분류하여 관리합니다.</p></div>
+                <div>
+                    <h2 className="ios-title">전체 회원 리스트</h2>
+                    <p className="ios-desc">플랫폼에 가입한 모든 회원을 검색하고 관리합니다.</p>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', backgroundColor: '#F9FAFB', padding: '12px 16px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Filter size={16} color="#6B7280" />
-                                <select 
-                                    value={quickRole} 
-                                    onChange={(e) => { setQuickRole(e.target.value); setPage(1); }}
-                                    style={{ padding: '8px 12px', border: '1px solid #D1D5DB', borderRadius: '6px', fontSize: '13px', outline: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#374151' }}
-                                >
-                                    <option value="all">전체 등급 보기</option>
-                                    <option value="user">🌱 무료회원</option>
-                                    <option value="vip">2. 구독회원 (VIP)</option>
-                                    <option value="partner">🤝 파트너</option>
-                                    <option value="blocked">차단/탈퇴대기 회원</option>
-                                </select>
-                            </div>
+                    <div className="ios-toolbar">
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <select className="ios-select" style={{ background: '#F2F2F7', borderRadius: '8px', padding: '6px 10px' }} value={quickRole} onChange={(e) => { setQuickRole(e.target.value); setPage(1); }}>
+                                <option value="all">전체 등급</option>
+                                <option value="user">일반 무료</option>
+                                <option value="basic">베이직 구독</option>
+                                <option value="premium">VIP 구독</option>
+                                <option value="partner">파트너</option>
+                                <option value="blocked">차단된 회원</option>
+                            </select>
 
-                            <div style={{ width: '1px', height: '24px', backgroundColor: '#D1D5DB' }}></div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #D1D5DB', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#FFF' }}>
-                                <select value={searchType} onChange={(e)=>setSearchType(e.target.value)} style={{ padding: '8px', border: 'none', borderRight: '1px solid #D1D5DB', fontSize: '13px', outline: 'none', backgroundColor: '#F3F4F6', color: '#4B5563' }}>
-                                    <option value="email">이메일/아이디</option>
+                            <div className="ios-search-box">
+                                <select className="ios-select" value={searchType} onChange={e=>setSearchType(e.target.value)} style={{ borderRight: '0.5px solid #C6C6C8', paddingRight: '6px', marginRight: '6px' }}>
+                                    <option value="email">이메일</option>
                                     <option value="name">이름</option>
                                 </select>
-                                <input 
-                                    type="text" 
-                                    placeholder="검색어를 입력하세요..." 
-                                    value={searchInput} 
-                                    onChange={(e) => setSearchInput(e.target.value)} 
-                                    style={{ padding: '8px 12px', border: 'none', fontSize: '13px', outline: 'none', width: '220px' }} 
-                                />
-                                <div style={{ padding: '0 12px', color: '#9CA3AF' }}><Search size={16} /></div>
+                                <input type="text" className="ios-search-input" placeholder="검색어 입력..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
+                                <Search size={14} color="#8E8E93" />
                             </div>
                         </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <div style={{ fontSize: '13px', color: '#4B5563' }}>검색결과: <span style={{fontWeight: 'bold', color: '#0ea5e9', fontSize: '15px'}}>{usersData?.totalCount?.toLocaleString() || 0}</span> 명</div>
-                            <button style={{...styles.actionBtn, padding: '6px 12px'}}>엑셀저장 (Excel)</button>
-                        </div>
+                        <div style={{ fontSize: '12px', fontWeight: '600', color: '#8E8E93' }}>총 <span style={{ color: '#1C1C1E' }}>{usersData?.totalCount || 0}</span>명</div>
                     </div>
 
-                    <table style={{ width: '100%', borderCollapse: 'collapse', borderTop: '2px solid #333' }}>
-                        <thead>
-                            <tr>
-                                <th style={{...styles.tableHeader, width: '60px'}} onClick={() => handleSort('id')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>번호</th>
-                                <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px'}} onClick={() => handleSort('email')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>아이디 (이메일) {getSortIcon('email')}</th>
-                                <th style={{...styles.tableHeader, width: '120px'}} onClick={() => handleSort('name')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>이름 {getSortIcon('name')}</th>
-                                <th style={{...styles.tableHeader, width: '100px'}} onClick={() => handleSort('role')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>등급 {getSortIcon('role')}</th>
-                                <th style={{...styles.tableHeader, width: '80px'}} onClick={() => handleSort('is_blocked')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>상태 {getSortIcon('is_blocked')}</th>
-                                {/* 🚨 캐시 컬럼 제거 후 타로/종합 컬럼 추가 */}
-                                <th style={{...styles.tableHeader, width: '100px', textAlign: 'right', paddingRight: '16px'}} onClick={() => handleSort('tarot_ticket_count')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>타로권 {getSortIcon('tarot_ticket_count')}</th>
-                                <th style={{...styles.tableHeader, width: '100px', textAlign: 'right', paddingRight: '16px'}} onClick={() => handleSort('general_ticket_count')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>종합권 {getSortIcon('general_ticket_count')}</th>
-                                <th style={{...styles.tableHeader, width: '120px'}} onClick={() => handleSort('created_at')} onMouseEnter={(e)=>e.target.style.backgroundColor='#E5E7EB'} onMouseLeave={(e)=>e.target.style.backgroundColor='#F9FAFB'}>가입일 {getSortIcon('created_at')}</th>
-                                <th style={{...styles.tableHeader, width: '140px', cursor: 'default'}}>권한 관리</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {isLoadingUsers ? (
-                                <tr><td colSpan="9" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>데이터 로딩 중...</td></tr>
-                            ) : (!usersList || usersList.length === 0) ? (
-                                <tr><td colSpan="9" style={{ padding: '40px', textAlign: 'center', color: '#999' }}>조건에 일치하는 회원이 없습니다.</td></tr>
-                            ) : (
-                                [...usersList].sort((a, b) => {
-                                    let aVal = a[sortConfig.key] || ''; let bVal = b[sortConfig.key] || '';
-                                    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-                                    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-                                    return 0;
-                                }).map((u, idx) => (
-                                    <tr key={u.id} style={{ backgroundColor: u.is_blocked ? '#fef2f2' : '#FFF' }}>
-                                        <td style={styles.tableCell}>{pageSize * (page - 1) + idx + 1}</td>
-                                        <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px'}}>
-                                            <div onClick={() => { setSelectedUser(u); setModalTab('info'); }} style={{ color: '#0ea5e9', cursor: 'pointer', fontWeight: 'bold' }}>{u.email}</div>
-                                        </td>
-                                        <td style={styles.tableCell}>{u.name || '-'}</td>
-                                        <td style={styles.tableCell}>{getTierBadge(u.role, u.membership_tier)}</td>
-                                        <td style={{...styles.tableCell, color: u.is_blocked ? '#ef4444' : '#333'}}>{u.is_blocked ? '차단' : '정상'}</td>
-                                        {/* 🚨 리스트에 타로권, 종합권 표시 */}
-                                        <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#C5A059'}}>{u.tarot_ticket_count || 0}</td>
-                                        <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#0ea5e9'}}>{u.general_ticket_count || 0}</td>
-                                        <td style={styles.tableCell}>{new Date(u.created_at).toLocaleDateString()}</td>
-                                        <td style={{...styles.tableCell, display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center'}}>
-                                            <button 
-                                                onClick={() => { setSelectedUser(u); setModalTab('info'); }} 
-                                                style={{...styles.actionBtn, padding: '4px 0', width: '50px', textAlign: 'center', boxSizing: 'border-box'}}
-                                            >
-                                                [상세]
-                                            </button>
-                                            <button 
-                                                onClick={(e) => handleUpgradePartner(e, u.id, u.role)} 
-                                                style={{ ...(u.role === 'partner' ? styles.actionBtnRed : styles.actionBtnBlue), padding: '4px 0', width: '56px', textAlign: 'center', boxSizing: 'border-box' }}
-                                            >
-                                                {u.role === 'partner' ? '회 원' : '파트너'}
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '20px' }}>
-                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ ...styles.actionBtn, padding: '6px 12px' }}>◀ 이전</button>
-                        <span style={{ fontSize: '13px', fontWeight: 'bold', margin: '0 8px' }}>{page} / {totalPages}</span>
-                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ ...styles.actionBtn, padding: '6px 12px' }}>다음 ▶</button>
+                    <div className="ios-table-wrap">
+                        <table className="ios-table">
+                            <thead>
+                                <tr>
+                                    <th className="ios-th" onClick={() => handleSort('id')}>NO</th>
+                                    <th className="ios-th" onClick={() => handleSort('email')}>계정 (이메일/이름) {getSortIcon('email')}</th>
+                                    <th className="ios-th" onClick={() => handleSort('role')}>등급 {getSortIcon('role')}</th>
+                                    <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('tarot_ticket_count')}>타로 {getSortIcon('tarot_ticket_count')}</th>
+                                    <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('general_ticket_count')}>종합 {getSortIcon('general_ticket_count')}</th>
+                                    <th className="ios-th" onClick={() => handleSort('created_at')}>가입일 {getSortIcon('created_at')}</th>
+                                    <th className="ios-th" style={{ textAlign: 'right', paddingRight: '16px' }}>관리</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {isLoadingUsers ? (
+                                    <tr><td colSpan="7" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>로딩 중...</td></tr>
+                                ) : (!usersList.length) ? (
+                                    <tr><td colSpan="7" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>회원이 없습니다.</td></tr>
+                                ) : (
+                                    usersList.map((u, idx) => (
+                                        <tr key={u.id} className={`ios-tr ${u.is_blocked ? 'blocked' : ''}`}>
+                                            <td className="ios-td" style={{ color: '#8E8E93', fontSize: '12px' }}>{pageSize * (page - 1) + idx + 1}</td>
+                                            <td className="ios-td">
+                                                <div style={{ fontWeight: '600', color: u.is_blocked ? '#FF3B30' : '#1C1C1E' }}>{u.email}</div>
+                                                <div style={{ fontSize: '11px', color: '#8E8E93' }}>{u.name || '-'}</div>
+                                            </td>
+                                            <td className="ios-td">{getTierBadge(u.role, u.membership_tier)}</td>
+                                            <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#FF9500' }}>{u.tarot_ticket_count || 0}</td>
+                                            <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#007AFF' }}>{u.general_ticket_count || 0}</td>
+                                            <td className="ios-td" style={{ fontSize: '12px', color: '#8E8E93' }}>{new Date(u.created_at).toLocaleDateString()}</td>
+                                            <td className="ios-td" style={{ textAlign: 'right', paddingRight: '16px' }}>
+                                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                                                    <button className="ios-btn-micro" onClick={() => { setSelectedUser(u); setModalTab('info'); }}>상세 설정</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
 
-                    {/* 🚀 회원 상세 정보 모달 */}
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '24px' }}>
+                        <button className="ios-btn-micro outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>◀ 이전</button>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#1C1C1E' }}>{page} / {totalPages}</span>
+                        <button className="ios-btn-micro outline" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>다음 ▶</button>
+                    </div>
+
+                    {/* 회원 상세 모달 (iOS Card) */}
                     {selectedUser && (
-                        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-                            <div style={{ width: '650px', backgroundColor: '#FFF', border: '1px solid #333', display: 'flex', flexDirection: 'column', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
-                                <div style={{ backgroundColor: '#1F2937', color: '#FFF', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontWeight: 'bold', fontSize: '15px' }}>{selectedUser.name || '이름없음'} ({selectedUser.email}) 님의 상세 관리</span>
-                                    <button onClick={() => setSelectedUser(null)} style={{ background: 'none', border: 'none', color: '#FFF', cursor: 'pointer', fontSize: '18px' }}>✕</button>
-                                </div>
-                                <div style={{ display: 'flex', backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-                                    <button onClick={() => setModalTab('info')} style={{ flex: 1, padding: '12px', border: 'none', background: modalTab === 'info' ? '#FFF' : 'transparent', borderBottom: modalTab === 'info' ? '2px solid #0ea5e9' : 'none', fontWeight: modalTab === 'info' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '13px' }}><Settings size={14} style={{verticalAlign:'middle', marginRight:'4px'}}/> 회원기본정보</button>
-                                    <button onClick={() => { setModalTab('memo'); setMemoText(selectedUser.admin_memo || ''); }} style={{ flex: 1, padding: '12px', border: 'none', background: modalTab === 'memo' ? '#FFF' : 'transparent', borderBottom: modalTab === 'memo' ? '2px solid #0ea5e9' : 'none', fontWeight: modalTab === 'memo' ? 'bold' : 'normal', cursor: 'pointer', fontSize: '13px' }}><FileText size={14} style={{verticalAlign:'middle', marginRight:'4px'}}/> 관리자 메모</button>
+                        <div className="ios-modal-overlay" onClick={() => setSelectedRequest ? setSelectedRequest(null) : setSelectedUser(null)}>
+                            <div className="ios-modal-card" onClick={e => e.stopPropagation()}>
+                                <div className="ios-modal-header">
+                                    <h3 className="ios-modal-title">회원 관리 <span style={{fontSize:'13px', color:'#8E8E93', fontWeight:'500'}}>({selectedUser.name})</span></h3>
+                                    <button className="ios-modal-close" onClick={() => setSelectedUser(null)}><X size={16}/></button>
                                 </div>
                                 
-                                <div style={{ padding: '24px', minHeight: '350px', maxHeight: '500px', overflowY: 'auto' }}>
-                                    {/* 탭 1: 기본 정보 */}
+                                <div style={{ display: 'flex', padding: '12px 20px 0 20px', background: '#FFFFFF' }}>
+                                    <div className="ios-segment" style={{ width: '100%', marginBottom: '12px' }}>
+                                        <div className={`ios-segment-btn ${modalTab === 'info' ? 'active' : ''}`} onClick={() => setModalTab('info')}><Settings size={14}/> 권한 및 열람권</div>
+                                        <div className={`ios-segment-btn ${modalTab === 'memo' ? 'active' : ''}`} onClick={() => { setModalTab('memo'); setMemoText(selectedUser.admin_memo || ''); }}><FileText size={14}/> 관리자 메모</div>
+                                    </div>
+                                </div>
+
+                                <div className="ios-modal-body">
                                     {modalTab === 'info' && (
-                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                                            <tbody>
-                                                <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', width: '120px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>이메일(ID)</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{selectedUser.email}</td></tr>
-                                                <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>가입일시</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>{new Date(selectedUser.created_at).toLocaleString()}</td></tr>
-                                                
-                                                <tr>
-                                                    <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>회원 등급 변경</td>
-                                                    <td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
-                                                        <select 
-                                                            disabled={isUpdatingTier}
-                                                            value={selectedUser.role === 'partner' ? 'partner' : (selectedUser.membership_tier || 'free')}
-                                                            onChange={(e) => handleChangeUserTier(e.target.value)}
-                                                            style={{ padding: '6px 12px', border: '1px solid #CCC', borderRadius: '4px', fontSize: '13px', outline: 'none', cursor: 'pointer', backgroundColor: '#FFF' }}
-                                                        >
-                                                            <option value="free">🌱 무료회원</option>
-                                                            <option value="basic">🛡️ 일반 구독회원</option>
-                                                            <option value="premium">👑 VIP 프리미엄 구독</option>
-                                                            <option value="partner">🤝 스토어 파트너</option>
-                                                        </select>
-                                                        {isUpdatingTier && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#0ea5e9' }}>변경 중...</span>}
-                                                    </td>
-                                                </tr>
-                                                
-                                                {/* 🚨 [잔재 정리] 모달창에 남아있던 "보유 캐시" 줄 완전히 삭제 완료! */}
-                                                
-                                                {/* 🚨 타로 열람권 섹션 */}
-                                                <tr>
-                                                    <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>타로 열람권</td>
-                                                    <td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                                            <span style={{ fontSize: '15px', fontWeight: '800', color: '#C5A059' }}>
-                                                                {selectedUser.tarot_ticket_count || 0} 장
-                                                            </span>
-                                                            <div style={{ display: 'flex', gap: '6px' }}>
-                                                                <button type="button" disabled={isUpdatingTarotTicket} onClick={() => handleUpdateTarotTicket(1)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+1 지급</button>
-                                                                <button type="button" disabled={isUpdatingTarotTicket} onClick={() => handleUpdateTarotTicket(5)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+5 지급</button>
-                                                                <button type="button" disabled={isUpdatingTarotTicket || (selectedUser.tarot_ticket_count || 0) <= 0} onClick={() => handleUpdateTarotTicket(-1)} style={{ background: '#EF4444', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>-1 차감</button>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                                        <>
+                                            <div className="ios-inset-group">
+                                                <div className="ios-inset-row">
+                                                    <span className="ios-inset-label">이메일 계정</span>
+                                                    <span className="ios-inset-value">{selectedUser.email}</span>
+                                                </div>
+                                                <div className="ios-inset-row">
+                                                    <span className="ios-inset-label">등급 변경</span>
+                                                    <select className="ios-select" style={{ textAlign: 'right', direction: 'rtl' }} disabled={isUpdatingTier} value={selectedUser.role === 'partner' ? 'partner' : (selectedUser.membership_tier || 'free')} onChange={(e) => handleChangeUserTier(e.target.value)}>
+                                                        <option value="free">무료회원</option>
+                                                        <option value="basic">베이직</option>
+                                                        <option value="premium">VIP 프리미엄</option>
+                                                        <option value="partner">파트너</option>
+                                                    </select>
+                                                </div>
+                                                <div className="ios-inset-row">
+                                                    <span className="ios-inset-label">계정 차단</span>
+                                                    <button className={`ios-btn-micro ${selectedUser.is_blocked ? 'success' : 'danger'}`} onClick={(e) => handleToggleBlock(e, selectedUser.id, selectedUser.is_blocked)}>
+                                                        {selectedUser.is_blocked ? '차단 해제하기' : '이 계정 차단'}
+                                                    </button>
+                                                </div>
+                                            </div>
 
-                                                {/* 🚨 사주/궁합/택일/작명 통합 종합 열람권 섹션 */}
-                                                <tr>
-                                                    <td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>
-                                                        종합 열람권<br/>
-                                                        <span style={{fontSize: '11px', color: '#666', fontWeight: 'normal'}}>(사주/궁합/택일/작명)</span>
-                                                    </td>
-                                                    <td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                                            <span style={{ fontSize: '15px', fontWeight: '800', color: '#0ea5e9' }}>
-                                                                {selectedUser.general_ticket_count || 0} 장
-                                                            </span>
-                                                            <div style={{ display: 'flex', gap: '6px' }}>
-                                                                <button type="button" disabled={isUpdatingGeneralTicket} onClick={() => handleUpdateGeneralTicket(1)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+1 지급</button>
-                                                                <button type="button" disabled={isUpdatingGeneralTicket} onClick={() => handleUpdateGeneralTicket(5)} style={{ background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+5 지급</button>
-                                                                <button type="button" disabled={isUpdatingGeneralTicket || (selectedUser.general_ticket_count || 0) <= 0} onClick={() => handleUpdateGeneralTicket(-1)} style={{ background: '#EF4444', color: '#FFFFFF', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>-1 차감</button>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                                            <div className="ios-inset-group">
+                                                <div className="ios-inset-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                                        <span className="ios-inset-label">타로 열람권</span>
+                                                        <span style={{ fontSize: '15px', fontWeight: '800', color: '#FF9500' }}>{selectedUser.tarot_ticket_count || 0} 장</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                                                        <button className="ios-btn-micro outline" style={{flex:1}} onClick={() => handleUpdateTarotTicket(1)}>+1 지급</button>
+                                                        <button className="ios-btn-micro outline" style={{flex:1}} onClick={() => handleUpdateTarotTicket(5)}>+5 지급</button>
+                                                        <button className="ios-btn-micro danger" style={{flex:1}} onClick={() => handleUpdateTarotTicket(-1)} disabled={(selectedUser.tarot_ticket_count||0)<=0}>-1 차감</button>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                                <tr><td style={{ backgroundColor: '#F9FAFB', padding: '12px', border: '1px solid #E5E7EB', fontWeight: 'bold' }}>계정 상태 제어</td><td style={{ padding: '12px', border: '1px solid #E5E7EB' }}>
-                                                    <button onClick={(e) => handleToggleBlock(e, selectedUser.id, selectedUser.is_blocked)} style={{...(selectedUser.is_blocked ? styles.actionBtnRed : styles.actionBtnBlue), padding: '6px 12px'}}>{selectedUser.is_blocked ? '현재 차단됨 (클릭하여 해제)' : '정상 작동중 (클릭하여 차단)'}</button>
-                                                </td></tr>
-                                            </tbody>
-                                        </table>
+                                            <div className="ios-inset-group">
+                                                <div className="ios-inset-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px', borderBottom: 'none' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                                        <span className="ios-inset-label">종합 열람권 <span style={{fontSize:'11px', color:'#8E8E93', fontWeight:'normal'}}>(사주/궁합/택일)</span></span>
+                                                        <span style={{ fontSize: '15px', fontWeight: '800', color: '#007AFF' }}>{selectedUser.general_ticket_count || 0} 장</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                                                        <button className="ios-btn-micro outline" style={{flex:1}} onClick={() => handleUpdateGeneralTicket(1)}>+1 지급</button>
+                                                        <button className="ios-btn-micro outline" style={{flex:1}} onClick={() => handleUpdateGeneralTicket(5)}>+5 지급</button>
+                                                        <button className="ios-btn-micro danger" style={{flex:1}} onClick={() => handleUpdateGeneralTicket(-1)} disabled={(selectedUser.general_ticket_count||0)<=0}>-1 차감</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
                                     )}
 
-                                    {/* 탭 2: 메모 */}
                                     {modalTab === 'memo' && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                            <div style={{ fontSize: '12px', color: '#ef4444', fontWeight: 'bold' }}>※ 고객에게 노출되지 않는 관리자 전용 메모 공간입니다.</div>
-                                            <textarea value={memoText} onChange={(e) => setMemoText(e.target.value)} placeholder="이슈 사항, 블랙리스트 사유 등을 상세히 기록하세요." style={{ width: '100%', height: '150px', padding: '12px', border: '1px solid #D1D5DB', borderRadius: '4px', outline: 'none', resize: 'vertical', fontSize: '13px' }} />
-                                            <div style={{ textAlign: 'center' }}><button onClick={handleSaveMemo} disabled={isSavingMemo} style={{ ...styles.actionBtnBlue, padding: '8px 40px', fontSize: '13px' }}>{isSavingMemo ? '저장 중...' : '메모 저장하기'}</button></div>
+                                        <div className="ios-inset-group" style={{ padding: '16px' }}>
+                                            <p style={{ fontSize: '12px', color: '#FF3B30', margin: '0 0 12px 0', fontWeight: '600' }}>※ 고객에게는 절대 노출되지 않는 내부 관리용 메모입니다.</p>
+                                            <textarea className="ios-textarea" value={memoText} onChange={(e) => setMemoText(e.target.value)} placeholder="블랙리스트 사유, CS 내역 등을 입력하세요." />
+                                            <button className="ios-btn-micro outline" style={{ width: '100%', marginTop: '16px', padding: '12px', fontSize: '14px', background: '#007AFF', color: '#FFF', border: 'none' }} onClick={handleSaveMemo} disabled={isSavingMemo}>
+                                                {isSavingMemo ? '저장 중...' : '메모 저장'}
+                                            </button>
                                         </div>
                                     )}
                                 </div>
