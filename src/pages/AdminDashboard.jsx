@@ -31,13 +31,24 @@ export default function AdminDashboard() {
         setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
-    // 🌟 iOS 스타일 테마
+    // 🌟 화사하고 밝은 모던 브라이트(Modern Bright) 테마로 개편
     const adminTheme = {
-        bg: '#F2F2F7', panelBg: '#FFFFFF', border: '#E5E5EA', textBright: '#1C1C1E',     
-        text: '#3A3A3C', textMuted: '#8E8E93', primary: '#007AFF', accent: '#007AFF',         
-        danger: '#FF3B30', good: '#34C759', sidebarBg: '#F2F2F7', sidebarText: '#1C1C1E',    
-        sidebarActive: '#FFFFFF', tableHeaderBg: '#F9F9FB', tableRowBorder: '#E5E5EA', 
-        shadow: '0 4px 20px rgba(0, 0, 0, 0.04)'
+        bg: '#F8FAFC',            // 메인 배경: 아주 밝고 산뜻한 쿨 그레이 (기존의 칙칙함 제거)
+        panelBg: '#FFFFFF',       // 패널 배경: 순백색
+        border: '#E2E8F0',        // 테두리: 부드럽고 연한 라인
+        textBright: '#0F172A',    // 강조 텍스트: 선명한 다크 네이비
+        text: '#334155',          // 일반 텍스트: 부드러운 차콜
+        textMuted: '#94A3B8',     // 보조 텍스트: 밝은 그레이
+        primary: '#3B82F6',       // 메인 컬러: 화사한 블루
+        accent: '#2563EB',        // 강조 컬러: 선명한 딥 블루
+        danger: '#EF4444', 
+        good: '#10B981', 
+        sidebarBg: '#FFFFFF',     // 사이드바 배경: 순백색으로 개방감 극대화
+        sidebarText: '#475569',   
+        sidebarActive: '#EFF6FF', // 활성 메뉴 배경: 아주 연한 파스텔 블루
+        tableHeaderBg: '#F8FAFC', 
+        tableRowBorder: '#F1F5F9', 
+        shadow: '0 4px 20px rgba(0, 0, 0, 0.03)' // 그림자: 더 부드럽고 넓게 퍼지도록
     };
 
     useEffect(() => {
@@ -55,11 +66,11 @@ export default function AdminDashboard() {
 
     if (isChecking) return (
         <div style={{ minHeight: '100vh', background: adminTheme.bg, color: adminTheme.textBright, display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: '600' }}>
-            <span className="lucide-spin" style={{ marginRight: '8px' }}><Settings size={20} color="#007AFF"/></span> 어드민 시스템 접근 권한 확인 중...
+            <span className="lucide-spin" style={{ marginRight: '8px' }}><Settings size={20} color={adminTheme.primary}/></span> 어드민 시스템 접근 권한 확인 중...
         </div>
     );
 
-    // 🚨 해결됨: 배열 내부에 JSX 태그 대신 컴포넌트 참조(Reference)만 저장하여 에디터 파싱 오류 방지
+    // 🚨 컴포넌트 파싱 에러를 완벽하게 방지하는 아이콘 참조 배열 유지
     const menuItems = [
         { category: '서비스 관리', hideCategoryTitle: false, items: [
             { id: 'overview', icon: BarChart3, label: '대시보드 통계' },
@@ -144,74 +155,87 @@ export default function AdminDashboard() {
             <style dangerouslySetInnerHTML={{ __html: `
                 .ios-sidebar-scroll::-webkit-scrollbar { display: none; }
                 
+                /* 밝고 경쾌한 메뉴 스타일 */
                 .ios-menu-item {
-                    padding: 10px 12px; margin: 2px 12px; border-radius: 10px;
+                    padding: 12px 14px; margin: 4px 16px; border-radius: 12px;
                     display: flex; align-items: center; justify-content: space-between;
-                    cursor: pointer; transition: all 0.2s cubic-bezier(0.2, 0.85, 0.32, 1.2);
-                    font-size: 15px; font-weight: 500; color: #1C1C1E;
-                    border: 1px solid transparent;
+                    cursor: pointer; transition: all 0.2s ease;
+                    font-size: 15px; font-weight: 500; color: #475569;
+                    background-color: transparent; border: 1px solid transparent;
                 }
-                .ios-menu-item:hover { background-color: rgba(0,0,0,0.04); }
+                .ios-menu-item:hover { background-color: #F8FAFC; color: #0F172A; }
                 .ios-menu-item:active { transform: scale(0.98); }
                 .ios-menu-item.active {
-                    background-color: #FFFFFF; color: #007AFF; font-weight: 600;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 0.5px solid #E5E5EA;
+                    background-color: #EFF6FF; color: #2563EB; font-weight: 700;
                 }
                 
                 .ios-sub-container {
-                    overflow: hidden; animation: slideDown 0.2s ease-out forwards;
+                    overflow: hidden; animation: slideDown 0.25s cubic-bezier(0.2, 0.85, 0.32, 1.2) forwards;
                 }
-                @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
                 
                 .ios-sub-item {
-                    padding: 8px 12px 8px 42px; margin: 2px 12px; border-radius: 8px;
-                    font-size: 14px; font-weight: 500; color: #8E8E93;
-                    cursor: pointer; transition: all 0.2s;
+                    padding: 10px 12px 10px 46px; margin: 2px 16px; border-radius: 10px;
+                    font-size: 14px; font-weight: 500; color: #94A3B8;
+                    cursor: pointer; transition: all 0.2s ease; position: relative;
                 }
-                .ios-sub-item:hover { color: #1C1C1E; background-color: rgba(0,0,0,0.03); }
+                .ios-sub-item:hover { color: #334155; background-color: #F8FAFC; }
                 .ios-sub-item:active { transform: scale(0.98); }
                 .ios-sub-item.active {
-                    color: #007AFF; font-weight: 600; background-color: #E5F0FF;
+                    color: #2563EB; font-weight: 700; background-color: transparent;
+                }
+                /* 활성 서브메뉴 좌측 점선(Indicator) 효과 */
+                .ios-sub-item.active::before {
+                    content: ''; position: absolute; left: 24px; top: 50%; transform: translateY(-50%);
+                    width: 6px; height: 6px; border-radius: 50%; background-color: #3B82F6;
+                    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
                 }
 
+                /* 투명하고 밝은 상단 헤더 */
                 .ios-glass-header {
-                    background-color: rgba(242, 242, 247, 0.85);
-                    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-                    border-bottom: 0.5px solid #C6C6C8;
+                    background-color: rgba(255, 255, 255, 0.85);
+                    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+                    border-bottom: 1px solid #E2E8F0;
                 }
                 
                 .ios-action-btn {
-                    background: none; border: none; display: flex; align-items: center; gap: 6px;
-                    font-size: 14px; font-weight: 600; cursor: pointer; padding: 6px 10px;
-                    border-radius: 8px; transition: background-color 0.2s;
+                    background: #F8FAFC; border: 1px solid #E2E8F0; display: flex; align-items: center; gap: 6px;
+                    font-size: 13px; font-weight: 700; cursor: pointer; padding: 8px 14px;
+                    border-radius: 10px; transition: all 0.2s; color: #475569;
                 }
-                .ios-action-btn:hover { background-color: rgba(0,0,0,0.05); }
+                .ios-action-btn:hover { background-color: #F1F5F9; border-color: #CBD5E1; color: #0F172A; }
                 .ios-action-btn:active { transform: scale(0.96); }
+                .ios-action-btn.danger { color: #EF4444; background-color: #FEF2F2; border-color: #FECACA; }
+                .ios-action-btn.danger:hover { background-color: #FEE2E2; color: #DC2626; }
 
                 .lucide-spin { animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
             `}} />
 
-            {/* 사이드바 (iPadOS Style) */}
-            <aside style={{ width: '260px', flexShrink: 0, backgroundColor: adminTheme.sidebarBg, borderRight: '0.5px solid #C6C6C8', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ height: '60px', display: 'flex', alignItems: 'center', padding: '0 24px', flexShrink: 0 }}>
-                    <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#1C1C1E', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Sliders size={20} color="#007AFF" /> 
-                        <span><span style={{ color: '#007AFF' }}>FATE</span> MASTER</span>
+            {/* 사이드바 (화이트 톤) */}
+            <aside style={{ width: '280px', flexShrink: 0, backgroundColor: adminTheme.sidebarBg, borderRight: `1px solid ${adminTheme.border}`, display: 'flex', flexDirection: 'column' }}>
+                
+                {/* 브랜드 로고 영역 */}
+                <div style={{ height: '72px', display: 'flex', alignItems: 'center', padding: '0 28px', flexShrink: 0, borderBottom: `1px solid ${adminTheme.border}` }}>
+                    <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: adminTheme.textBright, letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', padding: '6px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Sliders size={18} color="#FFFFFF" strokeWidth={2.5} /> 
+                        </div>
+                        <span><span style={{ color: adminTheme.primary }}>FATE</span> MASTER</span>
                     </h1>
                 </div>
 
-                <div className="ios-sidebar-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px 0 32px 0' }}>
+                <div className="ios-sidebar-scroll" style={{ flex: 1, overflowY: 'auto', padding: '24px 0 40px 0' }}>
                     {menuItems.map((group, idx) => (
-                        <div key={idx} style={{ marginBottom: '20px' }}>
+                        <div key={idx} style={{ marginBottom: '24px' }}>
                             {!group.hideCategoryTitle && (
-                                <div style={{ padding: '0 24px', fontSize: '12px', color: '#8E8E93', fontWeight: '700', marginBottom: '6px', letterSpacing: '-0.3px' }}>
+                                <div style={{ padding: '0 24px', fontSize: '12px', color: adminTheme.textMuted, fontWeight: '700', marginBottom: '8px', letterSpacing: '0.5px' }}>
                                     {group.category}
                                 </div>
                             )}
                             {group.items.map(menu => {
                                 const isActive = activeTab === menu.id || (menu.subItems && menu.subItems.some(s => s.id === activeTab));
-                                const IconComponent = menu.icon; // 🚨 동적 렌더링을 위한 컴포넌트 할당
+                                const IconComponent = menu.icon; 
                                 
                                 return (
                                     <div key={menu.id}>
@@ -222,13 +246,12 @@ export default function AdminDashboard() {
                                                 else setActiveTab(menu.id);
                                             }}
                                         >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                {/* 🚨 태그 형태로 렌더링 */}
-                                                <IconComponent size={18} color={isActive ? '#007AFF' : '#8E8E93'} />
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <IconComponent size={20} color={isActive ? adminTheme.accent : adminTheme.textMuted} strokeWidth={isActive ? 2.5 : 2} />
                                                 {menu.label}
                                             </div>
                                             {menu.subItems && (
-                                                <ChevronRight size={16} style={{ transition: 'transform 0.25s cubic-bezier(0.2, 0.85, 0.32, 1.2)', transform: openMenus[menu.id] ? 'rotate(90deg)' : 'rotate(0deg)', color: '#C7C7CC' }} />
+                                                <ChevronRight size={18} style={{ transition: 'transform 0.3s cubic-bezier(0.2, 0.85, 0.32, 1.2)', transform: openMenus[menu.id] ? 'rotate(90deg)' : 'rotate(0deg)', color: '#CBD5E1' }} />
                                             )}
                                         </div>
                                         
@@ -254,31 +277,33 @@ export default function AdminDashboard() {
             </aside>
 
             {/* 메인 콘텐츠 영역 */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: 'calc(100% - 260px)' }}>
-                {/* 상단 헤더 (Glassmorphism) */}
-                <header className="ios-glass-header" style={{ height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', flexShrink: 0, position: 'sticky', top: 0, zIndex: 100 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: adminTheme.textMuted, fontWeight: '600' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: 'calc(100% - 280px)' }}>
+                {/* 상단 헤더 (밝고 투명한 유리 질감) */}
+                <header className="ios-glass-header" style={{ height: '72px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 40px', flexShrink: 0, position: 'sticky', top: 0, zIndex: 100 }}>
+                    
+                    {/* 빵판 (Breadcrumbs) */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', color: adminTheme.textMuted, fontWeight: '600' }}>
                         {breadcrumbText.split(' > ').map((text, idx, arr) => (
                             <React.Fragment key={idx}>
-                                {idx > 0 && <ChevronRight size={14} color="#C7C7CC" />}
-                                <span style={{ color: idx === arr.length - 1 ? adminTheme.textBright : adminTheme.textMuted }}>{text}</span>
+                                {idx > 0 && <ChevronRight size={16} color="#CBD5E1" />}
+                                <span style={{ color: idx === arr.length - 1 ? adminTheme.textBright : adminTheme.textMuted, fontWeight: idx === arr.length - 1 ? '700' : '500' }}>{text}</span>
                             </React.Fragment>
                         ))}
                     </div>
                     
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <button className="ios-action-btn" style={{ color: '#1C1C1E' }}>
+                    {/* 우측 액션 버튼 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <button className="ios-action-btn">
                             <Settings size={16} /> 설정
                         </button>
-                        <div style={{ width: '1px', height: '14px', backgroundColor: '#C6C6C8', margin: '0 8px' }}></div>
-                        <button onClick={async () => { await supabase.auth.signOut(); navigate('/'); }} className="ios-action-btn" style={{ color: '#FF3B30' }}>
+                        <button onClick={async () => { await supabase.auth.signOut(); navigate('/'); }} className="ios-action-btn danger">
                             <LogOut size={16} /> 안전하게 로그아웃
                         </button>
                     </div>
                 </header>
 
-                {/* 대시보드 컴포넌트 렌더링 뷰포트 */}
-                <main style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
+                {/* 대시보드 메인 렌더링 뷰포트 (쿨 그레이 배경으로 입체감 제공) */}
+                <main style={{ flex: 1, overflowY: 'auto', padding: '40px' }}>
                     <div style={{ width: '100%', maxWidth: '1600px', margin: '0 auto' }}>
                         {activeTab === 'overview' && <AdminOverview adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'user_manage' && <AdminUserManage adminTheme={adminTheme} />}
