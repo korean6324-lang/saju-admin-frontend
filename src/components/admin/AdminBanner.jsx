@@ -2,7 +2,11 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { UploadCloud, Save, Trash2, GripVertical, CheckCircle2, Clock, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { 
+    UploadCloud, Save, Trash2, GripVertical, CheckCircle2, 
+    Clock, AlertCircle, Image as ImageIcon, Link2, CalendarDays, 
+    Users, Plus, Eye, EyeOff, LayoutTemplate
+} from 'lucide-react';
 
 export default function AdminBanner() {
     const queryClient = useQueryClient();
@@ -79,7 +83,7 @@ export default function AdminBanner() {
             alert("✅ 배너가 성공적으로 등록되었습니다.");
             setTitle(''); setLinkUrl(''); setStartDate(''); setEndDate(''); setTargetRole('all');
             setSelectedFile(null); setPreviewUrl('');
-            queryClient.invalidateQueries(['adminBanners']);
+            queryClient.invalidateQueries({ queryKey: ['adminBanners'] });
 
         } catch (error) {
             console.error("배너 등록 오류:", error);
@@ -91,7 +95,7 @@ export default function AdminBanner() {
     };
 
     // ==========================================================
-    // 3. Native Drag & Drop 정렬 (낙관적 업데이트 반영)
+    // 3. Native Drag & Drop 정렬
     // ==========================================================
     const handleDragStart = (e, index) => {
         dragItem.current = index;
@@ -123,7 +127,7 @@ export default function AdminBanner() {
             if (error) throw error;
         } catch (error) {
             alert("❌ 정렬 순서 저장 실패");
-            queryClient.invalidateQueries(['adminBanners']);
+            queryClient.invalidateQueries({ queryKey: ['adminBanners'] });
         }
         dragItem.current = null; dragOverItem.current = null;
     };
@@ -139,145 +143,220 @@ export default function AdminBanner() {
                 await supabase.storage.from('banners').remove([decodeURIComponent(urlParts[1])]);
             }
             await supabase.from('banners').delete().eq('id', id);
-            queryClient.invalidateQueries(['adminBanners']);
+            queryClient.invalidateQueries({ queryKey: ['adminBanners'] });
         } catch (error) { console.error("삭제 실패:", error); }
     };
 
     const toggleActive = async (id, currentStatus) => {
-        await supabase.from('banners').update({ is_active: !currentStatus }).eq('id', id);
-        queryClient.invalidateQueries(['adminBanners']);
+        // 낙관적 업데이트
+        const previousBanners = queryClient.getQueryData(['adminBanners']);
+        queryClient.setQueryData(['adminBanners'], old => 
+            old.map(b => b.id === id ? { ...b, is_active: !currentStatus } : b)
+        );
+
+        try {
+            const { error } = await supabase.from('banners').update({ is_active: !currentStatus }).eq('id', id);
+            if (error) throw error;
+        } catch (error) {
+            queryClient.setQueryData(['adminBanners'], previousBanners);
+            alert("❌ 상태 변경 실패");
+        }
     };
 
     const getBannerStatus = (banner) => {
-        if (!banner.is_active) return { text: '숨김처리', color: '#999', icon: <AlertCircle size={12}/> };
+        if (!banner.is_active) return { text: '숨김', color: '#8E8E93', bg: '#F2F2F7', icon: <EyeOff size={14}/> };
         const now = new Date().getTime();
         const start = banner.start_date ? new Date(banner.start_date).getTime() : 0;
         const end = banner.end_date ? new Date(banner.end_date).getTime() : Infinity;
 
-        if (now < start) return { text: '예약 대기', color: '#d97706', icon: <Clock size={12}/> };
-        if (now > end) return { text: '기간 만료', color: '#ef4444', icon: <AlertCircle size={12}/> };
-        return { text: '정상 노출', color: '#059669', icon: <CheckCircle2 size={12}/> };
-    };
-
-    // ==========================================================
-    // 🎨 엔터프라이즈 화이트 테마 스타일 (12~13px 고밀도)
-    // ==========================================================
-    const styles = {
-        container: { backgroundColor: '#FFFFFF', padding: '24px', fontFamily: '"Malgun Gothic", "Pretendard", sans-serif', fontSize: '13px', color: '#333' },
-        headerTitle: { fontSize: '20px', fontWeight: 'bold', color: '#111', marginBottom: '8px' },
-        headerSub: { fontSize: '12px', color: '#666', marginBottom: '24px' },
-        
-        formBox: { border: '2px solid #E5E7EB', display: 'flex', flexDirection: 'column', marginBottom: '16px', borderBottom: 'none' },
-        formRow: { display: 'flex', borderBottom: '1px solid #E5E7EB' },
-        formLabel: { width: '140px', backgroundColor: '#F9FAFB', padding: '10px 16px', fontWeight: 'bold', color: '#444', borderRight: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', fontSize: '12px' },
-        formContent: { flex: 1, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px' },
-        
-        input: { padding: '4px 8px', border: '1px solid #CCC', fontSize: '12px', outline: 'none', width: '100%', maxWidth: '350px' },
-        select: { padding: '4px 8px', border: '1px solid #CCC', fontSize: '12px', outline: 'none' },
-        
-        submitBtn: { backgroundColor: '#0ea5e9', color: '#FFF', border: 'none', padding: '8px 30px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '2px' },
-        
-        // D&D 테이블형 리스트 디자인
-        listHeader: { display: 'flex', backgroundColor: '#F8F9FA', borderTop: '2px solid #333', borderBottom: '1px solid #CCC', padding: '10px 0', textAlign: 'center', fontWeight: 'bold', color: '#333', fontSize: '12px' },
-        listItem: { display: 'flex', borderBottom: '1px solid #E5E7EB', backgroundColor: '#FFF', alignItems: 'center', fontSize: '12px', color: '#555' },
-        
-        actionBtnBlue: { padding: '4px 8px', border: '1px solid #0ea5e9', backgroundColor: '#FFF', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#0ea5e9' },
-        actionBtnRed: { padding: '4px 8px', border: '1px solid #ef4444', backgroundColor: '#FFF', borderRadius: '2px', fontSize: '11px', cursor: 'pointer', color: '#ef4444' },
+        if (now < start) return { text: '예약됨', color: '#D97706', bg: '#FFF5E5', icon: <Clock size={14}/> };
+        if (now > end) return { text: '만료됨', color: '#FF3B30', bg: '#FFE5E5', icon: <AlertCircle size={14}/> };
+        return { text: '노출 중', color: '#34C759', bg: '#E5FBEB', icon: <Eye size={14}/> };
     };
 
     return (
-        <div style={styles.container}>
-            {/* 1. 상단 타이틀 */}
+        <div className="ios-admin-wrap fade-in">
+            <style dangerouslySetInnerHTML={{ __html: `
+                .ios-admin-wrap {
+                    width: 100%; box-sizing: border-box;
+                    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif;
+                    background-color: #F2F2F7;
+                    min-height: 100vh; padding: 24px; padding-bottom: 100px;
+                }
+
+                .ios-page-title {
+                    font-size: 28px; font-weight: 800; color: #1C1C1E;
+                    margin: 0 0 8px 0; letter-spacing: -0.5px;
+                }
+                .ios-page-desc {
+                    font-size: 14px; color: #8E8E93; margin: 0 0 24px 0; font-weight: 500;
+                }
+
+                /* 리스트 그룹 (Inset Grouped) */
+                .ios-group-title {
+                    font-size: 13px; font-weight: 600; color: #8E8E93; text-transform: uppercase;
+                    margin: 0 0 6px 16px; letter-spacing: -0.3px; display: flex; align-items: center; gap: 6px;
+                }
+                .ios-list-group {
+                    background-color: #FFFFFF; border-radius: 12px; margin-bottom: 32px;
+                    overflow: hidden; border: 0.5px solid #C6C6C8;
+                }
+                .ios-list-row {
+                    display: flex; align-items: center; justify-content: space-between;
+                    min-height: 48px; padding: 12px 16px; border-bottom: 0.5px solid #E5E5EA;
+                }
+                .ios-list-row:last-child { border-bottom: none; }
+
+                /* 아이콘 박스 */
+                .ios-icon-box {
+                    width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #FFF; flex-shrink: 0; margin-right: 12px;
+                }
+
+                /* 폼 컨트롤 */
+                .ios-label-wrap { display: flex; align-items: center; flex: 1; }
+                .ios-label { font-size: 16px; font-weight: 500; color: #1C1C1E; letter-spacing: -0.3px; }
+                
+                .ios-input {
+                    flex: 2; border: none; outline: none; background: transparent; text-align: right;
+                    font-size: 16px; color: #1C1C1E; font-weight: 500; width: 100%; min-width: 0;
+                }
+                .ios-input::placeholder { color: #C7C7CC; }
+                .ios-select {
+                    border: none; outline: none; background: transparent; font-size: 16px; color: #1C1C1E; text-align: right; font-weight: 500; direction: rtl; appearance: none;
+                }
+
+                /* 이미지 썸네일 업로드 영역 */
+                .ios-upload-trigger {
+                    display: flex; align-items: center; gap: 8px; color: #007AFF; font-weight: 600; font-size: 15px; cursor: pointer;
+                }
+                .ios-preview-box {
+                    height: 44px; width: 130px; border-radius: 8px; background-color: #F2F2F7; border: 0.5px solid #C6C6C8; overflow: hidden; display: flex; align-items: center; justify-content: center;
+                }
+
+                /* 메인 버튼 */
+                .ios-primary-btn {
+                    width: 100%; background-color: #007AFF; color: #FFFFFF; font-size: 16px; font-weight: 600;
+                    padding: 14px; border-radius: 12px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: transform 0.2s;
+                }
+                .ios-primary-btn:active:not(:disabled) { transform: scale(0.98); }
+                .ios-primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+                /* 드래그 앤 드롭 리스트 아이템 */
+                .ios-banner-card {
+                    display: flex; align-items: stretch; background: #FFFFFF; padding: 16px; border-bottom: 0.5px solid #E5E5EA; transition: background-color 0.2s;
+                }
+                .ios-banner-card:last-child { border-bottom: none; }
+                .drag-handle {
+                    display: flex; align-items: center; justify-content: center; padding-right: 16px; color: #C7C7CC; cursor: grab;
+                }
+                .drag-handle:active { cursor: grabbing; }
+
+                /* 토글 스위치 */
+                .ios-toggle {
+                    width: 51px; height: 31px; background-color: #E9E9EA; border-radius: 31px; position: relative; cursor: pointer; transition: background-color 0.3s ease; flex-shrink: 0;
+                }
+                .ios-toggle.active { background-color: #34C759; }
+                .ios-toggle-knob {
+                    width: 27px; height: 27px; background-color: #FFFFFF; border-radius: 50%; position: absolute; top: 2px; left: 2px; box-shadow: 0 3px 8px rgba(0,0,0,0.15), 0 3px 1px rgba(0,0,0,0.06); transition: transform 0.3s cubic-bezier(0.2, 0.85, 0.32, 1.2);
+                }
+                .ios-toggle.active .ios-toggle-knob { transform: translateX(20px); }
+
+                .ios-delete-btn {
+                    background: #FFE5E5; color: #FF3B30; border: none; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;
+                }
+            `}} />
+
             <div>
-                <h2 style={styles.headerTitle}>메인 배너 스케줄링</h2>
-                <p style={styles.headerSub}>[운영 및 마케팅 &gt; 배너 관리] 신규 배너를 등록하고, 드래그 앤 드롭으로 노출 순서를 변경할 수 있습니다.</p>
+                <h1 className="ios-page-title">배너 관리</h1>
+                <p className="ios-page-desc">새로운 배너를 추가하고 앱 내 노출 순서를 제어합니다.</p>
             </div>
 
-            {/* 2. 꽉 찬 표 형태의 등록 폼 (Whois 스타일) */}
-            <div style={styles.formBox}>
-                
-                {/* 1열: 배너 이미지 & 제목 */}
-                <div style={styles.formRow}>
-                    <div style={styles.formLabel}>· 배너 이미지 <span style={{color:'#ef4444', marginLeft:'4px'}}>*</span></div>
-                    <div style={styles.formContent}>
-                        <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '120px', height: '40px', border: '1px solid #CCC', backgroundColor: '#F9FAFB', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', color: '#555', borderRadius: '2px' }}>
-                            <UploadCloud size={14} style={{marginRight: '6px'}} /> 이미지 선택
+            {/* =======================================
+                1. 신규 배너 등록 폼 (iOS Inset Grouped)
+            ======================================= */}
+            <div className="ios-group-title"><Plus size={16} /> 신규 배너 등록</div>
+            <div className="ios-list-group">
+                {/* 이미지 등록 */}
+                <div className="ios-list-row">
+                    <div className="ios-label-wrap">
+                        <div className="ios-icon-box" style={{ background: '#5856D6' }}><ImageIcon size={16} /></div>
+                        <span className="ios-label">배너 이미지</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {previewUrl && (
+                            <div className="ios-preview-box">
+                                <img src={previewUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
+                        )}
+                        <label className="ios-upload-trigger">
+                            <UploadCloud size={18} /> {previewUrl ? '변경' : '업로드'}
                             <input type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} />
                         </label>
-                        {previewUrl && (
-                            <img src={previewUrl} alt="preview" style={{ height: '40px', width: 'auto', border: '1px solid #E5E7EB', marginLeft: '10px' }} />
-                        )}
-                        <span style={{color: '#999', marginLeft: '8px'}}>(권장 해상도: 1200x400)</span>
                     </div>
                 </div>
 
-                <div style={styles.formRow}>
-                    <div style={styles.formLabel}>· 관리용 제목 <span style={{color:'#ef4444', marginLeft:'4px'}}>*</span></div>
-                    <div style={styles.formContent}>
-                        <input type="text" value={title} onChange={e=>setTitle(e.target.value)} placeholder="예: 2026 추석맞이 이벤트" style={styles.input} />
+                {/* 관리용 제목 */}
+                <div className="ios-list-row">
+                    <div className="ios-label-wrap">
+                        <div className="ios-icon-box" style={{ background: '#FF9500' }}><LayoutTemplate size={16} /></div>
+                        <span className="ios-label">타이틀</span>
+                    </div>
+                    <input type="text" className="ios-input" placeholder="예: 2026 신년 이벤트" value={title} onChange={e=>setTitle(e.target.value)} />
+                </div>
+
+                {/* 연결 링크 */}
+                <div className="ios-list-row">
+                    <div className="ios-label-wrap">
+                        <div className="ios-icon-box" style={{ background: '#34C759' }}><Link2 size={16} /></div>
+                        <span className="ios-label">이동 링크</span>
+                    </div>
+                    <input type="text" className="ios-input" placeholder="https:// (선택사항)" value={linkUrl} onChange={e=>setLinkUrl(e.target.value)} />
+                </div>
+
+                {/* 예약 스케줄 */}
+                <div className="ios-list-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '12px', padding: '16px' }}>
+                    <div className="ios-label-wrap">
+                        <div className="ios-icon-box" style={{ background: '#FF2D55' }}><CalendarDays size={16} /></div>
+                        <span className="ios-label">노출 기간 (선택)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input type="datetime-local" className="ios-input" style={{ backgroundColor: '#F2F2F7', padding: '8px 12px', borderRadius: '8px', textAlign: 'left' }} value={startDate} onChange={e=>setStartDate(e.target.value)} />
+                        <span style={{ color: '#8E8E93', fontWeight: '600' }}>~</span>
+                        <input type="datetime-local" className="ios-input" style={{ backgroundColor: '#F2F2F7', padding: '8px 12px', borderRadius: '8px', textAlign: 'left' }} value={endDate} onChange={e=>setEndDate(e.target.value)} />
                     </div>
                 </div>
 
-                <div style={styles.formRow}>
-                    <div style={styles.formLabel}>· 클릭 연결 링크</div>
-                    <div style={styles.formContent}>
-                        <input type="text" value={linkUrl} onChange={e=>setLinkUrl(e.target.value)} placeholder="클릭 시 이동할 URL (생략 시 링크 없음)" style={styles.input} />
+                {/* 타겟 권한 */}
+                <div className="ios-list-row">
+                    <div className="ios-label-wrap">
+                        <div className="ios-icon-box" style={{ background: '#AF52DE' }}><Users size={16} /></div>
+                        <span className="ios-label">노출 대상</span>
                     </div>
-                </div>
-
-                <div style={styles.formRow}>
-                    <div style={styles.formLabel}>· 노출 스케줄링</div>
-                    <div style={styles.formContent}>
-                        <input type="datetime-local" value={startDate} onChange={e=>setStartDate(e.target.value)} style={styles.input} />
-                        <span style={{margin: '0 8px', color: '#999'}}>~</span>
-                        <input type="datetime-local" value={endDate} onChange={e=>setEndDate(e.target.value)} style={styles.input} />
-                        <span style={{color: '#999', marginLeft: '8px'}}>(설정하지 않으면 즉시 무기한 노출됩니다)</span>
-                    </div>
-                </div>
-
-                <div style={styles.formRow}>
-                    <div style={styles.formLabel}>· 노출 타겟</div>
-                    <div style={styles.formContent}>
-                        <select value={targetRole} onChange={e=>setTargetRole(e.target.value)} style={styles.select}>
-                            <option value="all">전체 (비로그인 포함)</option>
-                            <option value="user">일반 회원 전용</option>
-                            <option value="partner">스토어 파트너 전용</option>
-                        </select>
-                    </div>
+                    <select className="ios-select" value={targetRole} onChange={e=>setTargetRole(e.target.value)}>
+                        <option value="all">전체 사용자</option>
+                        <option value="user">일반 회원 전용</option>
+                        <option value="partner">파트너 전용</option>
+                    </select>
                 </div>
             </div>
 
-            {/* 등록 버튼 */}
-            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                <button onClick={handleSave} disabled={isSaving} style={{ ...styles.submitBtn, opacity: isSaving ? 0.6 : 1 }}>
-                    <Save size={16} /> {isSaving ? "저장 중..." : "배너 등록하기"}
-                </button>
+            <button onClick={handleSave} disabled={isSaving} className="ios-primary-btn">
+                {isSaving ? <span className="lucide-spin"><UploadCloud size={18}/></span> : <Save size={18} />}
+                {isSaving ? "업로드 중..." : "배너 생성"}
+            </button>
+
+            {/* =======================================
+                2. 배너 관리 리스트 (Drag & Drop)
+            ======================================= */}
+            <div className="ios-group-title" style={{ marginTop: '40px' }}>
+                <LayoutTemplate size={16} /> 활성 배너 리스트 ({banners.length})
             </div>
-
-            {/* 3. 등록된 배너 리스트 (Flex Table 구조) */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px' }}>
-                <div style={{ fontSize: '12px', color: '#555', fontWeight: 'bold' }}>
-                    <ImageIcon size={14} style={{verticalAlign: 'middle', marginRight:'4px'}}/>
-                    등록된 배너 리스트 <span style={{color: '#0ea5e9'}}>({banners.length})</span>
-                </div>
-                <div style={{ fontSize: '11px', color: '#999' }}>좌측 점선 아이콘(⋮⋮)을 드래그하여 순서를 변경하세요.</div>
-            </div>
-
-            <div style={{ width: '100%', borderBottom: '1px solid #CCC' }}>
-                {/* 리스트 헤더 */}
-                <div style={styles.listHeader}>
-                    <div style={{ width: '40px' }}>순서</div>
-                    <div style={{ width: '160px' }}>썸네일 이미지</div>
-                    <div style={{ flex: 1, textAlign: 'left', paddingLeft: '16px' }}>배너 상세 정보</div>
-                    <div style={{ width: '100px' }}>상태</div>
-                    <div style={{ width: '120px' }}>관리</div>
-                </div>
-
-                {/* 리스트 아이템 */}
+            
+            <div className="ios-list-group">
                 {isLoading ? (
-                    <div style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize: '12px' }}>데이터를 불러오는 중입니다...</div>
+                    <div style={{ padding: '32px', textAlign: 'center', color: '#8E8E93', fontSize: '15px', fontWeight: '500' }}>데이터 로딩 중...</div>
                 ) : banners.length === 0 ? (
-                    <div style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize: '12px' }}>등록된 배너가 없습니다.</div>
+                    <div style={{ padding: '32px', textAlign: 'center', color: '#8E8E93', fontSize: '15px', fontWeight: '500' }}>등록된 배너가 없습니다.</div>
                 ) : (
                     banners.map((banner, index) => {
                         const status = getBannerStatus(banner);
@@ -289,55 +368,58 @@ export default function AdminBanner() {
                                 onDragEnter={(e) => handleDragEnter(e, index)}
                                 onDragEnd={handleDragEnd}
                                 onDragOver={(e) => e.preventDefault()}
-                                style={{ ...styles.listItem, opacity: banner.is_active ? 1 : 0.6, cursor: 'grab' }}
+                                className="ios-banner-card"
+                                style={{ opacity: banner.is_active ? 1 : 0.6 }}
                             >
-                                {/* 드래그 핸들 */}
-                                <div style={{ width: '40px', display: 'flex', justifyContent: 'center', color: '#CCC' }}>
-                                    <GripVertical size={16} />
+                                {/* 드래그 햄버거 핸들 */}
+                                <div className="drag-handle">
+                                    <GripVertical size={20} />
                                 </div>
 
-                                {/* 썸네일 */}
-                                <div style={{ width: '160px', padding: '8px 0' }}>
-                                    <div style={{ width: '140px', height: '46px', backgroundColor: '#000', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
-                                        <img src={banner.image_url} alt="banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                {/* 메인 컨텐츠 영역 */}
+                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', minWidth: 0 }}>
+                                    
+                                    {/* 썸네일 & 정보 */}
+                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                        <div className="ios-preview-box" style={{ width: '100px', height: '40px', flexShrink: 0, backgroundColor: '#000' }}>
+                                            <img src={banner.image_url} alt="banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontSize: '16px', fontWeight: '700', color: '#1C1C1E', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.3px', marginBottom: '2px' }}>
+                                                {banner.title}
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                <span style={{ fontSize: '11px', fontWeight: '700', color: status.color, backgroundColor: status.bg, padding: '2px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                                                    {status.icon} {status.text}
+                                                </span>
+                                                <span style={{ fontSize: '12px', color: '#8E8E93', fontWeight: '500' }}>
+                                                    {banner.target_role === 'all' ? '전체' : banner.target_role === 'user' ? '회원' : '파트너'} 대상
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
 
-                                {/* 배너 정보 */}
-                                <div style={{ flex: 1, padding: '8px 16px', display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left' }}>
-                                    <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#111' }}>{banner.title}</div>
-                                    <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: '#666' }}>
-                                        <span style={{ border: '1px solid #CCC', padding: '1px 4px', borderRadius: '2px' }}>
-                                            {banner.target_role === 'all' ? '전체' : banner.target_role === 'user' ? '회원' : '파트너'}
-                                        </span>
-                                        <span>{banner.start_date ? new Date(banner.start_date).toLocaleDateString() : '제한없음'} ~ {banner.end_date ? new Date(banner.end_date).toLocaleDateString() : '제한없음'}</span>
+                                    {/* 액션 버튼 그룹 (하단) */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px dashed #E5E5EA', paddingTop: '12px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <span style={{ fontSize: '14px', fontWeight: '600', color: '#1C1C1E' }}>앱 노출</span>
+                                            <div className={`ios-toggle ${banner.is_active ? 'active' : ''}`} onClick={() => toggleActive(banner.id, banner.is_active)}>
+                                                <div className="ios-toggle-knob"></div>
+                                            </div>
+                                        </div>
+                                        <button className="ios-delete-btn" onClick={() => handleDelete(banner.id, banner.image_url)}>
+                                            <Trash2 size={16} />
+                                        </button>
                                     </div>
-                                </div>
 
-                                {/* 상태 */}
-                                <div style={{ width: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', color: status.color, fontWeight: 'bold', fontSize: '12px' }}>
-                                    {status.icon} {status.text}
-                                </div>
-
-                                {/* 관리 버튼 */}
-                                <div style={{ width: '120px', display: 'flex', justifyContent: 'center', gap: '4px' }}>
-                                    <button 
-                                        onClick={() => toggleActive(banner.id, banner.is_active)} 
-                                        style={banner.is_active ? styles.actionBtnBlue : styles.actionBtnRed}
-                                    >
-                                        {banner.is_active ? '숨기기' : '노출하기'}
-                                    </button>
-                                    <button 
-                                        onClick={() => handleDelete(banner.id, banner.image_url)} 
-                                        style={{...styles.actionBtn, color: '#ef4444'}}
-                                    >
-                                        삭제
-                                    </button>
                                 </div>
                             </div>
                         );
                     })
                 )}
+            </div>
+            <div style={{ textAlign: 'center', fontSize: '13px', color: '#8E8E93', fontWeight: '500' }}>
+                목록의 우측 햄버거 아이콘(⋮⋮)을 길게 눌러 드래그하면 순서가 변경됩니다.
             </div>
         </div>
     );
