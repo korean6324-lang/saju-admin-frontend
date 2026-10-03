@@ -25,20 +25,19 @@ export default function AdminDashboard() {
     
     const [activeTab, setActiveTab] = useState('overview');
     const [isChecking, setIsChecking] = useState(true);
-    
-    // 어드민 진입 시 모든 아코디언 메뉴가 닫혀 있도록 빈 객체({})로 초기화
     const [openMenus, setOpenMenus] = useState({});
 
     const toggleMenu = (id) => {
         setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
+    // 🌟 iOS 스타일 테마
     const adminTheme = {
-        bg: '#F3F4F6', panelBg: '#FFFFFF', border: '#E5E7EB', textBright: '#111827',     
-        text: '#374151', textMuted: '#6B7280', primary: '#1E3A8A', accent: '#2563EB',         
-        danger: '#DC2626', good: '#059669', sidebarBg: '#1F2937', sidebarText: '#D1D5DB',    
-        sidebarActive: '#111827', tableHeaderBg: '#F9FAFB', tableRowBorder: '#F3F4F6', 
-        shadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+        bg: '#F2F2F7', panelBg: '#FFFFFF', border: '#E5E5EA', textBright: '#1C1C1E',     
+        text: '#3A3A3C', textMuted: '#8E8E93', primary: '#007AFF', accent: '#007AFF',         
+        danger: '#FF3B30', good: '#34C759', sidebarBg: '#F2F2F7', sidebarText: '#1C1C1E',    
+        sidebarActive: '#FFFFFF', tableHeaderBg: '#F9F9FB', tableRowBorder: '#E5E5EA', 
+        shadow: '0 4px 20px rgba(0, 0, 0, 0.04)'
     };
 
     useEffect(() => {
@@ -54,16 +53,20 @@ export default function AdminDashboard() {
         verifyAdmin();
     }, [navigate]);
 
-    if (isChecking) return <div style={{ minHeight: '100vh', background: adminTheme.bg, color: adminTheme.textBright, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>어드민 시스템 접근 권한 확인 중...</div>;
+    if (isChecking) return (
+        <div style={{ minHeight: '100vh', background: adminTheme.bg, color: adminTheme.textBright, display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: '600' }}>
+            <span className="lucide-spin" style={{ marginRight: '8px' }}><Settings size={20} color="#007AFF"/></span> 어드민 시스템 접근 권한 확인 중...
+        </div>
+    );
 
-    // 🚀 [메뉴 구조 고도화 반영] 정산관리 & 환경설정 아코디언 추가
+    // 🚨 해결됨: 배열 내부에 JSX 태그 대신 컴포넌트 참조(Reference)만 저장하여 에디터 파싱 오류 방지
     const menuItems = [
         { category: '서비스 관리', hideCategoryTitle: false, items: [
-            { id: 'overview', icon: <BarChart3 size={18} />, label: '대시보드 통계' },
-            { id: 'user_manage', icon: <UserPlus size={18} />, label: '사용자관리' },
+            { id: 'overview', icon: BarChart3, label: '대시보드 통계' },
+            { id: 'user_manage', icon: UserPlus, label: '사용자관리' },
             { 
                 id: 'member_manage', 
-                icon: <Users size={18} />, 
+                icon: Users, 
                 label: '회원관리',
                 subItems: [
                     { id: 'partners_users', label: '1. 전체회원' },
@@ -72,21 +75,20 @@ export default function AdminDashboard() {
                 ]
             }
         ]},
-        // 🚀 신규: 정산관리 아코디언
         { category: '정산관리', hideCategoryTitle: true, items: [
             { 
                 id: 'settlement_manage', 
-                icon: <Wallet size={18} />, 
+                icon: Wallet, 
                 label: '정산관리', 
                 subItems: [
-                    { id: 'cash', label: '1. 정산 및 포인트' } // 이름 변경 적용
+                    { id: 'cash', label: '1. 정산 및 포인트' } 
                 ]
             }
         ]},
         { category: '콘텐츠 관리', hideCategoryTitle: true, items: [
             { 
                 id: 'content_manage', 
-                icon: <Map size={18} />, 
+                icon: Map, 
                 label: '콘텐츠 관리', 
                 subItems: [
                     { id: 'myeongdang', label: '1. 천하대명당 DB' },
@@ -98,7 +100,7 @@ export default function AdminDashboard() {
         { category: '운영 및 마케팅', hideCategoryTitle: true, items: [
             { 
                 id: 'marketing_manage', 
-                icon: <Megaphone size={18} />, 
+                icon: Megaphone, 
                 label: '운영/마케팅 관리', 
                 subItems: [
                     { id: 'notice', label: '1. 공지사항 및 알림톡' },
@@ -106,11 +108,10 @@ export default function AdminDashboard() {
                 ]
             }
         ]},
-        // 🚀 신규: 환경설정 아코디언
         { category: '환경설정', hideCategoryTitle: true, items: [
             { 
                 id: 'setting_manage', 
-                icon: <Settings size={18} />, 
+                icon: Settings, 
                 label: '환경설정', 
                 subItems: [
                     { id: 'site_settings', label: '1. 사이트 관리 (기본/정책)' }, 
@@ -120,7 +121,6 @@ export default function AdminDashboard() {
         ]}
     ];
 
-    // 빵판(Breadcrumb) 텍스트 동적 렌더링
     let breadcrumbText = '환경설정';
     for (const group of menuItems) {
         for (const item of group.items) {
@@ -139,63 +139,106 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: adminTheme.bg, color: adminTheme.text, fontFamily: '"Pretendard", sans-serif' }}>
+        <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: adminTheme.bg, color: adminTheme.text, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif' }}>
             
-            <aside style={{ width: '260px', flexShrink: 0, backgroundColor: adminTheme.sidebarBg, display: 'flex', flexDirection: 'column', borderRight: `1px solid ${adminTheme.sidebarBg}` }}>
-                <div style={{ height: '60px', display: 'flex', alignItems: 'center', padding: '0 24px', backgroundColor: '#111827', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                    <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#FFF', letterSpacing: '0.5px' }}>
-                        <span style={{ color: adminTheme.accent }}>FATE MASTER</span> ADMIN
+            <style dangerouslySetInnerHTML={{ __html: `
+                .ios-sidebar-scroll::-webkit-scrollbar { display: none; }
+                
+                .ios-menu-item {
+                    padding: 10px 12px; margin: 2px 12px; border-radius: 10px;
+                    display: flex; align-items: center; justify-content: space-between;
+                    cursor: pointer; transition: all 0.2s cubic-bezier(0.2, 0.85, 0.32, 1.2);
+                    font-size: 15px; font-weight: 500; color: #1C1C1E;
+                    border: 1px solid transparent;
+                }
+                .ios-menu-item:hover { background-color: rgba(0,0,0,0.04); }
+                .ios-menu-item:active { transform: scale(0.98); }
+                .ios-menu-item.active {
+                    background-color: #FFFFFF; color: #007AFF; font-weight: 600;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 0.5px solid #E5E5EA;
+                }
+                
+                .ios-sub-container {
+                    overflow: hidden; animation: slideDown 0.2s ease-out forwards;
+                }
+                @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+                
+                .ios-sub-item {
+                    padding: 8px 12px 8px 42px; margin: 2px 12px; border-radius: 8px;
+                    font-size: 14px; font-weight: 500; color: #8E8E93;
+                    cursor: pointer; transition: all 0.2s;
+                }
+                .ios-sub-item:hover { color: #1C1C1E; background-color: rgba(0,0,0,0.03); }
+                .ios-sub-item:active { transform: scale(0.98); }
+                .ios-sub-item.active {
+                    color: #007AFF; font-weight: 600; background-color: #E5F0FF;
+                }
+
+                .ios-glass-header {
+                    background-color: rgba(242, 242, 247, 0.85);
+                    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+                    border-bottom: 0.5px solid #C6C6C8;
+                }
+                
+                .ios-action-btn {
+                    background: none; border: none; display: flex; align-items: center; gap: 6px;
+                    font-size: 14px; font-weight: 600; cursor: pointer; padding: 6px 10px;
+                    border-radius: 8px; transition: background-color 0.2s;
+                }
+                .ios-action-btn:hover { background-color: rgba(0,0,0,0.05); }
+                .ios-action-btn:active { transform: scale(0.96); }
+
+                .lucide-spin { animation: spin 1s linear infinite; }
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            `}} />
+
+            {/* 사이드바 (iPadOS Style) */}
+            <aside style={{ width: '260px', flexShrink: 0, backgroundColor: adminTheme.sidebarBg, borderRight: '0.5px solid #C6C6C8', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ height: '60px', display: 'flex', alignItems: 'center', padding: '0 24px', flexShrink: 0 }}>
+                    <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#1C1C1E', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Sliders size={20} color="#007AFF" /> 
+                        <span><span style={{ color: '#007AFF' }}>FATE</span> MASTER</span>
                     </h1>
                 </div>
 
-                <div style={{ flex: 1, overflowY: 'auto', padding: '20px 0' }}>
+                <div className="ios-sidebar-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px 0 32px 0' }}>
                     {menuItems.map((group, idx) => (
-                        <div key={idx} style={{ marginBottom: '24px' }}>
-                            {/* 카테고리 타이틀 시각적 중복 제거 */}
+                        <div key={idx} style={{ marginBottom: '20px' }}>
                             {!group.hideCategoryTitle && (
-                                <div style={{ padding: '0 24px', fontSize: '11px', color: '#9CA3AF', fontWeight: '800', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                <div style={{ padding: '0 24px', fontSize: '12px', color: '#8E8E93', fontWeight: '700', marginBottom: '6px', letterSpacing: '-0.3px' }}>
                                     {group.category}
                                 </div>
                             )}
                             {group.items.map(menu => {
                                 const isActive = activeTab === menu.id || (menu.subItems && menu.subItems.some(s => s.id === activeTab));
+                                const IconComponent = menu.icon; // 🚨 동적 렌더링을 위한 컴포넌트 할당
                                 
                                 return (
                                     <div key={menu.id}>
                                         <div 
+                                            className={`ios-menu-item ${isActive && !menu.subItems ? 'active' : ''}`}
                                             onClick={() => {
                                                 if (menu.subItems) toggleMenu(menu.id);
                                                 else setActiveTab(menu.id);
                                             }}
-                                            style={{ 
-                                                padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', transition: 'all 0.1s',
-                                                fontSize: '14px', fontWeight: isActive ? '700' : '500',
-                                                backgroundColor: isActive ? adminTheme.sidebarActive : 'transparent',
-                                                color: isActive ? '#FFF' : adminTheme.sidebarText,
-                                                borderLeft: isActive ? `4px solid ${adminTheme.accent}` : '4px solid transparent'
-                                            }}
                                         >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                {React.cloneElement(menu.icon, { color: isActive ? adminTheme.accent : '#9CA3AF' })}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                {/* 🚨 태그 형태로 렌더링 */}
+                                                <IconComponent size={18} color={isActive ? '#007AFF' : '#8E8E93'} />
                                                 {menu.label}
                                             </div>
                                             {menu.subItems && (
-                                                <ChevronRight size={16} style={{ transition: 'transform 0.2s', transform: openMenus[menu.id] ? 'rotate(90deg)' : 'rotate(0deg)', color: '#9CA3AF' }} />
+                                                <ChevronRight size={16} style={{ transition: 'transform 0.25s cubic-bezier(0.2, 0.85, 0.32, 1.2)', transform: openMenus[menu.id] ? 'rotate(90deg)' : 'rotate(0deg)', color: '#C7C7CC' }} />
                                             )}
                                         </div>
                                         
                                         {menu.subItems && openMenus[menu.id] && (
-                                            <div style={{ backgroundColor: '#111827', padding: '8px 0' }}>
+                                            <div className="ios-sub-container">
                                                 {menu.subItems.map(sub => (
                                                     <div 
                                                         key={sub.id}
+                                                        className={`ios-sub-item ${activeTab === sub.id ? 'active' : ''}`}
                                                         onClick={() => setActiveTab(sub.id)}
-                                                        style={{
-                                                            padding: '10px 24px 10px 54px', fontSize: '13px', cursor: 'pointer',
-                                                            color: activeTab === sub.id ? '#FFF' : '#9CA3AF',
-                                                            fontWeight: activeTab === sub.id ? '700' : '500',
-                                                            transition: 'color 0.2s'
-                                                        }}
                                                     >
                                                         {sub.label}
                                                     </div>
@@ -210,30 +253,33 @@ export default function AdminDashboard() {
                 </div>
             </aside>
 
+            {/* 메인 콘텐츠 영역 */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: 'calc(100% - 260px)' }}>
-                <header style={{ height: '60px', backgroundColor: adminTheme.panelBg, borderBottom: `1px solid ${adminTheme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', flexShrink: 0 }}>
+                {/* 상단 헤더 (Glassmorphism) */}
+                <header className="ios-glass-header" style={{ height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', flexShrink: 0, position: 'sticky', top: 0, zIndex: 100 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: adminTheme.textMuted, fontWeight: '600' }}>
                         {breadcrumbText.split(' > ').map((text, idx, arr) => (
                             <React.Fragment key={idx}>
-                                {idx > 0 && <ChevronRight size={14} />}
+                                {idx > 0 && <ChevronRight size={14} color="#C7C7CC" />}
                                 <span style={{ color: idx === arr.length - 1 ? adminTheme.textBright : adminTheme.textMuted }}>{text}</span>
                             </React.Fragment>
                         ))}
                     </div>
                     
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <button style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', color: adminTheme.text, cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <button className="ios-action-btn" style={{ color: '#1C1C1E' }}>
                             <Settings size={16} /> 설정
                         </button>
-                        <div style={{ width: '1px', height: '16px', backgroundColor: adminTheme.border }}></div>
-                        <button onClick={async () => { await supabase.auth.signOut(); navigate('/'); }} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', color: adminTheme.danger, cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
+                        <div style={{ width: '1px', height: '14px', backgroundColor: '#C6C6C8', margin: '0 8px' }}></div>
+                        <button onClick={async () => { await supabase.auth.signOut(); navigate('/'); }} className="ios-action-btn" style={{ color: '#FF3B30' }}>
                             <LogOut size={16} /> 안전하게 로그아웃
                         </button>
                     </div>
                 </header>
 
+                {/* 대시보드 컴포넌트 렌더링 뷰포트 */}
                 <main style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
-                    <div style={{ width: '100%', maxWidth: '1600px' }}>
+                    <div style={{ width: '100%', maxWidth: '1600px', margin: '0 auto' }}>
                         {activeTab === 'overview' && <AdminOverview adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'user_manage' && <AdminUserManage adminTheme={adminTheme} />}
                         
