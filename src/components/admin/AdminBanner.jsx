@@ -8,9 +8,10 @@ import {
     Users, Plus, Eye, EyeOff, LayoutTemplate, FileText, Check
 } from 'lucide-react';
 
-// 🚨 전체 서비스 페이지 목록 (Layout.jsx 기준)
+// 🚨 업데이트: '홈페이지' 및 '관리자 페이지' 명시적 추가
 const PAGES_LIST = [
     { id: 'all', name: '전체 (모든 페이지)' },
+    { id: 'home', name: '홈페이지' }, // 👈 추가된 부분
     { id: 'saju', name: '사주' },
     { id: 'gunghap', name: '궁합' },
     { id: 'wedding', name: '혼택일' },
@@ -24,7 +25,8 @@ const PAGES_LIST = [
     { id: 'meditation', name: '명상' },
     { id: 'dictionary', name: '사전' },
     { id: 'manseryeok', name: '만세력 캘린더' },
-    { id: 'mypage', name: '마이페이지' }
+    { id: 'mypage', name: '마이페이지' },
+    { id: 'admin', name: '관리자 페이지 (Admin)' }
 ];
 
 export default function AdminBanner() {
@@ -36,12 +38,11 @@ export default function AdminBanner() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [targetRole, setTargetRole] = useState('all');
-    const [targetPages, setTargetPages] = useState(['all']); // 🚨 다중 선택을 위해 배열(Array)로 변경
+    const [targetPages, setTargetPages] = useState(['all']);
     const [selectedFile, setSelectedFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
-    // D&D 상태
     const dragItem = useRef();
     const dragOverItem = useRef();
 
@@ -58,7 +59,6 @@ export default function AdminBanner() {
             } else {
                 newPages.push(pageId);
             }
-            // 아무것도 안 남으면 자동으로 '전체' 선택
             if (newPages.length === 0) newPages = ['all'];
             setTargetPages(newPages);
         }
@@ -112,7 +112,7 @@ export default function AdminBanner() {
                 start_date: startDate ? new Date(startDate).toISOString() : null,
                 end_date: endDate ? new Date(endDate).toISOString() : null,
                 target_role: targetRole,
-                target_page: targetPages.join(','), // 🚨 여러 페이지를 콤마(,)로 연결하여 저장
+                target_page: targetPages.join(','),
                 image_url: publicUrlData.publicUrl,
                 sort_order: newSortOrder,
                 is_active: true
@@ -262,7 +262,6 @@ export default function AdminBanner() {
                     height: 44px; width: 130px; border-radius: 8px; background-color: #F2F2F7; border: 0.5px solid #C6C6C8; overflow: hidden; display: flex; align-items: center; justify-content: center;
                 }
 
-                /* 🚨 신규 다중 선택 칩 UI 스타일 */
                 .ios-page-grid {
                     display: flex; flex-wrap: wrap; gap: 8px; padding: 16px; background-color: #F9F9FB; border-top: 1px solid #E5E5EA;
                 }
@@ -277,7 +276,6 @@ export default function AdminBanner() {
                     box-shadow: 0 4px 12px rgba(0,122,255,0.25);
                 }
 
-                /* 미니 세그먼트 (권한 선택용) */
                 .ios-mini-segment {
                     display: flex; background-color: #F2F2F7; border-radius: 8px; padding: 2px;
                 }
@@ -325,7 +323,6 @@ export default function AdminBanner() {
             <div className="ios-group-title"><Plus size={16} /> 신규 배너 등록</div>
             <div className="ios-list-group">
                 
-                {/* 이미지 등록 */}
                 <div className="ios-list-row">
                     <div className="ios-label-wrap">
                         <div className="ios-icon-box" style={{ background: '#5856D6' }}><ImageIcon size={16} /></div>
@@ -344,7 +341,6 @@ export default function AdminBanner() {
                     </div>
                 </div>
 
-                {/* 관리용 제목 */}
                 <div className="ios-list-row">
                     <div className="ios-label-wrap">
                         <div className="ios-icon-box" style={{ background: '#FF9500' }}><LayoutTemplate size={16} /></div>
@@ -353,7 +349,6 @@ export default function AdminBanner() {
                     <input type="text" className="ios-input" placeholder="예: 2026 신년 이벤트" value={title} onChange={e=>setTitle(e.target.value)} />
                 </div>
 
-                {/* 🚨 전문화된 다중 페이지 선택 UI (Grid Chips) */}
                 <div className="ios-list-row" style={{ flexDirection: 'column', alignItems: 'stretch', padding: '0' }}>
                     <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px' }}>
                         <div className="ios-label-wrap">
@@ -378,7 +373,6 @@ export default function AdminBanner() {
                     </div>
                 </div>
 
-                {/* 연결 링크 */}
                 <div className="ios-list-row">
                     <div className="ios-label-wrap">
                         <div className="ios-icon-box" style={{ background: '#34C759' }}><Link2 size={16} /></div>
@@ -387,7 +381,6 @@ export default function AdminBanner() {
                     <input type="text" className="ios-input" placeholder="https:// (선택사항)" value={linkUrl} onChange={e=>setLinkUrl(e.target.value)} />
                 </div>
 
-                {/* 예약 스케줄 */}
                 <div className="ios-list-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '12px', padding: '16px' }}>
                     <div className="ios-label-wrap">
                         <div className="ios-icon-box" style={{ background: '#FF2D55' }}><CalendarDays size={16} /></div>
@@ -400,7 +393,6 @@ export default function AdminBanner() {
                     </div>
                 </div>
 
-                {/* 노출 권한(사용자) */}
                 <div className="ios-list-row">
                     <div className="ios-label-wrap">
                         <div className="ios-icon-box" style={{ background: '#AF52DE' }}><Users size={16} /></div>
@@ -419,9 +411,6 @@ export default function AdminBanner() {
                 {isSaving ? "업로드 중..." : "배너 생성"}
             </button>
 
-            {/* =======================================
-                2. 배너 관리 리스트
-            ======================================= */}
             <div className="ios-group-title" style={{ marginTop: '40px' }}>
                 <LayoutTemplate size={16} /> 활성 배너 리스트 ({banners.length})
             </div>
