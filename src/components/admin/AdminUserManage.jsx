@@ -1,8 +1,8 @@
 // src/components/admin/AdminUserManage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, Save, X, Edit, Trash2, ScrollText } from 'lucide-react'; // 🚨 ScrollText 아이콘 추가
+import { Search, Plus, Save, X, Edit, ScrollText, ShieldAlert, ChevronRight, UserPlus } from 'lucide-react';
 
 export default function AdminUserManage({ adminTheme }) {
     const queryClient = useQueryClient();
@@ -10,22 +10,17 @@ export default function AdminUserManage({ adminTheme }) {
     // 화면 전환 상태: 'list' (목록) | 'form' (추가/수정 폼)
     const [viewMode, setViewMode] = useState('list');
     
-    // 🚨 유저 개인 장부(포인트 내역) 모달 상태 관리 추가
+    // 유저 개인 장부(포인트 내역) 모달 상태 관리
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
 
     // 폼 상태 관리
     const [formData, setFormData] = useState({
-        id: '', // Supabase Auth에서는 Email이 ID 역할을 함
-        name: '',
-        password: '',
-        passwordConfirm: '',
+        id: '', name: '', password: '', passwordConfirm: '',
         email1: '', email2: '',
         phone1: '02', phone2: '', phone3: '',
         mobile1: '010', mobile2: '', mobile3: '',
-        department: '',
-        position: '',
-        memo: '',
+        department: '', position: '', memo: '',
         isLoginAllowed: true,
         permissions: { site: true, sms: true, design: true, mobile: true, config: true },
         startPage: '사이트운영'
@@ -42,7 +37,7 @@ export default function AdminUserManage({ adminTheme }) {
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('role', 'admin') // 관리자 권한만 불러오기
+                .eq('role', 'admin') 
                 .order('created_at', { ascending: true });
             if (error) throw error;
             return data || [];
@@ -50,7 +45,7 @@ export default function AdminUserManage({ adminTheme }) {
     });
 
     // ==========================================================
-    // 🚀 1-2. 특정 회원의 포인트(장부) 내역 페칭
+    // 2. 특정 회원의 포인트(장부) 내역 페칭
     // ==========================================================
     const { data: userHistory = [], isLoading: isLoadingHistory } = useQuery({
         queryKey: ['adminUserHistory', selectedUser?.id],
@@ -64,11 +59,11 @@ export default function AdminUserManage({ adminTheme }) {
             if (error) throw error;
             return data || [];
         },
-        enabled: !!selectedUser?.id && isHistoryModalOpen // 모달이 열려있고 유저가 선택되었을 때만 작동
+        enabled: !!selectedUser?.id && isHistoryModalOpen
     });
 
     // ==========================================================
-    // 2. 폼 핸들러
+    // 3. 폼 핸들러
     // ==========================================================
     const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -101,14 +96,11 @@ export default function AdminUserManage({ adminTheme }) {
 
         setIsSaving(true);
         try {
-            // 실제 서비스에서는 Edge Function 등을 호출해야 함 (MVP 시뮬레이션)
-            await new Promise(resolve => setTimeout(resolve, 800));
-
-            alert("✅ 관리자 계정이 성공적으로 추가되었습니다.\n(※ 실제 Auth 생성은 백엔드 API 연동 필요)");
+            await new Promise(resolve => setTimeout(resolve, 800)); // MVP 시뮬레이션
+            alert("✅ 관리자 계정이 성공적으로 추가되었습니다.");
             resetForm();
             setViewMode('list');
             queryClient.invalidateQueries(['adminUsersList']);
-
         } catch (error) {
             alert("❌ 관리자 추가 중 오류가 발생했습니다.");
         } finally {
@@ -116,290 +108,279 @@ export default function AdminUserManage({ adminTheme }) {
         }
     };
 
-    // ==========================================================
-    // 🎨 엔터프라이즈 화이트 테마 스타일 (12~13px 고밀도)
-    // ==========================================================
-    const styles = {
-        container: { backgroundColor: '#FFFFFF', padding: '24px', fontFamily: '"Malgun Gothic", "Pretendard", sans-serif', fontSize: '13px', color: '#333' },
-        headerTitle: { fontSize: '20px', fontWeight: 'bold', color: '#111', marginBottom: '8px' },
-        headerSub: { fontSize: '12px', color: '#666', marginBottom: '24px' },
-        
-        sectionTitle: { fontSize: '13px', fontWeight: 'bold', color: '#111', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' },
-        sectionIcon: { width: '6px', height: '6px', backgroundColor: '#0ea5e9', display: 'inline-block' },
-        
-        formBox: { border: '2px solid #E5E7EB', borderTop: '2px solid #ef4444', display: 'flex', flexDirection: 'column', marginBottom: '24px' }, 
-        formRow: { display: 'flex', borderBottom: '1px solid #E5E7EB' },
-        formLabel: { width: '140px', backgroundColor: '#F9FAFB', padding: '10px 16px', fontWeight: 'bold', color: '#444', borderRight: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', fontSize: '12px', flexShrink: 0 },
-        formContent: { flex: 1, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', flexWrap: 'wrap', color: '#555' },
-        
-        input: { padding: '4px 8px', border: '1px solid #CCC', fontSize: '12px', outline: 'none', width: '100%', maxWidth: '200px' },
-        select: { padding: '4px 8px', border: '1px solid #CCC', fontSize: '12px', outline: 'none', backgroundColor: '#FFF' },
-        checkboxLabel: { display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', marginRight: '12px' },
-        
-        btnBlue: { backgroundColor: '#0ea5e9', color: '#FFF', border: 'none', padding: '6px 20px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', borderRadius: '2px', display: 'inline-flex', alignItems: 'center', gap: '4px' },
-        btnGray: { backgroundColor: '#9CA3AF', color: '#FFF', border: 'none', padding: '6px 20px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', borderRadius: '2px', display: 'inline-flex', alignItems: 'center', gap: '4px' },
-        btnOutline: { border: '1px solid #CCC', background: '#FFF', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', color: '#333', borderRadius: '2px', display: 'inline-flex', alignItems: 'center', gap: '4px' },
-        
-        tableHeader: { backgroundColor: '#F8F9FA', borderTop: '2px solid #333', borderBottom: '1px solid #CCC', padding: '10px 8px', textAlign: 'center', fontWeight: 'bold', color: '#333', fontSize: '12px' },
-        tableCell: { padding: '8px', borderBottom: '1px solid #E5E7EB', textAlign: 'center', verticalAlign: 'middle', fontSize: '12px', color: '#555' },
-    };
-
     return (
-        <div style={styles.container}>
-            <div>
-                <h2 style={styles.headerTitle}>{viewMode === 'list' ? '관리자페이지에 사용자 추가하기' : '사용자 추가'}</h2>
-                <p style={styles.headerSub}>
-                    {viewMode === 'list' 
-                        ? '혼자 홈페이지를 관리하기 힘드시죠? 이럴 때 다른 사람을 관리자로 등록하는 관리자계정 추가 기능이 필요합니다.\n[환경설정 > 서비스관리 > 사용자관리] 메뉴에서 [추가] 버튼을 클릭합니다.' 
-                        : '관리자는 최초 관리자 1명을 포함한 3명까지 등록이 가능하며, 아래와 같이 사용자 정보와 권한범위를 설정하고 [확인] 버튼을 클릭합니다.'}
-                </p>
-            </div>
+        <div className="ios-wrap fade-in">
+            <style dangerouslySetInnerHTML={{ __html: `
+                .ios-wrap {
+                    width: 100%; box-sizing: border-box;
+                    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif;
+                    background-color: transparent;
+                }
 
+                .ios-title { font-size: 22px; font-weight: 800; color: #1C1C1E; margin: 0 0 6px 0; letter-spacing: -0.5px; }
+                .ios-desc { font-size: 12px; color: #8E8E93; margin: 0 0 24px 0; font-weight: 500; line-height: 1.5; }
+
+                /* 검색 툴바 */
+                .ios-toolbar {
+                    display: flex; justify-content: space-between; align-items: center;
+                    background: #FFFFFF; border-radius: 12px; padding: 10px 16px; margin-bottom: 24px;
+                    border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+                }
+                .ios-search-box {
+                    display: flex; align-items: center; background: #F2F2F7; border-radius: 8px; padding: 4px 10px; width: 300px;
+                }
+                .ios-search-input {
+                    border: none; background: transparent; outline: none; font-size: 12px; padding: 4px; width: 100%; color: #1C1C1E; font-weight: 500;
+                }
+                
+                /* 미세 버튼 */
+                .ios-btn-micro {
+                    border: none; background: #F2F2F7; color: #007AFF; font-size: 11px; font-weight: 700;
+                    padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: 0.2s; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
+                }
+                .ios-btn-micro:active { transform: scale(0.95); opacity: 0.8; }
+                .ios-btn-micro.accent { background: #007AFF; color: #FFFFFF; }
+                .ios-btn-micro.outline { background: transparent; border: 1px solid #E5E5EA; color: #1C1C1E; }
+                .ios-btn-micro.warning { color: #D97706; background: #FFFBEB; }
+
+                /* iOS 리스트 그룹 */
+                .ios-group-title {
+                    font-size: 12px; font-weight: 600; color: #8E8E93; text-transform: uppercase;
+                    margin: 0 0 6px 12px; letter-spacing: -0.2px;
+                }
+                .ios-list-group {
+                    background-color: #FFFFFF; border-radius: 12px; margin-bottom: 24px;
+                    overflow: hidden; border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+                }
+                .ios-list-row {
+                    display: flex; align-items: center; justify-content: space-between;
+                    min-height: 44px; padding: 12px 16px; border-bottom: 0.5px solid #E5E5EA;
+                }
+                .ios-list-row:last-child { border-bottom: none; }
+                
+                /* 폼 요소 */
+                .ios-label { font-size: 13px; font-weight: 600; color: #1C1C1E; flex-shrink: 0; width: 110px; }
+                .ios-input-clean {
+                    flex: 1; min-width: 0; border: none; outline: none; text-align: right;
+                    font-size: 13px; color: #007AFF; font-family: inherit; background: transparent; font-weight: 600;
+                }
+                .ios-input-clean::placeholder { color: #C7C7CC; font-weight: 400; }
+                .ios-select-clean {
+                    border: none; outline: none; background: transparent; text-align: right; direction: rtl;
+                    font-size: 13px; color: #007AFF; font-weight: 600; -webkit-appearance: none; appearance: none; font-family: inherit; cursor: pointer; padding: 0 4px;
+                }
+
+                /* iOS 토글 스위치 */
+                .ios-toggle {
+                    width: 42px; height: 24px; background-color: #E9E9EA; border-radius: 24px; position: relative; cursor: pointer; transition: 0.3s ease; flex-shrink: 0;
+                }
+                .ios-toggle.active { background-color: #34C759; }
+                .ios-toggle-knob {
+                    width: 20px; height: 20px; background-color: #FFFFFF; border-radius: 50%; position: absolute; top: 2px; left: 2px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: 0.3s cubic-bezier(0.2, 0.85, 0.32, 1.2);
+                }
+                .ios-toggle.active .ios-toggle-knob { transform: translateX(18px); }
+
+                /* 테이블 스타일 */
+                .ios-table { width: 100%; border-collapse: collapse; }
+                .ios-th { background-color: #F9F9FB; padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 700; color: #8E8E93; border-bottom: 0.5px solid #E5E5EA; }
+                .ios-td { padding: 10px 12px; border-bottom: 0.5px solid #E5E5EA; font-size: 12px; color: #1C1C1E; font-weight: 500; vertical-align: middle; }
+                .ios-tr:hover { background-color: #F9F9FB; }
+
+                /* 모달 */
+                .ios-modal-overlay {
+                    position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+                    display: flex; justify-content: center; align-items: center; z-index: 10000; padding: 20px; animation: fadeIn 0.2s ease-out;
+                }
+                .ios-modal-card {
+                    background: #F2F2F7; width: 100%; max-width: 600px; border-radius: 16px; overflow: hidden;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.15); animation: slideUp 0.3s cubic-bezier(0.2, 0.85, 0.32, 1.2); display: flex; flex-direction: column; max-height: 85vh;
+                }
+                .ios-modal-header { padding: 14px 16px; background: #FFFFFF; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid #E5E5EA; }
+                .ios-modal-title { font-size: 14px; font-weight: 700; color: #1C1C1E; margin: 0; display: flex; align-items: center; gap: 6px;}
+                .ios-modal-close { background: #F2F2F7; border: none; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #8E8E93; cursor: pointer; }
+                
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+            `}} />
+
+            {/* 1. 관리자 리스트 화면 */}
             {viewMode === 'list' && (
-                <>
-                    <div style={{ display: 'flex', alignItems: 'center', border: '2px solid #E5E7EB', padding: '12px', marginBottom: '24px', backgroundColor: '#F9FAFB' }}>
-                        <span style={{ fontWeight: 'bold', marginRight: '16px', fontSize: '12px' }}>· 검색조건</span>
-                        <select style={{ ...styles.select, width: '100px' }}><option>이름</option><option>아이디</option></select>
-                        <input type="text" style={{ ...styles.input, marginLeft: '4px', width: '200px' }} />
-                        <button style={{ ...styles.btnBlue, marginLeft: 'auto', padding: '8px 24px' }}>검색</button>
-                    </div>
+                <div>
+                    <h2 className="ios-title">스태프 및 관리자 현황</h2>
+                    <p className="ios-desc">홈페이지 운영을 돕는 스태프 및 관리자 계정을 추가하고 세부 권한을 제어합니다.</p>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px' }}>
-                        <div style={{ fontSize: '12px', color: '#555' }}>
-                            검색결과 : <span style={{fontWeight: 'bold', color: '#ef4444'}}>{adminUsers.length}</span> 명
+                    <div className="ios-toolbar">
+                        <div className="ios-search-box">
+                            <select className="ios-select-clean" style={{ color: '#1C1C1E', marginRight: '6px', fontSize: '12px' }}>
+                                <option>이메일/ID</option>
+                                <option>이름</option>
+                            </select>
+                            <input type="text" className="ios-search-input" placeholder="검색어 입력..." />
+                            <Search size={14} color="#8E8E93" />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span style={{ fontSize: '11px', color: '#8E8E93', fontWeight: '600' }}>총 <span style={{color: '#007AFF'}}>{adminUsers.length}</span>명</span>
+                            <button className="ios-btn-micro accent" onClick={() => setViewMode('form')}><UserPlus size={12}/> 스태프 추가</button>
                         </div>
                     </div>
 
-                    <table style={{ width: '100%', borderCollapse: 'collapse', borderTop: '2px solid #333' }}>
-                        <thead>
-                            <tr>
-                                <th style={styles.tableHeader}>번호</th>
-                                <th style={styles.tableHeader}>이름</th>
-                                <th style={styles.tableHeader}>아이디</th>
-                                <th style={styles.tableHeader}>휴대폰</th>
-                                <th style={styles.tableHeader}>로그인</th>
-                                <th style={styles.tableHeader}>초기화면</th>
-                                {/* 🚨 헤더 추가: 상세 내역 조회 */}
-                                <th style={{...styles.tableHeader, width: '160px'}}>상세 관리</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {isLoading ? (
-                                <tr><td colSpan="7" style={{ padding: '40px', textAlign: 'center' }}>로딩 중...</td></tr>
-                            ) : adminUsers.map((admin, idx) => (
-                                <tr key={admin.id}>
-                                    <td style={styles.tableCell}>{idx + 1}</td>
-                                    <td style={styles.tableCell}>{admin.name || '미설정'}</td>
-                                    <td style={styles.tableCell}>{admin.email}</td>
-                                    <td style={styles.tableCell}>-</td>
-                                    <td style={styles.tableCell}>O</td>
-                                    <td style={styles.tableCell}>환경설정</td>
-                                    <td style={styles.tableCell}>
-                                        <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
-                                            <button style={styles.btnOutline}><Edit size={12} /> 수정</button>
-                                            
-                                            {/* 🚨 버튼 추가: 회원의 개인 장부(코인) 내역 보기 */}
-                                            <button 
-                                                onClick={() => { setSelectedUser(admin); setIsHistoryModalOpen(true); }}
-                                                style={{...styles.btnOutline, borderColor: '#D97706', color: '#D97706'}}
-                                            >
-                                                <ScrollText size={12} /> 장부 내역
-                                            </button>
-                                        </div>
-                                    </td>
+                    <div className="ios-list-group">
+                        <table className="ios-table">
+                            <thead>
+                                <tr>
+                                    <th className="ios-th">번호</th>
+                                    <th className="ios-th">이름</th>
+                                    <th className="ios-th">아이디 (이메일)</th>
+                                    <th className="ios-th" style={{ textAlign: 'center' }}>접속 상태</th>
+                                    <th className="ios-th" style={{ textAlign: 'right', paddingRight: '16px' }}>관리 및 내역</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-                        <button onClick={() => setViewMode('form')} style={{ ...styles.btnBlue, padding: '10px 24px', fontSize: '13px' }}>
-                            <Plus size={16} /> 추가
-                        </button>
+                            </thead>
+                            <tbody>
+                                {isLoading ? (
+                                    <tr><td colSpan="5" className="ios-td" style={{ textAlign: 'center', padding: '40px', color: '#8E8E93' }}>데이터 로딩 중...</td></tr>
+                                ) : adminUsers.map((admin, idx) => (
+                                    <tr key={admin.id} className="ios-tr">
+                                        <td className="ios-td" style={{ color: '#8E8E93', fontSize: '11px' }}>{idx + 1}</td>
+                                        <td className="ios-td" style={{ fontWeight: '700' }}>{admin.name || '미설정'}</td>
+                                        <td className="ios-td" style={{ color: '#007AFF', fontWeight: '600' }}>{admin.email}</td>
+                                        <td className="ios-td" style={{ textAlign: 'center' }}>
+                                            <span style={{ background: '#E5FBEB', color: '#34C759', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: '700' }}>정상</span>
+                                        </td>
+                                        <td className="ios-td" style={{ textAlign: 'right', paddingRight: '16px' }}>
+                                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                                                <button className="ios-btn-micro outline"><Edit size={10}/> 수정</button>
+                                                <button className="ios-btn-micro warning" onClick={() => { setSelectedUser(admin); setIsHistoryModalOpen(true); }}>
+                                                    <ScrollText size={10}/> 장부 조회
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
-                </>
+                </div>
             )}
 
+            {/* 2. 스태프 추가 폼 화면 */}
             {viewMode === 'form' && (
-                <>
-                    <div style={styles.sectionTitle}><div style={styles.sectionIcon}></div> 사용자 정보 입력</div>
-                    <div style={styles.formBox}>
-                        <div style={styles.formRow}>
-                            <div style={styles.formLabel}>아이디 <span style={{color: '#ef4444', marginLeft:'2px'}}>*</span></div>
-                            <div style={styles.formContent}>
-                                <input type="text" value={formData.id} onChange={e=>handleInputChange('id', e.target.value)} style={styles.input} />
-                                <button style={styles.btnOutline}>중복체크</button>
-                            </div>
+                <div>
+                    <h2 className="ios-title">스태프 계정 추가</h2>
+                    <p className="ios-desc">새로운 관리자의 기본 정보와 권한을 설정합니다.</p>
+
+                    <div className="ios-group-title">기본 접속 정보</div>
+                    <div className="ios-list-group">
+                        <div className="ios-list-row">
+                            <span className="ios-label">아이디 (이메일)</span>
+                            <input type="email" className="ios-input-clean" placeholder="admin@example.com" value={formData.id} onChange={e=>handleInputChange('id', e.target.value)} />
                         </div>
-                        <div style={styles.formRow}>
-                            <div style={styles.formLabel}>이름 <span style={{color: '#ef4444', marginLeft:'2px'}}>*</span></div>
-                            <div style={styles.formContent}>
-                                <input type="text" value={formData.name} onChange={e=>handleInputChange('name', e.target.value)} style={styles.input} />
-                            </div>
+                        <div className="ios-list-row">
+                            <span className="ios-label">이름</span>
+                            <input type="text" className="ios-input-clean" placeholder="이름 입력" value={formData.name} onChange={e=>handleInputChange('name', e.target.value)} />
                         </div>
-                        <div style={styles.formRow}>
-                            <div style={styles.formLabel}>비밀번호 <span style={{color: '#ef4444', marginLeft:'2px'}}>*</span></div>
-                            <div style={{...styles.formContent, flex: 'none', width: '300px', borderRight: '1px solid #E5E7EB'}}>
-                                <input type="password" value={formData.password} onChange={e=>handleInputChange('password', e.target.value)} style={styles.input} />
-                                <div style={{width: '100%', fontSize: '11px', color: '#999', marginTop: '4px'}}>* 알파벳 소문자, 숫자 포함 8자 이상 30자 이하</div>
-                            </div>
-                            <div style={{...styles.formLabel, width: '120px'}}>비밀번호 확인 <span style={{color: '#ef4444', marginLeft:'2px'}}>*</span></div>
-                            <div style={styles.formContent}>
-                                <input type="password" value={formData.passwordConfirm} onChange={e=>handleInputChange('passwordConfirm', e.target.value)} style={styles.input} />
-                            </div>
+                        <div className="ios-list-row">
+                            <span className="ios-label">비밀번호</span>
+                            <input type="password" className="ios-input-clean" placeholder="8자리 이상 영문/숫자" value={formData.password} onChange={e=>handleInputChange('password', e.target.value)} />
                         </div>
-                        <div style={styles.formRow}>
-                            <div style={styles.formLabel}>개인메일</div>
-                            <div style={styles.formContent}>
-                                <input type="text" value={formData.email1} onChange={e=>handleInputChange('email1', e.target.value)} style={{...styles.input, width: '100px'}} />
-                                <span>@</span>
-                                <input type="text" value={formData.email2} onChange={e=>handleInputChange('email2', e.target.value)} style={{...styles.input, width: '120px'}} />
-                                <select style={styles.select}>
-                                    <option>직접입력</option>
-                                    <option>naver.com</option>
-                                    <option>gmail.com</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div style={styles.formRow}>
-                            <div style={styles.formLabel}>전화번호</div>
-                            <div style={styles.formContent}>
-                                <select value={formData.phone1} onChange={e=>handleInputChange('phone1', e.target.value)} style={{...styles.select, width: '60px'}}><option>02</option><option>031</option></select> - 
-                                <input type="text" value={formData.phone2} onChange={e=>handleInputChange('phone2', e.target.value)} style={{...styles.input, width: '60px'}} /> - 
-                                <input type="text" value={formData.phone3} onChange={e=>handleInputChange('phone3', e.target.value)} style={{...styles.input, width: '60px'}} />
-                            </div>
-                        </div>
-                        <div style={styles.formRow}>
-                            <div style={styles.formLabel}>휴대폰</div>
-                            <div style={styles.formContent}>
-                                <select value={formData.mobile1} onChange={e=>handleInputChange('mobile1', e.target.value)} style={{...styles.select, width: '60px'}}><option>010</option><option>011</option></select> - 
-                                <input type="text" value={formData.mobile2} onChange={e=>handleInputChange('mobile2', e.target.value)} style={{...styles.input, width: '60px'}} /> - 
-                                <input type="text" value={formData.mobile3} onChange={e=>handleInputChange('mobile3', e.target.value)} style={{...styles.input, width: '60px'}} />
-                            </div>
-                        </div>
-                        <div style={styles.formRow}>
-                            <div style={styles.formLabel}>소속(부서/팀)</div>
-                            <div style={styles.formContent}>
-                                <input type="text" value={formData.department} onChange={e=>handleInputChange('department', e.target.value)} style={{...styles.input, maxWidth: '400px'}} />
-                                <span style={{color: '#999', fontSize: '11px', marginLeft: '4px'}}>예) 기획팀, 마케팅팀, 전략기획실, 임원</span>
-                            </div>
-                        </div>
-                        <div style={styles.formRow}>
-                            <div style={styles.formLabel}>직급</div>
-                            <div style={styles.formContent}>
-                                <input type="text" value={formData.position} onChange={e=>handleInputChange('position', e.target.value)} style={{...styles.input, maxWidth: '400px'}} />
-                                <span style={{color: '#999', fontSize: '11px', marginLeft: '4px'}}>예) 사원, 대리, 부장, 대표</span>
-                            </div>
-                        </div>
-                        <div style={{...styles.formRow, borderBottom: 'none'}}>
-                            <div style={styles.formLabel}>메모</div>
-                            <div style={styles.formContent}>
-                                <input type="text" value={formData.memo} onChange={e=>handleInputChange('memo', e.target.value)} style={{...styles.input, maxWidth: '100%'}} />
-                            </div>
+                        <div className="ios-list-row">
+                            <span className="ios-label">비밀번호 확인</span>
+                            <input type="password" className="ios-input-clean" placeholder="비밀번호 재입력" value={formData.passwordConfirm} onChange={e=>handleInputChange('passwordConfirm', e.target.value)} />
                         </div>
                     </div>
 
-                    <div style={styles.sectionTitle}><div style={styles.sectionIcon}></div> 사용자 권한 설정</div>
-                    <div style={{...styles.formBox, borderTop: '2px solid #E5E7EB'}}>
-                        <div style={styles.formRow}>
-                            <div style={styles.formLabel}>로그인 허용</div>
-                            <div style={styles.formContent}>
-                                <label style={styles.checkboxLabel}>
-                                    <input type="checkbox" checked={formData.isLoginAllowed} onChange={e=>handleInputChange('isLoginAllowed', e.target.value)} /> 허용함
-                                </label>
+                    <div className="ios-group-title">인적 정보 및 부서</div>
+                    <div className="ios-list-group">
+                        <div className="ios-list-row">
+                            <span className="ios-label">연락처</span>
+                            <div style={{ display: 'flex', gap: '4px', flex: 1, justifyContent: 'flex-end' }}>
+                                <select className="ios-select-clean" style={{ width: '50px' }} value={formData.mobile1} onChange={e=>handleInputChange('mobile1', e.target.value)}><option>010</option><option>011</option></select>
+                                <span style={{ color: '#C7C7CC' }}>-</span>
+                                <input type="text" className="ios-input-clean" style={{ width: '40px', flex: 'none' }} value={formData.mobile2} onChange={e=>handleInputChange('mobile2', e.target.value)} />
+                                <span style={{ color: '#C7C7CC' }}>-</span>
+                                <input type="text" className="ios-input-clean" style={{ width: '40px', flex: 'none' }} value={formData.mobile3} onChange={e=>handleInputChange('mobile3', e.target.value)} />
                             </div>
                         </div>
-                        <div style={styles.formRow}>
-                            <div style={styles.formLabel}>권한설정</div>
-                            <div style={{...styles.formContent, flexDirection: 'column', alignItems: 'flex-start', gap: '4px'}}>
-                                <label style={styles.checkboxLabel}><input type="checkbox" checked={formData.permissions.site} onChange={()=>handlePermissionChange('site')}/> 사이트운영</label>
-                                <label style={styles.checkboxLabel}><input type="checkbox" checked={formData.permissions.sms} onChange={()=>handlePermissionChange('sms')}/> SMS/메일</label>
-                                <label style={styles.checkboxLabel}><input type="checkbox" checked={formData.permissions.design} onChange={()=>handlePermissionChange('design')}/> 디자인관리</label>
-                                <label style={styles.checkboxLabel}><input type="checkbox" checked={formData.permissions.mobile} onChange={()=>handlePermissionChange('mobile')}/> 모바일 디자인관리</label>
-                                <label style={styles.checkboxLabel}><input type="checkbox" checked={formData.permissions.config} onChange={()=>handlePermissionChange('config')}/> 환경설정</label>
-                            </div>
+                        <div className="ios-list-row">
+                            <span className="ios-label">소속 (부서)</span>
+                            <input type="text" className="ios-input-clean" placeholder="예: 디자인팀, 기획실" value={formData.department} onChange={e=>handleInputChange('department', e.target.value)} />
                         </div>
-                        <div style={{...styles.formRow, borderBottom: 'none'}}>
-                            <div style={styles.formLabel}>첫 페이지 설정</div>
-                            <div style={styles.formContent}>
-                                <select value={formData.startPage} onChange={e=>handleInputChange('startPage', e.target.value)} style={styles.select}>
-                                    <option>사이트운영</option>
-                                    <option>환경설정</option>
-                                </select>
-                                <span style={{color: '#999', fontSize: '11px', display: 'block', width: '100%', marginTop: '4px'}}>로그인 시 로딩되는 첫 페이지를 설정합니다.</span>
-                            </div>
+                        <div className="ios-list-row">
+                            <span className="ios-label">직급</span>
+                            <input type="text" className="ios-input-clean" placeholder="예: 대리, 과장" value={formData.position} onChange={e=>handleInputChange('position', e.target.value)} />
                         </div>
                     </div>
 
-                    <div style={{ textAlign: 'center', marginTop: '20px', paddingBottom: '40px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                        <button onClick={handleSave} disabled={isSaving} style={{ ...styles.btnBlue, padding: '8px 30px' }}>
-                            {isSaving ? "저장 중..." : "확인"}
-                        </button>
-                        <button onClick={() => { setViewMode('list'); resetForm(); }} style={{ ...styles.btnGray, padding: '8px 30px' }}>
-                            취소
+                    <div className="ios-group-title">시스템 권한 제어</div>
+                    <div className="ios-list-group">
+                        <div className="ios-list-row">
+                            <span className="ios-label">로그인 허용</span>
+                            <div className={`ios-toggle ${formData.isLoginAllowed ? 'active' : ''}`} onClick={() => handleInputChange('isLoginAllowed', !formData.isLoginAllowed)}>
+                                <div className="ios-toggle-knob"></div>
+                            </div>
+                        </div>
+                        {Object.entries({ site: '사이트 전체 관리', sms: 'SMS / 알림톡 발송', design: 'UI / 디자인 편집', mobile: '모바일 환경 설정', config: '코어 환경 설정' }).map(([key, label]) => (
+                            <div className="ios-list-row" key={key}>
+                                <span className="ios-label" style={{ fontWeight: '500' }}>{label}</span>
+                                <div className={`ios-toggle ${formData.permissions[key] ? 'active' : ''}`} onClick={() => handlePermissionChange(key)}>
+                                    <div className="ios-toggle-knob"></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', paddingBottom: '40px' }}>
+                        <button className="ios-btn-micro outline" style={{ flex: 1, padding: '14px', fontSize: '14px' }} onClick={() => { setViewMode('list'); resetForm(); }}>취소</button>
+                        <button className="ios-btn-micro accent" style={{ flex: 2, padding: '14px', fontSize: '14px' }} onClick={handleSave} disabled={isSaving}>
+                            {isSaving ? '생성 중...' : '계정 생성 완료'}
                         </button>
                     </div>
-                </>
+                </div>
             )}
 
-            {/* ========================================================== */}
-            {/* 🚨 신규 모달: 특정 회원의 포인트(코인) 이용 및 정산 내역 장부 조회 */}
-            {/* ========================================================== */}
+            {/* 3. 코인/포인트 내역 조회 모달 */}
             {isHistoryModalOpen && selectedUser && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                    <div className="fade-in" style={{ backgroundColor: '#FFF', borderRadius: '8px', width: '100%', maxWidth: '768px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+                <div className="ios-modal-overlay" onClick={() => setIsHistoryModalOpen(false)}>
+                    <div className="ios-modal-card" onClick={e => e.stopPropagation()}>
                         
-                        {/* 모달 헤더 */}
-                        <div style={{ padding: '16px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8F9FA', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
-                            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#111', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <ScrollText size={18} color="#D97706" />
-                                [{selectedUser.name || selectedUser.email}] 님의 개인 장부 (포인트 내역)
-                            </h3>
-                            <button onClick={() => setIsHistoryModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666' }}><X size={20} /></button>
+                        <div className="ios-modal-header">
+                            <h3 className="ios-modal-title"><ScrollText size={16} color="#D97706" /> {selectedUser.name || selectedUser.email}님의 장부 내역</h3>
+                            <button className="ios-modal-close" onClick={() => setIsHistoryModalOpen(false)}><X size={14}/></button>
                         </div>
 
-                        {/* 모달 컨텐츠 (내역 테이블) */}
-                        <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', borderTop: '2px solid #333' }}>
+                        <div style={{ padding: '0', overflowY: 'auto', flex: 1, backgroundColor: '#FFFFFF' }}>
+                            <table className="ios-table" style={{ borderTop: 'none' }}>
                                 <thead>
                                     <tr>
-                                        <th style={styles.tableHeader}>발생 일시</th>
-                                        <th style={styles.tableHeader}>거래 유형</th>
-                                        <th style={{...styles.tableHeader, textAlign: 'left', paddingLeft: '16px'}}>상세 내역 (구매/판매 상품명)</th>
-                                        <th style={{...styles.tableHeader, textAlign: 'right', paddingRight: '16px'}}>변동액</th>
+                                        <th className="ios-th">일시</th>
+                                        <th className="ios-th">구분</th>
+                                        <th className="ios-th">상세 내역</th>
+                                        <th className="ios-th" style={{ textAlign: 'right', paddingRight: '16px' }}>변동액</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {isLoadingHistory ? (
-                                        <tr><td colSpan="4" style={{ padding: '60px', textAlign: 'center', color: '#666' }}>장부 내역을 불러오는 중입니다...</td></tr>
+                                        <tr><td colSpan="4" className="ios-td" style={{ textAlign: 'center', padding: '40px', color: '#8E8E93' }}>장부 기록을 동기화 중입니다...</td></tr>
                                     ) : userHistory.length > 0 ? (
                                         userHistory.map(tx => {
                                             const isPlus = tx.amount > 0;
                                             return (
-                                                <tr key={tx.id} style={{ borderBottom: '1px solid #E5E7EB' }}>
-                                                    <td style={styles.tableCell}>{new Date(tx.created_at).toLocaleString()}</td>
-                                                    <td style={{...styles.tableCell, fontWeight: 'bold', color: isPlus ? '#059669' : '#ef4444'}}>
-                                                        {tx.trade_type === 'sell' ? '판매수익' : tx.trade_type === 'charge' ? '충전' : tx.trade_type === 'buy' ? '상품결제' : '포인트변동'}
+                                                <tr key={tx.id} className="ios-tr">
+                                                    <td className="ios-td" style={{ fontSize: '10px', color: '#8E8E93' }}>{new Date(tx.created_at).toLocaleString()}</td>
+                                                    <td className="ios-td" style={{ fontSize: '11px', fontWeight: '700', color: isPlus ? '#34C759' : '#FF3B30' }}>
+                                                        {tx.trade_type === 'sell' ? '수익' : tx.trade_type === 'charge' ? '충전' : tx.trade_type === 'buy' ? '차감' : '변동'}
                                                     </td>
-                                                    <td style={{...styles.tableCell, textAlign: 'left', paddingLeft: '16px', color: '#444'}}>
-                                                        {tx.description}
-                                                    </td>
-                                                    <td style={{...styles.tableCell, textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', fontSize: '13px', color: isPlus ? '#059669' : '#ef4444'}}>
+                                                    <td className="ios-td" style={{ color: '#1C1C1E' }}>{tx.description}</td>
+                                                    <td className="ios-td" style={{ textAlign: 'right', paddingRight: '16px', fontWeight: '700', color: isPlus ? '#34C759' : '#FF3B30' }}>
                                                         {isPlus ? '+' : ''}{tx.amount.toLocaleString()} C
                                                     </td>
                                                 </tr>
                                             );
                                         })
                                     ) : (
-                                        <tr><td colSpan="4" style={{ padding: '60px', textAlign: 'center', color: '#999' }}>해당 회원의 포인트 거래 내역이 존재하지 않습니다.</td></tr>
+                                        <tr><td colSpan="4" className="ios-td" style={{ textAlign: 'center', padding: '40px', color: '#8E8E93' }}>거래 내역이 존재하지 않습니다.</td></tr>
                                     )}
                                 </tbody>
                             </table>
-                        </div>
-
-                        {/* 모달 푸터 */}
-                        <div style={{ padding: '16px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', backgroundColor: '#F8F9FA', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px' }}>
-                            <button onClick={() => setIsHistoryModalOpen(false)} style={{ ...styles.btnGray, padding: '8px 30px' }}>닫기</button>
                         </div>
                     </div>
                 </div>
