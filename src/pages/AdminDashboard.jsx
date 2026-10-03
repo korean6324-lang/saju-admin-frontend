@@ -31,24 +31,24 @@ export default function AdminDashboard() {
         setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
-    // 🌟 화사하고 밝은 모던 브라이트(Modern Bright) 테마로 개편
+    // 🌟 화사하고 밝은 모던 브라이트(Modern Bright) 테마
     const adminTheme = {
-        bg: '#F8FAFC',            // 메인 배경: 아주 밝고 산뜻한 쿨 그레이 (기존의 칙칙함 제거)
-        panelBg: '#FFFFFF',       // 패널 배경: 순백색
-        border: '#E2E8F0',        // 테두리: 부드럽고 연한 라인
-        textBright: '#0F172A',    // 강조 텍스트: 선명한 다크 네이비
-        text: '#334155',          // 일반 텍스트: 부드러운 차콜
-        textMuted: '#94A3B8',     // 보조 텍스트: 밝은 그레이
-        primary: '#3B82F6',       // 메인 컬러: 화사한 블루
-        accent: '#2563EB',        // 강조 컬러: 선명한 딥 블루
+        bg: '#F8FAFC',            
+        panelBg: '#FFFFFF',       
+        border: '#E2E8F0',        
+        textBright: '#0F172A',    
+        text: '#334155',          
+        textMuted: '#94A3B8',     
+        primary: '#3B82F6',       
+        accent: '#2563EB',        
         danger: '#EF4444', 
         good: '#10B981', 
-        sidebarBg: '#FFFFFF',     // 사이드바 배경: 순백색으로 개방감 극대화
+        sidebarBg: '#FFFFFF',     
         sidebarText: '#475569',   
-        sidebarActive: '#EFF6FF', // 활성 메뉴 배경: 아주 연한 파스텔 블루
+        sidebarActive: '#EFF6FF', 
         tableHeaderBg: '#F8FAFC', 
         tableRowBorder: '#F1F5F9', 
-        shadow: '0 4px 20px rgba(0, 0, 0, 0.03)' // 그림자: 더 부드럽고 넓게 퍼지도록
+        shadow: '0 4px 20px rgba(0, 0, 0, 0.03)' 
     };
 
     useEffect(() => {
@@ -70,21 +70,12 @@ export default function AdminDashboard() {
         </div>
     );
 
-    // 🚨 컴포넌트 파싱 에러를 완벽하게 방지하는 아이콘 참조 배열 유지
+    // 🚨 불필요한 하위 메뉴(입점심사, 승인파트너) 제거 완료
     const menuItems = [
         { category: '서비스 관리', hideCategoryTitle: false, items: [
             { id: 'overview', icon: BarChart3, label: '대시보드 통계' },
             { id: 'user_manage', icon: UserPlus, label: '사용자관리' },
-            { 
-                id: 'member_manage', 
-                icon: Users, 
-                label: '회원관리',
-                subItems: [
-                    { id: 'partners_users', label: '1. 전체회원' },
-                    { id: 'partners_apps', label: '2. 입점 심사 대기열' },
-                    { id: 'partners_list', label: '3. 승인된 파트너' }
-                ]
-            }
+            { id: 'member_manage', icon: Users, label: '회원 및 권한 관리' } // 단일 메뉴로 통합
         ]},
         { category: '정산관리', hideCategoryTitle: true, items: [
             { 
@@ -184,14 +175,12 @@ export default function AdminDashboard() {
                 .ios-sub-item.active {
                     color: #2563EB; font-weight: 700; background-color: transparent;
                 }
-                /* 활성 서브메뉴 좌측 점선(Indicator) 효과 */
                 .ios-sub-item.active::before {
                     content: ''; position: absolute; left: 24px; top: 50%; transform: translateY(-50%);
                     width: 6px; height: 6px; border-radius: 50%; background-color: #3B82F6;
                     box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
                 }
 
-                /* 투명하고 밝은 상단 헤더 */
                 .ios-glass-header {
                     background-color: rgba(255, 255, 255, 0.85);
                     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
@@ -212,10 +201,9 @@ export default function AdminDashboard() {
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
             `}} />
 
-            {/* 사이드바 (화이트 톤) */}
+            {/* 사이드바 */}
             <aside style={{ width: '280px', flexShrink: 0, backgroundColor: adminTheme.sidebarBg, borderRight: `1px solid ${adminTheme.border}`, display: 'flex', flexDirection: 'column' }}>
                 
-                {/* 브랜드 로고 영역 */}
                 <div style={{ height: '72px', display: 'flex', alignItems: 'center', padding: '0 28px', flexShrink: 0, borderBottom: `1px solid ${adminTheme.border}` }}>
                     <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: adminTheme.textBright, letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', padding: '6px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -278,10 +266,8 @@ export default function AdminDashboard() {
 
             {/* 메인 콘텐츠 영역 */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: 'calc(100% - 280px)' }}>
-                {/* 상단 헤더 (밝고 투명한 유리 질감) */}
                 <header className="ios-glass-header" style={{ height: '72px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 40px', flexShrink: 0, position: 'sticky', top: 0, zIndex: 100 }}>
                     
-                    {/* 빵판 (Breadcrumbs) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', color: adminTheme.textMuted, fontWeight: '600' }}>
                         {breadcrumbText.split(' > ').map((text, idx, arr) => (
                             <React.Fragment key={idx}>
@@ -291,7 +277,6 @@ export default function AdminDashboard() {
                         ))}
                     </div>
                     
-                    {/* 우측 액션 버튼 */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <button className="ios-action-btn">
                             <Settings size={16} /> 설정
@@ -302,16 +287,13 @@ export default function AdminDashboard() {
                     </div>
                 </header>
 
-                {/* 대시보드 메인 렌더링 뷰포트 (쿨 그레이 배경으로 입체감 제공) */}
                 <main style={{ flex: 1, overflowY: 'auto', padding: '40px' }}>
                     <div style={{ width: '100%', maxWidth: '1600px', margin: '0 auto' }}>
                         {activeTab === 'overview' && <AdminOverview adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'user_manage' && <AdminUserManage adminTheme={adminTheme} />}
                         
-                        {/* 회원관리 하위 */}
-                        {activeTab === 'partners_users' && <AdminPartners adminTheme={adminTheme} defaultTab="users" />}
-                        {activeTab === 'partners_apps' && <AdminPartners adminTheme={adminTheme} defaultTab="applications" />}
-                        {activeTab === 'partners_list' && <AdminPartners adminTheme={adminTheme} defaultTab="partners" />}
+                        {/* 🚨 회원관리: 불필요한 하위탭 제거 후 직관적인 렌더링 */}
+                        {activeTab === 'member_manage' && <AdminPartners adminTheme={adminTheme} defaultTab="users" />}
                         
                         {/* 정산관리 하위 */}
                         {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} />}
