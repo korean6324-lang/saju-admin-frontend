@@ -8,10 +8,9 @@ import {
     Users, Plus, Eye, EyeOff, LayoutTemplate, FileText, Check
 } from 'lucide-react';
 
-// 🚨 업데이트: '홈페이지' 및 '관리자 페이지' 명시적 추가
 const PAGES_LIST = [
     { id: 'all', name: '전체 (모든 페이지)' },
-    { id: 'home', name: '홈페이지' }, // 👈 추가된 부분
+    { id: 'home', name: '홈페이지' }, 
     { id: 'saju', name: '사주' },
     { id: 'gunghap', name: '궁합' },
     { id: 'wedding', name: '혼택일' },
@@ -91,7 +90,9 @@ export default function AdminBanner() {
     };
 
     const handleSave = async () => {
-        if (!title || !selectedFile) return alert("제목과 배너 이미지는 필수 입력 항목입니다.");
+        // 🚨 수정: title(제목)은 필수가 아니며, 이미지만 필수로 체크하도록 변경
+        if (!selectedFile) return alert("배너 이미지는 필수 입력 항목입니다.");
+        
         setIsSaving(true);
         let uploadedFilePath = '';
 
@@ -107,7 +108,7 @@ export default function AdminBanner() {
             const newSortOrder = banners.length > 0 ? Math.min(...banners.map(b => b.sort_order)) - 1 : 0;
 
             const { error: dbError } = await supabase.from('banners').insert([{
-                title,
+                title: title || '', // 타이틀이 없으면 빈 문자열로 저장
                 link_url: linkUrl,
                 start_date: startDate ? new Date(startDate).toISOString() : null,
                 end_date: endDate ? new Date(endDate).toISOString() : null,
@@ -346,7 +347,7 @@ export default function AdminBanner() {
                         <div className="ios-icon-box" style={{ background: '#FF9500' }}><LayoutTemplate size={16} /></div>
                         <span className="ios-label">타이틀</span>
                     </div>
-                    <input type="text" className="ios-input" placeholder="예: 2026 신년 이벤트" value={title} onChange={e=>setTitle(e.target.value)} />
+                    <input type="text" className="ios-input" placeholder="비워두면 이미지만 표시됩니다" value={title} onChange={e=>setTitle(e.target.value)} />
                 </div>
 
                 <div className="ios-list-row" style={{ flexDirection: 'column', alignItems: 'stretch', padding: '0' }}>
@@ -437,8 +438,9 @@ export default function AdminBanner() {
                                             <img src={banner.image_url} alt="banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                         </div>
                                         <div style={{ flex: 1, minWidth: 0 }}>
+                                            {/* 🚨 수정: 제목이 비어있으면 (제목 없음)으로 표시 */}
                                             <div style={{ fontSize: '16px', fontWeight: '700', color: '#1C1C1E', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '4px' }}>
-                                                {banner.title}
+                                                {banner.title || '(제목 없음 - 이미지만 노출)'}
                                             </div>
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
                                                 <span style={{ fontSize: '11px', fontWeight: '700', color: status.color, backgroundColor: status.bg, padding: '2px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
