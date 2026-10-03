@@ -40,13 +40,18 @@ export default function AdminLogin() {
     return (
         <div className="ios-login-bg">
             <style dangerouslySetInnerHTML={{ __html: `
+                /* 🚨 어떤 레이아웃에서도 무조건 전체 화면 & 정중앙 강제 고정 */
                 .ios-login-bg {
-                    min-height: 100vh;
-                    background-color: #F2F2F7; /* iOS 고유의 밝은 회색 배경 */
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    background-color: #F2F2F7;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    padding: 20px;
+                    z-index: 99999;
                     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif;
                 }
                 
@@ -59,6 +64,7 @@ export default function AdminLogin() {
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
                     text-align: center;
                     animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                    margin: 0 20px; /* 모바일 환경 좌우 여백 */
                 }
 
                 @keyframes fadeUp {
