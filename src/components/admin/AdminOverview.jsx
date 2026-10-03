@@ -2,122 +2,191 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../api/supabaseClient';
-import { Users, Crown, Store, Coins, TrendingUp } from 'lucide-react';
+import { Users, Crown, Store, Sparkles, ScrollText, Info } from 'lucide-react';
 
 export default function AdminOverview({ adminTheme }) {
     
     // ==========================================================
-    // 1. 핵심 지표 병렬 페칭 (속도 극대화)
+    // 1. 핵심 지표 병렬 페칭 (캐시 제거 & 열람권 현황 연동)
     // ==========================================================
     const { data: stats, isLoading } = useQuery({
         queryKey: ['adminDashboardStats'],
         queryFn: async () => {
-            // Promise.all을 통해 4개의 카운트 쿼리를 동시에 실행
-            const [usersReq, vipReq, partnersReq, cashReq] = await Promise.all([
-                supabase.from('profiles').select('*', { count: 'exact', head: true }),
-                // 🚨 수정된 부분: is_vip 대신 실제 존재하는 subscription_tier가 'free'가 아닌 유저를 찾습니다.
-                supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('subscription_tier', 'free'),
-                supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'partner'),
-                supabase.from('cash_transactions').select('amount') // 단순 예시: 실제로는 서버 RPC 권장
+            // Promise.all을 통해 쿼리를 동시에 실행하여 속도 극대화
+            const [usersReq, vipReq, partnersReq, ticketsReq] = await Promise.all([
+                // 1. 전체 회원 수
+                supabase.from('profiles').select('id', { count: 'exact', head: true }),
+                // 2. VIP 결제 회원 수 (membership_tier가 basic 또는 premium인 유저)
+                supabase.from('profiles').select('id', { count: 'exact', head: true }).in('membership_tier', ['basic', 'premium']),
+                // 3. 승인된 파트너 수
+                supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'partner'),
+                // 4. 전체 유저의 열람권 보유량 조회를 위한 페칭
+                supabase.from('profiles').select('tarot_ticket_count, general_ticket_count')
             ]);
+
+            // 열람권 총합 계산
+            const totalTarot = ticketsReq.data?.reduce((acc, curr) => acc + (curr.tarot_ticket_count || 0), 0) || 0;
+            const totalGeneral = ticketsReq.data?.reduce((acc, curr) => acc + (curr.general_ticket_count || 0), 0) || 0;
 
             return {
                 totalUsers: usersReq.count || 0,
                 vipUsers: vipReq.count || 0,
                 partners: partnersReq.count || 0,
-                // 총 발행 캐시는 계산 로직이 필요하므로 임시값 처리
-                totalCashVolume: cashReq.data ? cashReq.data.reduce((sum, tx) => sum + Math.abs(tx.amount), 0) : 0 
+                totalTarotTickets: totalTarot,
+                totalGeneralTickets: totalGeneral
             };
         }
     });
 
-    // ==========================================================
-    // 🎨 엔터프라이즈 화이트 테마 스타일 (12~13px 고밀도)
-    // ==========================================================
-    const styles = {
-        container: { backgroundColor: '#FFFFFF', padding: '24px', fontFamily: '"Malgun Gothic", "Pretendard", sans-serif', fontSize: '13px', color: '#333' },
-        headerTitle: { fontSize: '20px', fontWeight: 'bold', color: '#111', marginBottom: '8px' },
-        headerSub: { fontSize: '12px', color: '#666', marginBottom: '24px' },
-        
-        // 꽉 찬 표 형태의 그리드 위젯
-        widgetGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '30px' },
-        widgetBox: { border: `1px solid ${adminTheme.border}`, backgroundColor: '#FFF', display: 'flex', alignItems: 'center' },
-        widgetIconArea: { width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: `1px solid ${adminTheme.border}` },
-        widgetTextArea: { flex: 1, padding: '0 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center' },
-        widgetLabel: { fontSize: '12px', fontWeight: 'bold', color: '#666', marginBottom: '4px' },
-        widgetValue: { fontSize: '24px', fontWeight: '900', color: '#111' },
-    };
-
-    if (isLoading) return <div style={{ padding: '40px', color: '#999', fontSize: '13px' }}>통계 데이터를 집계 중입니다...</div>;
-
     return (
-        <div style={styles.container}>
-            {/* 1. 상단 타이틀 */}
+        <div className="ios-overview-wrap fade-in">
+            <style dangerouslySetInnerHTML={{ __html: `
+                .ios-overview-wrap {
+                    width: 100%; box-sizing: border-box;
+                    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif;
+                    background-color: transparent;
+                }
+
+                .ios-title { font-size: 28px; font-weight: 800; color: #1C1C1E; margin: 0 0 8px 0; letter-spacing: -0.5px; }
+                .ios-desc { font-size: 14px; color: #8E8E93; margin: 0 0 32px 0; font-weight: 500; }
+
+                /* iOS Inset Grouped 리스트 스타일 */
+                .ios-group-title {
+                    font-size: 13px; font-weight: 600; color: #8E8E93; text-transform: uppercase;
+                    margin: 0 0 8px 16px; letter-spacing: -0.3px;
+                }
+                .ios-list-group {
+                    background-color: #FFFFFF; border-radius: 16px; margin-bottom: 32px;
+                    overflow: hidden; border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+                }
+                .ios-list-row {
+                    display: flex; align-items: center; justify-content: space-between;
+                    min-height: 52px; padding: 12px 16px; border-bottom: 0.5px solid #E5E5EA;
+                }
+                .ios-list-row:last-child { border-bottom: none; }
+
+                /* 아이콘 및 레이블 */
+                .ios-label-wrap { display: flex; align-items: center; gap: 14px; flex: 1; }
+                .ios-icon-box {
+                    width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #FFFFFF;
+                }
+                .ios-label { font-size: 15px; font-weight: 600; color: #1C1C1E; letter-spacing: -0.3px; }
+
+                /* 값(Value) 표시 영역 */
+                .ios-value-wrap { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+                .ios-value-number { font-size: 18px; font-weight: 800; color: #1C1C1E; letter-spacing: -0.5px; }
+                .ios-value-unit { font-size: 14px; color: #8E8E93; font-weight: 600; }
+
+                /* 안내 텍스트 블록 */
+                .ios-info-box {
+                    background-color: #F9F9FB; padding: 20px; font-size: 13px; color: #3A3A3C; line-height: 1.6; font-weight: 500;
+                }
+                .ios-info-box ul { margin: 0; padding-left: 20px; }
+                .ios-info-box li { margin-bottom: 6px; }
+                .ios-info-box li:last-child { margin-bottom: 0; }
+
+                .ios-empty-state { padding: 40px 20px; text-align: center; color: #8E8E93; font-size: 14px; font-weight: 600; }
+                .lucide-spin { animation: spin 1s linear infinite; }
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            `}} />
+
             <div>
-                <h2 style={styles.headerTitle}>서비스 대시보드 요약</h2>
-                <p style={styles.headerSub}>[서비스 관리 &gt; 대시보드 통계] 플랫폼의 핵심 가입자 지표 및 자산 흐름을 요약하여 보여줍니다.</p>
+                <h1 className="ios-title">대시보드 통계</h1>
+                <p className="ios-desc">플랫폼의 핵심 가입자 지표 및 열람권 발행 현황을 요약하여 보여줍니다.</p>
             </div>
 
-            {/* 2. 고밀도 통계 위젯 (표/그리드 형태) */}
-            <div style={styles.widgetGrid}>
-                {/* 누적 가입자 */}
-                <div style={styles.widgetBox}>
-                    <div style={{ ...styles.widgetIconArea, backgroundColor: '#F0F9FF' }}>
-                        <Users size={32} color="#0ea5e9" />
-                    </div>
-                    <div style={styles.widgetTextArea}>
-                        <div style={styles.widgetLabel}>플랫폼 누적 가입자</div>
-                        <div style={styles.widgetValue}>{stats?.totalUsers.toLocaleString()} <span style={{fontSize:'12px', color:'#999'}}>명</span></div>
+            {isLoading ? (
+                <div className="ios-list-group">
+                    <div className="ios-empty-state">
+                        <span className="lucide-spin" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '8px' }}>⏳</span>
+                        통계 데이터를 실시간으로 집계 중입니다...
                     </div>
                 </div>
+            ) : (
+                <>
+                    {/* 1. 가입자 및 파트너 현황 */}
+                    <div className="ios-group-title">사용자 지표 현황</div>
+                    <div className="ios-list-group">
+                        <div className="ios-list-row">
+                            <div className="ios-label-wrap">
+                                <div className="ios-icon-box" style={{ background: '#007AFF' }}><Users size={18} /></div>
+                                <span className="ios-label">플랫폼 누적 가입자</span>
+                            </div>
+                            <div className="ios-value-wrap">
+                                <span className="ios-value-number">{stats?.totalUsers.toLocaleString()}</span>
+                                <span className="ios-value-unit">명</span>
+                            </div>
+                        </div>
 
-                {/* VIP 결제 유저 */}
-                <div style={styles.widgetBox}>
-                    <div style={{ ...styles.widgetIconArea, backgroundColor: '#FEFCE8' }}>
-                        <Crown size={32} color="#d97706" />
-                    </div>
-                    <div style={styles.widgetTextArea}>
-                        <div style={styles.widgetLabel}>VIP (1회 이상 결제)</div>
-                        <div style={styles.widgetValue}>{stats?.vipUsers.toLocaleString()} <span style={{fontSize:'12px', color:'#999'}}>명</span></div>
-                    </div>
-                </div>
+                        <div className="ios-list-row">
+                            <div className="ios-label-wrap">
+                                <div className="ios-icon-box" style={{ background: '#FF9500' }}><Crown size={18} /></div>
+                                <span className="ios-label">VIP 및 구독 결제 유저</span>
+                            </div>
+                            <div className="ios-value-wrap">
+                                <span className="ios-value-number" style={{ color: '#FF9500' }}>{stats?.vipUsers.toLocaleString()}</span>
+                                <span className="ios-value-unit">명</span>
+                            </div>
+                        </div>
 
-                {/* 파트너 입점 수 */}
-                <div style={styles.widgetBox}>
-                    <div style={{ ...styles.widgetIconArea, backgroundColor: '#ECFDF5' }}>
-                        <Store size={32} color="#059669" />
+                        <div className="ios-list-row">
+                            <div className="ios-label-wrap">
+                                <div className="ios-icon-box" style={{ background: '#34C759' }}><Store size={18} /></div>
+                                <span className="ios-label">승인된 스토어 파트너</span>
+                            </div>
+                            <div className="ios-value-wrap">
+                                <span className="ios-value-number" style={{ color: '#34C759' }}>{stats?.partners.toLocaleString()}</span>
+                                <span className="ios-value-unit">명</span>
+                            </div>
+                        </div>
                     </div>
-                    <div style={styles.widgetTextArea}>
-                        <div style={styles.widgetLabel}>승인된 스토어 파트너</div>
-                        <div style={styles.widgetValue}>{stats?.partners.toLocaleString()} <span style={{fontSize:'12px', color:'#999'}}>명</span></div>
-                    </div>
-                </div>
 
-                {/* 사마캐시 유통량 */}
-                <div style={styles.widgetBox}>
-                    <div style={{ ...styles.widgetIconArea, backgroundColor: '#F3F4F6' }}>
-                        <Coins size={32} color="#4B5563" />
-                    </div>
-                    <div style={styles.widgetTextArea}>
-                        <div style={styles.widgetLabel}>사마캐시 누적 거래량</div>
-                        <div style={styles.widgetValue}>{stats?.totalCashVolume.toLocaleString()} <span style={{fontSize:'12px', color:'#999'}}>C</span></div>
-                    </div>
-                </div>
-            </div>
+                    {/* 2. 열람권 발행 현황 패널 (캐시 대체) */}
+                    <div className="ios-group-title">열람권 누적 발행 현황</div>
+                    <div className="ios-list-group">
+                        <div className="ios-list-row">
+                            <div className="ios-label-wrap">
+                                <div className="ios-icon-box" style={{ background: '#AF52DE' }}><Sparkles size={18} /></div>
+                                <span className="ios-label">타로 열람권 잔여 총합</span>
+                            </div>
+                            <div className="ios-value-wrap">
+                                <span className="ios-value-number" style={{ color: '#AF52DE' }}>{stats?.totalTarotTickets.toLocaleString()}</span>
+                                <span className="ios-value-unit">장</span>
+                            </div>
+                        </div>
 
-            {/* 3. 안내 영역 (테이블형) */}
-            <div style={{ border: `1px solid ${adminTheme.border}`, backgroundColor: '#F9FAFB' }}>
-                <div style={{ padding: '16px', borderBottom: `1px solid ${adminTheme.border}`, fontWeight: 'bold', fontSize: '14px', color: '#111', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <TrendingUp size={16} color={adminTheme.accent} /> 어드민 시스템 안내
+                        <div className="ios-list-row">
+                            <div className="ios-label-wrap">
+                                <div className="ios-icon-box" style={{ background: '#32ADE6' }}><ScrollText size={18} /></div>
+                                <span className="ios-label">종합 열람권 잔여 총합 <span style={{fontSize:'12px', color:'#8E8E93', fontWeight:'normal'}}>(사주/궁합 등)</span></span>
+                            </div>
+                            <div className="ios-value-wrap">
+                                <span className="ios-value-number" style={{ color: '#32ADE6' }}>{stats?.totalGeneralTickets.toLocaleString()}</span>
+                                <span className="ios-value-unit">장</span>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* 3. 안내 영역 */}
+            <div className="ios-group-title">시스템 안내</div>
+            <div className="ios-list-group">
+                <div className="ios-list-row" style={{ backgroundColor: '#F9F9FB', borderBottom: '1px solid #E5E5EA' }}>
+                    <div className="ios-label-wrap">
+                        <Info size={18} color="#8E8E93" />
+                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#1C1C1E' }}>어드민 시스템 요약</span>
+                    </div>
                 </div>
-                <div style={{ padding: '24px 16px', fontSize: '13px', color: '#555', lineHeight: '1.6' }}>
-                    <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                        <li>좌측 <strong>[회원 및 파트너 정책]</strong> 메뉴에서 회원별 상세 검색, 차단, 및 권한 제어를 수행할 수 있습니다.</li>
-                        <li><strong>[사마캐시 관리]</strong> 탭에서 관리자 직권으로 고객에게 캐시를 지급하거나 회수할 수 있습니다.</li>
-                        <li>본 대시보드의 실시간 차트 및 스토어 정산 그래프는 차기 마일스톤(V4)에서 업데이트될 예정입니다.</li>
+                <div className="ios-info-box">
+                    <ul>
+                        <li>좌측 <strong>[회원관리]</strong> 메뉴에서 개별 유저를 검색하여 직접 열람권을 지급하거나 차감할 수 있습니다.</li>
+                        <li>파트너 입점 대기열 승인 및 상점 활성화 상태 변경 또한 회원관리에서 처리합니다.</li>
+                        <li>본 대시보드의 실시간 매출 차트 및 스토어 정산 그래프는 차기 마일스톤(V4)에서 업데이트될 예정입니다.</li>
                     </ul>
                 </div>
             </div>
+
         </div>
     );
 }
