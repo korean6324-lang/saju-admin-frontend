@@ -1,6 +1,6 @@
 // src/components/admin/AdminSiteSettings.jsx
 import React, { useState, useEffect } from 'react';
-import { Save, Search, Check, Upload, Layout, FileText, Users, Monitor, Loader2 } from 'lucide-react';
+import { Save, Search, Check, Upload, Layout, FileText, Users, Loader2, Image as ImageIcon, Shield, Mail, Phone, Settings } from 'lucide-react';
 import { supabase } from '../../api/supabaseClient'; 
 
 export default function AdminSiteSettings({ adminTheme }) {
@@ -11,7 +11,6 @@ export default function AdminSiteSettings({ adminTheme }) {
     const [subTab, setSubTab] = useState('info'); 
     const [isSaving, setIsSaving] = useState(false);
     
-    // 🚨 파비콘 업로드 상태 추가
     const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
 
     // ==========================================================
@@ -26,8 +25,8 @@ export default function AdminSiteSettings({ adminTheme }) {
         mobile1: '010', mobile2: '1234', mobile3: '5678',
         fax1: '02', fax2: '1234', fax3: '5678',
         email: 'dream@bokhouse.com',
-        siteTitle: '화복당(和福堂) - 프리미엄 운세', // 🚨 타이틀 문구
-        faviconUrl: '', // 🚨 파비콘 URL 추가
+        siteTitle: '화복당(和福堂) - 프리미엄 운세', 
+        faviconUrl: '', 
     });
 
     const [policies, setPolicies] = useState({
@@ -49,8 +48,10 @@ export default function AdminSiteSettings({ adminTheme }) {
         { id: 'address', name: '주소', use: false, required: false, fixed: false },
     ]);
 
+    const [approveMethod, setApproveMethod] = useState('auto');
+
     // ==========================================================
-    // 🚀 DB 데이터 불러오기 (타이틀, 파비콘 추가)
+    // 🚀 DB 데이터 불러오기
     // ==========================================================
     useEffect(() => {
         fetchSettings();
@@ -77,8 +78,8 @@ export default function AdminSiteSettings({ adminTheme }) {
                     phone1: phones[0] || '1588', phone2: phones[1] || '4259', phone3: phones[2] || '',
                     mobile1: mobiles[0] || '010', mobile2: mobiles[1] || '1234', mobile3: mobiles[2] || '5678',
                     email: data.email || prev.email,
-                    siteTitle: data.site_title || prev.siteTitle, // 🚨 타이틀 반영
-                    faviconUrl: data.favicon_url || prev.faviconUrl // 🚨 파비콘 반영
+                    siteTitle: data.site_title || prev.siteTitle, 
+                    faviconUrl: data.favicon_url || prev.faviconUrl 
                 }));
                 
                 setPolicies(prev => ({
@@ -106,7 +107,6 @@ export default function AdminSiteSettings({ adminTheme }) {
         }));
     };
 
-    // 🚨 파비콘 이미지 업로드 함수
     const handleFaviconUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -117,25 +117,21 @@ export default function AdminSiteSettings({ adminTheme }) {
             const fileName = `favicon_${Date.now()}.${fileExt}`;
             const filePath = `settings/${fileName}`;
 
-            // creator_files 버킷 사용 (안전장치)
             const { error: uploadError } = await supabase.storage.from('creator_files').upload(filePath, file);
             if (uploadError) throw uploadError;
 
             const { data: publicUrlData } = supabase.storage.from('creator_files').getPublicUrl(filePath);
 
-            // 업로드 완료 시 화면에 미리보기 바로 적용
             setBasicInfo(prev => ({ ...prev, faviconUrl: publicUrlData.publicUrl }));
-            alert('파비콘 이미지가 임시 업로드 되었습니다.\n반드시 하단의 [확인 (설정 저장)] 버튼을 눌러야 최종 반영됩니다.');
+            alert('파비콘 임시 업로드 완료.\n하단의 [확인 (설정 저장)] 버튼을 눌러야 최종 반영됩니다.');
         } catch (error) {
-            console.error('파비콘 업로드 오류:', error);
             alert('파비콘 업로드 중 오류가 발생했습니다.');
         } finally {
             setIsUploadingFavicon(false);
-            e.target.value = null; // 인풋 초기화
+            e.target.value = null; 
         }
     };
 
-    // 🚀 DB에 실제 데이터 저장하기 (타이틀, 파비콘 추가)
     const handleSave = async () => {
         setIsSaving(true);
         try {
@@ -156,8 +152,8 @@ export default function AdminSiteSettings({ adminTheme }) {
                 main_phone: main_phone,
                 mobile_phone: mobile_phone,
                 email: basicInfo.email,
-                site_title: basicInfo.siteTitle, // 🚨 타이틀 DB 저장
-                favicon_url: basicInfo.faviconUrl, // 🚨 파비콘 DB 저장
+                site_title: basicInfo.siteTitle, 
+                favicon_url: basicInfo.faviconUrl, 
                 terms_of_service: policies.termsContent,
                 privacy_policy: policies.privacyContent,
                 email_reject_policy: policies.emailRejectContent, 
@@ -166,325 +162,379 @@ export default function AdminSiteSettings({ adminTheme }) {
             });
 
             if (error) throw error;
-            alert("✅ 설정이 성공적으로 저장되었습니다.\n(고객 페이지에 즉각 반영됩니다.)");
+            alert("✅ 설정이 성공적으로 저장되었습니다.");
         } catch (e) {
-            console.error(e);
             alert("❌ 저장 중 오류가 발생했습니다.");
         } finally {
             setIsSaving(false);
         }
     };
 
-    // ==========================================================
-    // 🎨 스타일 
-    // ==========================================================
-    const styles = {
-        container: { backgroundColor: '#FFFFFF', padding: '24px', fontFamily: '"Malgun Gothic", "Pretendard", sans-serif', fontSize: '13px', color: '#333' },
-        headerTitle: { fontSize: '20px', fontWeight: 'bold', color: '#111', marginBottom: '8px' },
-        headerSub: { fontSize: '12px', color: '#666', marginBottom: '24px' },
-        
-        mainTabContainer: { display: 'flex', borderBottom: '2px solid #1E3A8A', marginBottom: '16px' },
-        mainTab: (isActive) => ({ padding: '12px 24px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', backgroundColor: isActive ? '#1E3A8A' : '#F9FAFB', color: isActive ? '#FFF' : '#555', border: `1px solid ${isActive ? '#1E3A8A' : '#E5E7EB'}`, borderBottom: 'none', display: 'flex', alignItems: 'center', gap: '6px' }),
-        
-        subTabContainer: { display: 'flex', gap: '4px', marginBottom: '16px', flexWrap: 'wrap' },
-        subTab: (isActive) => ({ padding: '8px 16px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', border: `1px solid ${isActive ? '#ef4444' : '#E5E7EB'}`, backgroundColor: isActive ? '#FFF' : '#F9FAFB', color: isActive ? '#ef4444' : '#555' }),
-        
-        formBox: { border: '2px solid #E5E7EB', borderTop: '2px solid #ef4444', display: 'flex', flexDirection: 'column', marginBottom: '24px' },
-        formRow: { display: 'flex', borderBottom: '1px solid #E5E7EB' },
-        formLabel: { width: '160px', backgroundColor: '#F9FAFB', padding: '10px 16px', fontWeight: 'bold', color: '#444', borderRight: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', fontSize: '12px', flexShrink: 0 },
-        formContent: { flex: 1, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', flexWrap: 'wrap', color: '#555' },
-        
-        input: { padding: '4px 8px', border: '1px solid #CCC', fontSize: '12px', outline: 'none', width: '100%', maxWidth: '300px' },
-        select: { padding: '4px 8px', border: '1px solid #CCC', fontSize: '12px', outline: 'none', backgroundColor: '#FFF' },
-        
-        btnBlue: { backgroundColor: '#0ea5e9', color: '#FFF', border: 'none', padding: '8px 40px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', borderRadius: '2px', display: 'inline-flex', alignItems: 'center', gap: '6px' },
-        btnOutline: { border: '1px solid #CCC', background: '#FFF', padding: '4px 12px', fontSize: '11px', cursor: 'pointer', color: '#333', borderRadius: '2px', display: 'inline-flex', alignItems: 'center', gap: '4px' },
-        
-        tableHeader: { backgroundColor: '#F8F9FA', borderTop: '2px solid #333', borderBottom: '1px solid #CCC', padding: '10px 8px', textAlign: 'center', fontWeight: 'bold', color: '#333', fontSize: '12px' },
-        tableCell: { padding: '8px', borderBottom: '1px solid #E5E7EB', textAlign: 'center', verticalAlign: 'middle', fontSize: '12px', color: '#555' },
-    };
-
     return (
-        <div style={styles.container}>
-            {/* 상단 타이틀 */}
+        <div className="ios-settings-wrap fade-in">
+            <style dangerouslySetInnerHTML={{ __html: `
+                .ios-settings-wrap {
+                    width: 100%; box-sizing: border-box;
+                    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif;
+                    background-color: transparent;
+                }
+
+                .ios-title { font-size: 22px; font-weight: 800; color: #1C1C1E; margin: 0 0 6px 0; letter-spacing: -0.5px; }
+                .ios-desc { font-size: 12px; color: #8E8E93; margin: 0 0 24px 0; font-weight: 500; }
+
+                /* Segment Controls */
+                .ios-segment-main {
+                    display: inline-flex; background-color: #E5E5EA; border-radius: 10px; padding: 3px; margin-bottom: 24px;
+                }
+                .ios-segment-main-btn {
+                    padding: 8px 18px; font-size: 13px; font-weight: 700; color: #8E8E93;
+                    border-radius: 8px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px;
+                }
+                .ios-segment-main-btn.active { background-color: #FFFFFF; color: #1C1C1E; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+                .ios-segment-sub {
+                    display: inline-flex; background-color: transparent; border-bottom: 0.5px solid #E5E5EA; margin-bottom: 20px; width: 100%;
+                }
+                .ios-segment-sub-btn {
+                    padding: 10px 16px; font-size: 13px; font-weight: 600; color: #8E8E93;
+                    cursor: pointer; transition: 0.2s; border-bottom: 2px solid transparent; margin-bottom: -1px;
+                }
+                .ios-segment-sub-btn.active { color: #007AFF; border-bottom-color: #007AFF; }
+
+                /* iOS Inset Grouped */
+                .ios-group-title {
+                    font-size: 12px; font-weight: 600; color: #8E8E93; text-transform: uppercase;
+                    margin: 0 0 6px 16px; letter-spacing: -0.2px;
+                }
+                .ios-list-group {
+                    background-color: #FFFFFF; border-radius: 12px; margin-bottom: 32px;
+                    overflow: hidden; border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+                }
+                .ios-list-row {
+                    display: flex; align-items: center; justify-content: space-between;
+                    min-height: 44px; padding: 12px 16px; border-bottom: 0.5px solid #E5E5EA;
+                }
+                .ios-list-row:last-child { border-bottom: none; }
+                
+                /* Form Elements */
+                .ios-label { font-size: 13px; font-weight: 600; color: #1C1C1E; flex-shrink: 0; width: 130px; }
+                .ios-value-wrap { display: flex; align-items: center; justify-content: flex-end; flex: 1; min-width: 0; gap: 8px; flex-wrap: wrap; }
+                
+                .ios-input-clean {
+                    flex: 1; min-width: 100px; max-width: 280px; border: none; outline: none; text-align: right;
+                    font-size: 13px; color: #007AFF; font-family: inherit; background: transparent; font-weight: 500;
+                }
+                .ios-input-clean::placeholder { color: #C7C7CC; font-weight: 400; }
+                
+                .ios-select-clean {
+                    border: none; outline: none; background: transparent; text-align: right; direction: rtl;
+                    font-size: 13px; color: #007AFF; font-weight: 500; -webkit-appearance: none; appearance: none; font-family: inherit; cursor: pointer; padding: 0 4px;
+                }
+
+                .ios-hint { font-size: 11px; color: #8E8E93; font-weight: 500; width: 100%; text-align: right; margin-top: 4px; display: block; }
+
+                /* Buttons */
+                .ios-btn-micro {
+                    border: none; background: #F2F2F7; color: #007AFF; font-size: 12px; font-weight: 700;
+                    padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
+                }
+                .ios-btn-micro:active { transform: scale(0.95); opacity: 0.8; }
+                .ios-btn-micro.danger { color: #FF3B30; background: #FFE5E5; }
+                .ios-btn-micro.outline { background: transparent; border: 1px solid #E5E5EA; color: #1C1C1E; }
+
+                .ios-submit-btn {
+                    width: 100%; background-color: #007AFF; color: #FFFFFF; font-size: 16px; font-weight: 700;
+                    padding: 16px; border-radius: 14px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.2s, opacity 0.2s;
+                    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2); margin-top: 16px;
+                }
+                .ios-submit-btn:active:not(:disabled) { transform: scale(0.98); opacity: 0.9; }
+                .ios-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+                /* Textarea */
+                .ios-textarea-box {
+                    width: 100%; border: 1px solid #E5E5EA; border-radius: 10px; overflow: hidden; background: #F9F9FB;
+                }
+                .ios-textarea {
+                    width: 100%; height: 300px; padding: 16px; border: none; outline: none; background: transparent;
+                    font-size: 13px; line-height: 1.6; color: #1C1C1E; resize: vertical; box-sizing: border-box; font-family: inherit;
+                }
+
+                /* Toggles */
+                .ios-toggle {
+                    width: 42px; height: 24px; background-color: #E9E9EA; border-radius: 24px; position: relative; cursor: pointer; transition: 0.3s ease; flex-shrink: 0;
+                }
+                .ios-toggle.active { background-color: #34C759; }
+                .ios-toggle-knob {
+                    width: 20px; height: 20px; background-color: #FFFFFF; border-radius: 50%; position: absolute; top: 2px; left: 2px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: 0.3s cubic-bezier(0.2, 0.85, 0.32, 1.2);
+                }
+                .ios-toggle.active .ios-toggle-knob { transform: translateX(18px); }
+
+                /* Table for Join Fields */
+                .ios-table { width: 100%; border-collapse: collapse; }
+                .ios-th { background-color: #F9F9FB; padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 700; color: #8E8E93; border-bottom: 0.5px solid #E5E5EA; }
+                .ios-td { padding: 12px 16px; border-bottom: 0.5px solid #E5E5EA; font-size: 13px; color: #1C1C1E; font-weight: 500; vertical-align: middle; }
+                .ios-tr:last-child .ios-td { border-bottom: none; }
+
+                .lucide-spin { animation: spin 1s linear infinite; }
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            `}} />
+
             <div>
-                <h2 style={styles.headerTitle}>사이트 관리 및 정책 설정</h2>
-                <p style={styles.headerSub}>[환경설정 &gt; 사이트관리] 메뉴에서는 홈페이지 기본정보를 확인하고, 이용약관 및 개인정보 취급방침 등을 설정할 수 있습니다.</p>
+                <h2 className="ios-title">사이트 관리 및 정책 설정</h2>
+                <p className="ios-desc">홈페이지 기본정보, 이용약관, 회원가입 정책 등을 일괄 관리합니다.</p>
             </div>
 
             {/* 1차 메인 탭 */}
-            <div style={styles.mainTabContainer}>
-                <div style={styles.mainTab(mainTab === 'basic')} onClick={() => { setMainTab('basic'); setSubTab('info'); }}><Layout size={16}/> 기본정보</div>
-                <div style={styles.mainTab(mainTab === 'policy')} onClick={() => { setMainTab('policy'); setSubTab('terms'); }}><FileText size={16}/> 운영정책</div>
-                <div style={styles.mainTab(mainTab === 'member')} onClick={() => { setMainTab('member'); setSubTab('join'); }}><Users size={16}/> 회원정책</div>
+            <div className="ios-segment-main">
+                <div className={`ios-segment-main-btn ${mainTab === 'basic' ? 'active' : ''}`} onClick={() => { setMainTab('basic'); setSubTab('info'); }}><Layout size={14}/> 기본정보</div>
+                <div className={`ios-segment-main-btn ${mainTab === 'policy' ? 'active' : ''}`} onClick={() => { setMainTab('policy'); setSubTab('terms'); }}><FileText size={14}/> 운영정책</div>
+                <div className={`ios-segment-main-btn ${mainTab === 'member' ? 'active' : ''}`} onClick={() => { setMainTab('member'); setSubTab('join'); }}><Users size={14}/> 회원정책</div>
             </div>
 
             {/* ========================================================== */}
             {/* 탭 1: 기본정보 영역 */}
             {/* ========================================================== */}
             {mainTab === 'basic' && (
-                <>
-                    <div style={styles.subTabContainer}>
-                        <div style={styles.subTab(subTab === 'info')} onClick={() => setSubTab('info')}>기본정보</div>
-                        <div style={styles.subTab(subTab === 'favicon')} onClick={() => setSubTab('favicon')}>타이틀/파비콘</div>
+                <div className="fade-in">
+                    <div className="ios-segment-sub">
+                        <div className={`ios-segment-sub-btn ${subTab === 'info' ? 'active' : ''}`} onClick={() => setSubTab('info')}>사업자 정보</div>
+                        <div className={`ios-segment-sub-btn ${subTab === 'favicon' ? 'active' : ''}`} onClick={() => setSubTab('favicon')}>타이틀/파비콘 설정</div>
                     </div>
 
                     {subTab === 'info' && (
-                        <div style={styles.formBox}>
-                            <div style={styles.formRow}>
-                                <div style={styles.formLabel}>회사명</div>
-                                <div style={styles.formContent}>
-                                    <input type="text" name="companyName" value={basicInfo.companyName} onChange={handleBasicChange} style={styles.input} />
-                                    <span style={{color:'#999', fontSize:'11px', marginLeft:'8px'}}>사이트명은 홈페이지 및 자동메일 등에서 변수로 사용됩니다.</span>
+                        <>
+                            <div className="ios-group-title">기업 기본 정보</div>
+                            <div className="ios-list-group">
+                                <div className="ios-list-row">
+                                    <span className="ios-label">회사명</span>
+                                    <div className="ios-value-wrap">
+                                        <input type="text" name="companyName" value={basicInfo.companyName} onChange={handleBasicChange} className="ios-input-clean" />
+                                        <span className="ios-hint">사이트명은 시스템 변수로 활용됩니다.</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div style={styles.formRow}>
-                                <div style={styles.formLabel}>회사 주소</div>
-                                <div style={styles.formContent}>
-                                    <input type="text" name="zipCode" value={basicInfo.zipCode} onChange={handleBasicChange} style={{...styles.input, width:'80px'}} />
-                                    <button style={styles.btnOutline}><Search size={10}/> 우편번호찾기</button>
-                                    <div style={{width:'100%', height:'4px'}}></div>
-                                    <input type="text" name="address1" value={basicInfo.address1} onChange={handleBasicChange} style={{...styles.input, maxWidth:'400px'}} />
-                                    <input type="text" name="address2" value={basicInfo.address2} onChange={handleBasicChange} style={{...styles.input, maxWidth:'200px'}} />
+                                <div className="ios-list-row" style={{ alignItems: 'flex-start', padding: '16px' }}>
+                                    <span className="ios-label" style={{ marginTop: '4px' }}>사업장 주소</span>
+                                    <div className="ios-value-wrap" style={{ flexDirection: 'column', alignItems: 'flex-end' }}>
+                                        <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'flex-end' }}>
+                                            <input type="text" name="zipCode" value={basicInfo.zipCode} onChange={handleBasicChange} className="ios-input-clean" style={{ width: '80px', flex: 'none' }} placeholder="우편번호" />
+                                            <button className="ios-btn-micro outline"><Search size={12}/> 우편번호</button>
+                                        </div>
+                                        <input type="text" name="address1" value={basicInfo.address1} onChange={handleBasicChange} className="ios-input-clean" style={{ maxWidth: '100%' }} placeholder="기본주소" />
+                                        <input type="text" name="address2" value={basicInfo.address2} onChange={handleBasicChange} className="ios-input-clean" style={{ maxWidth: '100%' }} placeholder="상세주소" />
+                                    </div>
                                 </div>
-                            </div>
-                            <div style={styles.formRow}>
-                                <div style={styles.formLabel}>사이트명</div>
-                                <div style={styles.formContent}><input type="text" name="siteName" value={basicInfo.siteName} onChange={handleBasicChange} style={styles.input} /></div>
-                            </div>
-                            <div style={styles.formRow}>
-                                <div style={styles.formLabel}>대표 도메인</div>
-                                <div style={styles.formContent}><input type="text" name="domain" value={basicInfo.domain} onChange={handleBasicChange} style={styles.input} /></div>
-                            </div>
-                            <div style={styles.formRow}>
-                                <div style={styles.formLabel}>대표자명</div>
-                                <div style={styles.formContent}><input type="text" name="ceo" value={basicInfo.ceo} onChange={handleBasicChange} style={{...styles.input, maxWidth:'150px'}} /></div>
-                            </div>
-                            <div style={styles.formRow}>
-                                <div style={styles.formLabel}>사업자 등록번호</div>
-                                <div style={styles.formContent}><input type="text" name="bizNum" value={basicInfo.bizNum} onChange={handleBasicChange} style={{...styles.input, maxWidth:'200px'}} /></div>
-                            </div>
-
-                            <div style={styles.formRow}>
-                                <div style={styles.formLabel}>통신판매업 신고번호</div>
-                                <div style={styles.formContent}>
-                                    <input type="text" name="mailOrderNum" value={basicInfo.mailOrderNum} onChange={handleBasicChange} style={{...styles.input, maxWidth:'250px'}} placeholder="제 2026-충북제천-0000호" />
+                                <div className="ios-list-row">
+                                    <span className="ios-label">대표자명</span>
+                                    <input type="text" name="ceo" value={basicInfo.ceo} onChange={handleBasicChange} className="ios-input-clean" />
+                                </div>
+                                <div className="ios-list-row">
+                                    <span className="ios-label">사업자 등록번호</span>
+                                    <input type="text" name="bizNum" value={basicInfo.bizNum} onChange={handleBasicChange} className="ios-input-clean" />
+                                </div>
+                                <div className="ios-list-row">
+                                    <span className="ios-label">통신판매업 번호</span>
+                                    <input type="text" name="mailOrderNum" value={basicInfo.mailOrderNum} onChange={handleBasicChange} className="ios-input-clean" placeholder="제 0000-지역-0000호" />
                                 </div>
                             </div>
 
-                            <div style={styles.formRow}>
-                                <div style={styles.formLabel}>대표전화</div>
-                                <div style={styles.formContent}>
-                                    <select name="phone1" value={basicInfo.phone1} onChange={handleBasicChange} style={styles.select}><option>1588</option><option>02</option></select> - 
-                                    <input type="text" name="phone2" value={basicInfo.phone2} onChange={handleBasicChange} style={{...styles.input, width:'60px'}} /> - 
-                                    <input type="text" name="phone3" value={basicInfo.phone3} onChange={handleBasicChange} style={{...styles.input, width:'60px'}} />
-                                    <span style={{color:'#999', fontSize:'11px', marginLeft:'8px'}}>한국대표번호는 앞뒤 두자리만 입력하세요.</span>
+                            <div className="ios-group-title">연락망 및 도메인</div>
+                            <div className="ios-list-group">
+                                <div className="ios-list-row">
+                                    <span className="ios-label">사이트명</span>
+                                    <input type="text" name="siteName" value={basicInfo.siteName} onChange={handleBasicChange} className="ios-input-clean" />
+                                </div>
+                                <div className="ios-list-row">
+                                    <span className="ios-label">대표 도메인</span>
+                                    <input type="text" name="domain" value={basicInfo.domain} onChange={handleBasicChange} className="ios-input-clean" />
+                                </div>
+                                <div className="ios-list-row">
+                                    <span className="ios-label">대표전화</span>
+                                    <div className="ios-value-wrap">
+                                        <select name="phone1" value={basicInfo.phone1} onChange={handleBasicChange} className="ios-select-clean" style={{width:'60px'}}><option>1588</option><option>02</option></select>
+                                        <span style={{color:'#C7C7CC'}}>-</span>
+                                        <input type="text" name="phone2" value={basicInfo.phone2} onChange={handleBasicChange} className="ios-input-clean" style={{width:'50px', flex:'none'}} />
+                                        <span style={{color:'#C7C7CC'}}>-</span>
+                                        <input type="text" name="phone3" value={basicInfo.phone3} onChange={handleBasicChange} className="ios-input-clean" style={{width:'50px', flex:'none'}} />
+                                    </div>
+                                </div>
+                                <div className="ios-list-row">
+                                    <span className="ios-label">휴대폰</span>
+                                    <div className="ios-value-wrap">
+                                        <select name="mobile1" value={basicInfo.mobile1} onChange={handleBasicChange} className="ios-select-clean" style={{width:'60px'}}><option>010</option></select>
+                                        <span style={{color:'#C7C7CC'}}>-</span>
+                                        <input type="text" name="mobile2" value={basicInfo.mobile2} onChange={handleBasicChange} className="ios-input-clean" style={{width:'50px', flex:'none'}} />
+                                        <span style={{color:'#C7C7CC'}}>-</span>
+                                        <input type="text" name="mobile3" value={basicInfo.mobile3} onChange={handleBasicChange} className="ios-input-clean" style={{width:'50px', flex:'none'}} />
+                                    </div>
+                                </div>
+                                <div className="ios-list-row">
+                                    <span className="ios-label">사이트 이메일</span>
+                                    <input type="email" name="email" value={basicInfo.email} onChange={handleBasicChange} className="ios-input-clean" />
                                 </div>
                             </div>
-                            <div style={styles.formRow}>
-                                <div style={styles.formLabel}>휴대폰</div>
-                                <div style={styles.formContent}>
-                                    <select name="mobile1" value={basicInfo.mobile1} onChange={handleBasicChange} style={styles.select}><option>010</option></select> - 
-                                    <input type="text" name="mobile2" value={basicInfo.mobile2} onChange={handleBasicChange} style={{...styles.input, width:'60px'}} /> - 
-                                    <input type="text" name="mobile3" value={basicInfo.mobile3} onChange={handleBasicChange} style={{...styles.input, width:'60px'}} />
-                                </div>
-                            </div>
-                            <div style={{...styles.formRow, borderBottom:'none'}}>
-                                <div style={styles.formLabel}>사이트 이메일</div>
-                                <div style={styles.formContent}>
-                                    <input type="text" name="email" value={basicInfo.email} onChange={handleBasicChange} style={styles.input} />
-                                </div>
-                            </div>
-                        </div>
+                        </>
                     )}
 
-                    {/* 🚨 파비콘/타이틀 업로드 및 미리보기 영역 완성 */}
                     {subTab === 'favicon' && (
-                        <div style={styles.formBox}>
-                            <div style={styles.formRow}>
-                                <div style={styles.formLabel}>타이틀 문구</div>
-                                <div style={styles.formContent}>
-                                    <input type="text" name="siteTitle" value={basicInfo.siteTitle} onChange={handleBasicChange} style={{...styles.input, maxWidth:'400px'}} />
-                                    <span style={{color:'#999', fontSize:'11px', marginLeft:'8px'}}>브라우저 탭 상단에 표시되는 제목입니다.</span>
+                        <div className="ios-list-group">
+                            <div className="ios-list-row">
+                                <span className="ios-label">브라우저 탭 타이틀</span>
+                                <div className="ios-value-wrap">
+                                    <input type="text" name="siteTitle" value={basicInfo.siteTitle} onChange={handleBasicChange} className="ios-input-clean" style={{ maxWidth: '100%' }} />
                                 </div>
                             </div>
-                            <div style={{...styles.formRow, borderBottom:'none'}}>
-                                <div style={styles.formLabel}>파비콘(Favicon)</div>
-                                <div style={styles.formContent}>
-                                    <input 
-                                        type="file" 
-                                        id="favicon-upload" 
-                                        accept=".ico,.png,.jpg" 
-                                        style={{ display: 'none' }} 
-                                        onChange={handleFaviconUpload} 
-                                    />
-                                    <label htmlFor="favicon-upload" style={styles.btnOutline}>
-                                        {isUploadingFavicon ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                                        {isUploadingFavicon ? '업로드 중...' : '찾아보기'}
-                                    </label>
-                                    
+                            <div className="ios-list-row" style={{ minHeight: '60px' }}>
+                                <span className="ios-label">파비콘 (Favicon)</span>
+                                <div className="ios-value-wrap">
                                     {basicInfo.faviconUrl && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '12px', padding: '4px', border: '1px solid #E5E7EB', borderRadius: '4px', backgroundColor: '#FFF' }}>
-                                            <img src={basicInfo.faviconUrl} alt="파비콘 미리보기" style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
-                                            <button onClick={() => setBasicInfo(prev => ({...prev, faviconUrl: ''}))} style={{ background:'none', border:'none', color:'#ef4444', fontSize:'11px', cursor:'pointer', padding: 0 }}>삭제</button>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', background: '#F9F9FB', borderRadius: '8px', border: '0.5px solid #E5E5EA' }}>
+                                            <img src={basicInfo.faviconUrl} alt="favicon" style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
+                                            <button onClick={() => setBasicInfo(prev => ({...prev, faviconUrl: ''}))} style={{ background:'none', border:'none', color:'#FF3B30', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}><X size={12} /></button>
                                         </div>
                                     )}
-                                    <span style={{color:'#999', fontSize:'11px', marginLeft:'8px'}}>브라우저 탭 상단에 표시되는 작은 아이콘입니다. (16x16픽셀 권장)</span>
+                                    <input type="file" id="favicon-upload" accept=".ico,.png,.jpg" style={{ display: 'none' }} onChange={handleFaviconUpload} />
+                                    <label htmlFor="favicon-upload" className="ios-btn-micro outline">
+                                        {isUploadingFavicon ? <Loader2 size={12} className="lucide-spin" /> : <Upload size={12} />}
+                                        {isUploadingFavicon ? '업로드 중' : '이미지 선택'}
+                                    </label>
                                 </div>
+                            </div>
+                            <div style={{ padding: '12px 16px', backgroundColor: '#F9F9FB', fontSize: '11px', color: '#8E8E93', borderTop: '0.5px solid #E5E5EA' }}>
+                                * 파비콘은 브라우저 탭에 표시되는 아이콘입니다. (권장: 16x16px 정사각형 이미지)
                             </div>
                         </div>
                     )}
-                </>
+                </div>
             )}
 
             {/* ========================================================== */}
-            {/* 탭 2: 운영정책 영역 (약관 및 방침) */}
+            {/* 탭 2: 운영정책 영역 */}
             {/* ========================================================== */}
             {mainTab === 'policy' && (
-                <>
-                    <div style={styles.subTabContainer}>
-                        <div style={styles.subTab(subTab === 'terms')} onClick={() => setSubTab('terms')}>이용약관</div>
-                        <div style={styles.subTab(subTab === 'privacy')} onClick={() => setSubTab('privacy')}>개인정보취급방침</div>
-                        <div style={styles.subTab(subTab === 'emailReject')} onClick={() => setSubTab('emailReject')}>이메일주소무단수집거부</div>
-                        <div style={styles.subTab(subTab === 'operation')} onClick={() => setSubTab('operation')}>운영정책</div>
+                <div className="fade-in">
+                    <div className="ios-segment-sub" style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
+                        <div className={`ios-segment-sub-btn ${subTab === 'terms' ? 'active' : ''}`} onClick={() => setSubTab('terms')}>이용약관</div>
+                        <div className={`ios-segment-sub-btn ${subTab === 'privacy' ? 'active' : ''}`} onClick={() => setSubTab('privacy')}>개인정보처리방침</div>
+                        <div className={`ios-segment-sub-btn ${subTab === 'emailReject' ? 'active' : ''}`} onClick={() => setSubTab('emailReject')}>이메일무단수집거부</div>
+                        <div className={`ios-segment-sub-btn ${subTab === 'operation' ? 'active' : ''}`} onClick={() => setSubTab('operation')}>운영정책</div>
                     </div>
 
-                    <div style={styles.formBox}>
-                        {(subTab === 'terms' || subTab === 'privacy' || subTab === 'emailReject' || subTab === 'operation') && (
-                            <div style={styles.formRow}>
-                                <div style={styles.formLabel}>시행일</div>
-                                <div style={styles.formContent}>
-                                    <select style={styles.select}><option>2026</option></select> 년
-                                    <select style={styles.select}><option>01</option></select> 월
-                                    <select style={styles.select}><option>01</option></select> 일
-                                    <span style={{color:'#999', fontSize:'11px', marginLeft:'8px'}}>홈페이지 하단에 적용됩니다.</span>
-                                </div>
-                            </div>
-                        )}
+                    <div className="ios-group-title">정책 내용 편집</div>
+                    <div className="ios-list-group" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'flex-end' }}>
+                            <span style={{ fontSize: '12px', fontWeight: '600', color: '#8E8E93' }}>시행 적용일</span>
+                            <select className="ios-select-clean"><option>2026년</option></select>
+                            <select className="ios-select-clean"><option>01월</option></select>
+                            <select className="ios-select-clean"><option>01일</option></select>
+                        </div>
                         
                         {subTab === 'privacy' && (
-                            <>
-                                <div style={styles.formRow}>
-                                    <div style={styles.formLabel}>개인정보 관리책임자</div>
-                                    <div style={{...styles.formContent, flexDirection:'column', alignItems:'flex-start'}}>
-                                        <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                                            <span style={{width:'60px'}}>소속/직위:</span>
-                                            <input type="text" value={policies.privacyManager} style={{...styles.input, width:'100px'}} readOnly />
-                                            <input type="text" value={policies.privacyManagerPos} style={{...styles.input, width:'100px'}} readOnly />
-                                        </div>
-                                        <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                                            <span style={{width:'60px'}}>연락처:</span>
-                                            <input type="text" value={policies.privacyManagerPhone} style={styles.input} readOnly />
-                                        </div>
-                                        <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                                            <span style={{width:'60px'}}>이메일:</span>
-                                            <input type="text" value={policies.privacyManagerEmail} style={styles.input} readOnly />
-                                        </div>
-                                    </div>
+                            <div style={{ display: 'flex', gap: '12px', background: '#F9F9FB', padding: '12px', borderRadius: '10px', border: '0.5px solid #E5E5EA' }}>
+                                <div style={{ flex: 1 }}>
+                                    <span style={{ fontSize: '11px', color: '#8E8E93', fontWeight: '600', display: 'block', marginBottom: '4px' }}>관리책임자 정보</span>
+                                    <input type="text" className="ios-input-clean" style={{ textAlign: 'left', color: '#1C1C1E', width: '100%', background: '#FFF', padding: '6px', borderRadius: '6px', border: '0.5px solid #C6C6C8' }} value={`${policies.privacyManager} (${policies.privacyManagerPos})`} readOnly />
                                 </div>
-                            </>
-                        )}
-
-                        <div style={{...styles.formRow, borderBottom:'none'}}>
-                            <div style={styles.formLabel}>내용 편집기</div>
-                            <div style={{...styles.formContent, padding:'16px'}}>
-                                <div style={{width:'100%', border:'1px solid #CCC', borderRadius:'2px', overflow:'hidden'}}>
-                                    <div style={{backgroundColor:'#F3F4F6', borderBottom:'1px solid #CCC', padding:'4px 8px', display:'flex', gap:'4px'}}>
-                                        <button style={styles.btnOutline}>B</button>
-                                        <button style={styles.btnOutline}>I</button>
-                                        <button style={styles.btnOutline}>U</button>
-                                        <span style={{borderLeft:'1px solid #CCC', margin:'0 4px'}}></span>
-                                        <select style={styles.select}><option>10pt</option><option>12pt</option></select>
-                                    </div>
-                                    
-                                    <textarea 
-                                        name={
-                                            subTab === 'terms' ? 'termsContent' : 
-                                            subTab === 'privacy' ? 'privacyContent' : 
-                                            subTab === 'emailReject' ? 'emailRejectContent' : 
-                                            'operationContent'
-                                        }
-                                        style={{width:'100%', height:'300px', padding:'16px', border:'none', outline:'none', resize:'vertical', fontSize:'12px', lineHeight:'1.6'}}
-                                        value={
-                                            subTab === 'terms' ? policies.termsContent : 
-                                            subTab === 'privacy' ? policies.privacyContent : 
-                                            subTab === 'emailReject' ? policies.emailRejectContent : 
-                                            policies.operationContent
-                                        }
-                                        onChange={handlePolicyChange}
-                                    />
+                                <div style={{ flex: 1 }}>
+                                    <span style={{ fontSize: '11px', color: '#8E8E93', fontWeight: '600', display: 'block', marginBottom: '4px' }}>책임자 이메일</span>
+                                    <input type="text" className="ios-input-clean" style={{ textAlign: 'left', color: '#1C1C1E', width: '100%', background: '#FFF', padding: '6px', borderRadius: '6px', border: '0.5px solid #C6C6C8' }} value={policies.privacyManagerEmail} readOnly />
                                 </div>
                             </div>
+                        )}
+
+                        <div className="ios-textarea-box">
+                            <textarea 
+                                className="ios-textarea"
+                                name={
+                                    subTab === 'terms' ? 'termsContent' : 
+                                    subTab === 'privacy' ? 'privacyContent' : 
+                                    subTab === 'emailReject' ? 'emailRejectContent' : 
+                                    'operationContent'
+                                }
+                                value={
+                                    subTab === 'terms' ? policies.termsContent : 
+                                    subTab === 'privacy' ? policies.privacyContent : 
+                                    subTab === 'emailReject' ? policies.emailRejectContent : 
+                                    policies.operationContent
+                                }
+                                onChange={handlePolicyChange}
+                                placeholder="고객에게 노출될 정책 내용을 입력하세요."
+                            />
                         </div>
                     </div>
-                </>
+                </div>
             )}
 
             {/* ========================================================== */}
             {/* 탭 3: 회원정책 (가입항목 설정) */}
             {/* ========================================================== */}
             {mainTab === 'member' && (
-                <>
-                    <div style={styles.subTabContainer}>
-                        <div style={styles.subTab(subTab === 'join')} onClick={() => setSubTab('join')}>가입항목 설정</div>
-                        <div style={styles.subTab(subTab === 'approve')} onClick={() => setSubTab('approve')}>운영/승인 방식</div>
+                <div className="fade-in">
+                    <div className="ios-segment-sub">
+                        <div className={`ios-segment-sub-btn ${subTab === 'join' ? 'active' : ''}`} onClick={() => setSubTab('join')}>가입항목 설정</div>
+                        <div className={`ios-segment-sub-btn ${subTab === 'approve' ? 'active' : ''}`} onClick={() => setSubTab('approve')}>운영/승인 방식</div>
                     </div>
 
                     {subTab === 'approve' && (
-                        <div style={styles.formBox}>
-                            <div style={{...styles.formRow, borderBottom:'none'}}>
-                                <div style={styles.formLabel}>가입 승인 방식</div>
-                                <div style={styles.formContent}>
-                                    <label style={{display:'flex', alignItems:'center', gap:'4px'}}><input type="radio" name="approve" defaultChecked/> 자동 승인 (가입 즉시 이용가능)</label>
-                                    <span style={{margin:'0 8px', color:'#CCC'}}>|</span>
-                                    <label style={{display:'flex', alignItems:'center', gap:'4px'}}><input type="radio" name="approve" /> 관리자 수동 승인 (승인 대기)</label>
+                        <div className="ios-list-group">
+                            <div className="ios-list-row">
+                                <span className="ios-label" style={{ width: 'auto' }}>가입 승인 방식</span>
+                                <div style={{ display: 'flex', gap: '4px', background: '#F2F2F7', padding: '2px', borderRadius: '8px' }}>
+                                    <div className={`ios-btn-micro ${approveMethod === 'auto' ? 'active' : ''}`} style={{ background: approveMethod === 'auto' ? '#FFF' : 'transparent', color: approveMethod === 'auto' ? '#1C1C1E' : '#8E8E93', boxShadow: approveMethod === 'auto' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none' }} onClick={() => setApproveMethod('auto')}>
+                                        자동 승인 (즉시 이용)
+                                    </div>
+                                    <div className={`ios-btn-micro ${approveMethod === 'manual' ? 'active' : ''}`} style={{ background: approveMethod === 'manual' ? '#FFF' : 'transparent', color: approveMethod === 'manual' ? '#1C1C1E' : '#8E8E93', boxShadow: approveMethod === 'manual' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none' }} onClick={() => setApproveMethod('manual')}>
+                                        관리자 승인 (대기)
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     )}
 
                     {subTab === 'join' && (
-                        <div style={{ border: '2px solid #E5E7EB', borderTop: '2px solid #ef4444', backgroundColor: '#FFF' }}>
-                            <div style={{ padding: '12px 16px', backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB', fontSize: '12px', color: '#666' }}>
-                                회원가입 시 노출할 입력 항목과 필수 여부를 설정합니다. (회색 처리된 항목은 시스템 필수 항목으로 변경이 불가합니다.)
-                            </div>
-                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                <thead>
-                                    <tr>
-                                        <th style={styles.tableHeader}>항목명</th>
-                                        <th style={{...styles.tableHeader, width:'100px'}}>사용여부</th>
-                                        <th style={{...styles.tableHeader, width:'100px'}}>필수여부</th>
-                                        <th style={{...styles.tableHeader, width:'120px'}}>관리</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {joinFields.map(field => (
-                                        <tr key={field.id} style={{ backgroundColor: field.fixed ? '#F9FAFB' : '#FFF' }}>
-                                            <td style={{...styles.tableCell, fontWeight:'bold', color:'#111'}}>{field.name}</td>
-                                            <td style={styles.tableCell}>
-                                                <input type="checkbox" checked={field.use} disabled={field.fixed} onChange={() => handleFieldToggle(field.id, 'use')} />
-                                            </td>
-                                            <td style={styles.tableCell}>
-                                                <input type="checkbox" checked={field.required} disabled={field.fixed} onChange={() => handleFieldToggle(field.id, 'required')} />
-                                            </td>
-                                            <td style={styles.tableCell}>
-                                                {field.fixed ? <span style={{fontSize:'11px', color:'#999'}}>시스템 고정</span> : <button style={styles.btnOutline}>설정</button>}
-                                            </td>
+                        <>
+                            <div className="ios-group-title">회원가입 폼 구성</div>
+                            <div className="ios-list-group" style={{ padding: 0 }}>
+                                <table className="ios-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="ios-th">입력 항목명</th>
+                                            <th className="ios-th" style={{ textAlign: 'center' }}>수집(표시) 사용</th>
+                                            <th className="ios-th" style={{ textAlign: 'center' }}>필수 입력 여부</th>
+                                            <th className="ios-th" style={{ textAlign: 'right', paddingRight: '16px' }}>비고</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody>
+                                        {joinFields.map(field => (
+                                            <tr key={field.id} style={{ backgroundColor: field.fixed ? '#F9F9FB' : '#FFFFFF' }}>
+                                                <td className="ios-td" style={{ fontWeight: '600' }}>{field.name}</td>
+                                                <td className="ios-td" style={{ textAlign: 'center' }}>
+                                                    <div className={`ios-toggle ${field.use ? 'active' : ''}`} style={{ margin: '0 auto', opacity: field.fixed ? 0.5 : 1, cursor: field.fixed ? 'not-allowed' : 'pointer' }} onClick={() => handleFieldToggle(field.id, 'use')}>
+                                                        <div className="ios-toggle-knob"></div>
+                                                    </div>
+                                                </td>
+                                                <td className="ios-td" style={{ textAlign: 'center' }}>
+                                                    <div className={`ios-toggle ${field.required ? 'active' : ''}`} style={{ margin: '0 auto', opacity: field.fixed ? 0.5 : 1, cursor: field.fixed ? 'not-allowed' : 'pointer' }} onClick={() => handleFieldToggle(field.id, 'required')}>
+                                                        <div className="ios-toggle-knob"></div>
+                                                    </div>
+                                                </td>
+                                                <td className="ios-td" style={{ textAlign: 'right', paddingRight: '16px' }}>
+                                                    {field.fixed ? <span style={{ fontSize: '11px', color: '#8E8E93', fontWeight: '600' }}>시스템 코어 필수</span> : <span style={{ fontSize: '11px', color: '#007AFF', fontWeight: '600' }}>선택형 필드</span>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
                     )}
-                </>
+                </div>
             )}
 
-            {/* 하단 저장 버튼 */}
-            <div style={{ textAlign: 'center', marginTop: '30px', paddingBottom: '40px' }}>
-                <button onClick={handleSave} disabled={isSaving} style={{ ...styles.btnBlue, opacity: isSaving ? 0.6 : 1 }}>
-                    <Check size={16} /> {isSaving ? "데이터 반영 중..." : "확인 (설정 저장)"}
-                </button>
-            </div>
+            {/* 하단 공통 저장 버튼 */}
+            <button onClick={handleSave} disabled={isSaving} className="ios-submit-btn">
+                {isSaving ? <Loader2 size={18} className="lucide-spin" /> : <Save size={18} />}
+                {isSaving ? "데이터 동기화 중..." : "변경사항 일괄 저장"}
+            </button>
         </div>
     );
 }
