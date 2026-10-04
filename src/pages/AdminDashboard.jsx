@@ -17,11 +17,14 @@ import AdminDeposit from '../components/admin/AdminDeposit';
 import AdminProfit from '../components/admin/AdminProfit'; 
 import AdminMedia from '../components/admin/AdminMedia';
 import AdminBanner from '../components/admin/AdminBanner';
-import AdminInquiry from '../components/admin/AdminInquiry'; // 🚨 신규 추가: 1:1 고객 문의 관리 컴포넌트 임포트
+import AdminInquiry from '../components/admin/AdminInquiry'; 
 import AdminPartners from '../components/admin/AdminPartners';
 import AdminAccount from '../components/admin/AdminAccount'; 
 import AdminUserManage from '../components/admin/AdminUserManage'; 
 import AdminSiteSettings from '../components/admin/AdminSiteSettings'; 
+
+// 🚨 유저 상세 페이지 컴포넌트 임포트 (파일 경로는 실제 생성하신 위치에 맞게 조정해주세요)
+import AdminUserDetail from '../components/admin/AdminUserDetail'; 
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
@@ -29,9 +32,24 @@ export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
     const [isChecking, setIsChecking] = useState(true);
     const [openMenus, setOpenMenus] = useState({});
+    
+    // 🚨 유저 상세 페이지로 넘길 때 선택된 유저의 ID를 보관하는 상태
+    const [selectedUserId, setSelectedUserId] = useState(null);
 
     const toggleMenu = (id) => {
         setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    // 자식 컴포넌트(AdminPartners 등)에서 상세 페이지로 이동시킬 때 호출할 함수
+    const goToUserDetail = (userId) => {
+        setSelectedUserId(userId);
+        setActiveTab('user_detail'); // 탭을 강제로 유저 상세 모드로 변경
+    };
+
+    // 상세 페이지에서 다시 목록으로 돌아올 때 호출할 함수
+    const goBackToUsers = () => {
+        setSelectedUserId(null);
+        setActiveTab('member_manage'); // 다시 회원 관리 탭으로 복귀
     };
 
     // 🌟 화사하고 밝은 모던 브라이트(Modern Bright) 테마
@@ -111,7 +129,7 @@ export default function AdminDashboard() {
                 subItems: [
                     { id: 'notice', label: '1. 공지사항 및 알림톡' },
                     { id: 'banner', label: '2. 메인 배너 스케줄링' },
-                    { id: 'inquiry', label: '3. 1:1 고객 문의 관리' } // 🚨 새로 추가된 메뉴
+                    { id: 'inquiry', label: '3. 1:1 고객 문의 관리' } 
                 ]
             }
         ]},
@@ -129,17 +147,21 @@ export default function AdminDashboard() {
     ];
 
     let breadcrumbText = '환경설정';
-    for (const group of menuItems) {
-        for (const item of group.items) {
-            if (item.id === activeTab) {
-                breadcrumbText = group.hideCategoryTitle ? item.label : `${group.category} > ${item.label}`;
-            }
-            if (item.subItems) {
-                const sub = item.subItems.find(s => s.id === activeTab);
-                if (sub) {
-                    breadcrumbText = group.hideCategoryTitle 
-                        ? `${item.label} > ${sub.label}` 
-                        : `${group.category} > ${item.label} > ${sub.label}`;
+    if (activeTab === 'user_detail') {
+        breadcrumbText = '서비스 관리 > 회원 및 권한 관리 > 상세 정보';
+    } else {
+        for (const group of menuItems) {
+            for (const item of group.items) {
+                if (item.id === activeTab) {
+                    breadcrumbText = group.hideCategoryTitle ? item.label : `${group.category} > ${item.label}`;
+                }
+                if (item.subItems) {
+                    const sub = item.subItems.find(s => s.id === activeTab);
+                    if (sub) {
+                        breadcrumbText = group.hideCategoryTitle 
+                            ? `${item.label} > ${sub.label}` 
+                            : `${group.category} > ${item.label} > ${sub.label}`;
+                    }
                 }
             }
         }
@@ -296,7 +318,12 @@ export default function AdminDashboard() {
                     <div style={{ width: '100%', maxWidth: '1600px', margin: '0 auto' }}>
                         {activeTab === 'overview' && <AdminOverview adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'user_manage' && <AdminUserManage adminTheme={adminTheme} />}
-                        {activeTab === 'member_manage' && <AdminPartners adminTheme={adminTheme} defaultTab="users" />}
+                        
+                        {/* 🚨 기존 AdminPartners에 goToUserDetail 함수 전달 */}
+                        {activeTab === 'member_manage' && <AdminPartners adminTheme={adminTheme} defaultTab="users" onGoToDetail={goToUserDetail} />}
+                        
+                        {/* 🚨 유저 상세 페이지 컴포넌트 렌더링 */}
+                        {activeTab === 'user_detail' && <AdminUserDetail adminTheme={adminTheme} userId={selectedUserId} onGoBack={goBackToUsers} />}
                         
                         {/* 정산관리 하위 */}
                         {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} />} 
@@ -308,7 +335,7 @@ export default function AdminDashboard() {
                         {activeTab === 'myeongdang_requests' && <AdminMyeongdangRequests adminTheme={adminTheme} />}
                         {activeTab === 'media' && <AdminMedia adminTheme={adminTheme} />}
 
-                        {/* 🚨 운영/마케팅 관리 하위 (1:1 문의 관리 렌더링 추가) */}
+                        {/* 운영/마케팅 관리 하위 */}
                         {activeTab === 'notice' && <AdminNotice adminTheme={adminTheme} />}
                         {activeTab === 'banner' && <AdminBanner adminTheme={adminTheme} />}
                         {activeTab === 'inquiry' && <AdminInquiry adminTheme={adminTheme} />} 
