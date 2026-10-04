@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import { useQuery } from '@tanstack/react-query';
-import { Settings, FileText, X, History } from 'lucide-react';
+// 🚨 확장 UI에 필요한 아이콘(User, ShieldAlert, Wallet) 추가 임포트
+import { Settings, FileText, X, History, User, ShieldAlert, Wallet } from 'lucide-react';
 
 export default function UserDetailModal({ user, onClose, onRefresh, setSelectedUser }) {
     const [modalTab, setModalTab] = useState('info'); 
@@ -160,9 +161,39 @@ export default function UserDetailModal({ user, onClose, onRefresh, setSelectedU
                     {/* 탭 1: 정보 및 제어 */}
                     {modalTab === 'info' && (
                         <>
+                            {/* 🚨 확장 1: 기본 접속/보안 정보 */}
                             <div className="ios-inset-group" style={insetGroupStyle}>
+                                <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #E5E5EA', backgroundColor: '#F9F9FB', fontSize: '12px', fontWeight: '700', color: '#8E8E93', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <User size={14}/> 기본 활동 정보
+                                </div>
                                 <div className="ios-inset-row" style={insetRowStyle}>
                                     <span style={labelStyle}>이메일 계정</span><span style={valueStyle}>{user.email}</span>
+                                </div>
+                                <div className="ios-inset-row" style={insetRowStyle}>
+                                    <span style={labelStyle}>가입일시</span><span style={valueStyle}>{new Date(user.created_at).toLocaleString()}</span>
+                                </div>
+                                <div className="ios-inset-row" style={insetRowStyle}>
+                                    <span style={labelStyle}>최근 접속일</span>
+                                    <span style={valueStyle}>{user.last_login_at ? new Date(user.last_login_at).toLocaleString() : <span style={{color: '#C7C7CC'}}>기록 없음</span>}</span>
+                                </div>
+                                <div className="ios-inset-row" style={{...insetRowStyle, borderBottom: 'none'}}>
+                                    <span style={labelStyle}>최근 접속 IP</span>
+                                    <span style={valueStyle}>{user.last_login_ip || <span style={{color: '#C7C7CC'}}>기록 없음</span>}</span>
+                                </div>
+                            </div>
+
+                            {/* 🚨 확장 2: 지갑 주소 및 권한 제어 */}
+                            <div className="ios-inset-group" style={insetGroupStyle}>
+                                <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #E5E5EA', backgroundColor: '#F9F9FB', fontSize: '12px', fontWeight: '700', color: '#8E8E93', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <ShieldAlert size={14}/> 보안 및 권한 제어
+                                </div>
+                                <div className="ios-inset-row" style={insetRowStyle}>
+                                    <span style={labelStyle}>환전 전자지갑</span>
+                                    <div style={{...valueStyle, maxWidth: '200px', wordBreak: 'break-all', textAlign: 'right', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end'}}>
+                                        {user.crypto_wallet_address ? (
+                                            <><Wallet size={12} color="#007AFF"/> <span style={{color: '#007AFF'}}>{user.crypto_wallet_address}</span></>
+                                        ) : <span style={{color: '#C7C7CC'}}>미등록</span>}
+                                    </div>
                                 </div>
                                 <div className="ios-inset-row" style={insetRowStyle}>
                                     <span style={labelStyle}>등급 변경</span>
@@ -201,7 +232,7 @@ export default function UserDetailModal({ user, onClose, onRefresh, setSelectedU
                         </>
                     )}
 
-                    {/* 🚨 탭 2: 자산 변동 내역 (신규 개발 모듈) */}
+                    {/* 탭 2: 자산 변동 내역 (신규 개발 모듈) */}
                     {modalTab === 'history' && (
                         <div className="ios-inset-group" style={{...insetGroupStyle, padding: 0}}>
                             {isLogsLoading ? (
