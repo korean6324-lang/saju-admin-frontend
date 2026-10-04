@@ -13,6 +13,7 @@ import AdminMyeongdang from '../components/admin/AdminMyeongdang';
 import AdminMyeongdangRequests from '../components/admin/AdminMyeongdangRequests';
 import AdminNotice from '../components/admin/AdminNotice';
 import AdminCash from '../components/admin/AdminCash';
+import AdminDeposit from '../components/admin/AdminDeposit'; // 🚨 신규 추가: 충전 승인 관리 컴포넌트 임포트
 import AdminMedia from '../components/admin/AdminMedia';
 import AdminBanner from '../components/admin/AdminBanner';
 import AdminPartners from '../components/admin/AdminPartners';
@@ -70,7 +71,7 @@ export default function AdminDashboard() {
         </div>
     );
 
-    // 🚨 불필요한 하위 메뉴(입점심사, 승인파트너) 제거 완료
+    // 🚨 불필요한 하위 메뉴 제거 및 정산관리에 '충전 승인 관리' 추가
     const menuItems = [
         { category: '서비스 관리', hideCategoryTitle: false, items: [
             { id: 'overview', icon: BarChart3, label: '대시보드 통계' },
@@ -83,7 +84,8 @@ export default function AdminDashboard() {
                 icon: Wallet, 
                 label: '정산관리', 
                 subItems: [
-                    { id: 'cash', label: '1. 정산 및 포인트' } 
+                    { id: 'cash', label: '1. 환전(출금) 정산' }, 
+                    { id: 'deposit', label: '2. 충전(입금) 승인 관리' } // 🚨 신규 메뉴 추가됨
                 ]
             }
         ]},
@@ -292,11 +294,12 @@ export default function AdminDashboard() {
                         {activeTab === 'overview' && <AdminOverview adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'user_manage' && <AdminUserManage adminTheme={adminTheme} />}
                         
-                        {/* 🚨 회원관리: 불필요한 하위탭 제거 후 직관적인 렌더링 */}
+                        {/* 회원관리: 불필요한 하위탭 제거 후 직관적인 렌더링 */}
                         {activeTab === 'member_manage' && <AdminPartners adminTheme={adminTheme} defaultTab="users" />}
                         
-                        {/* 정산관리 하위 */}
+                        {/* 🚨 정산관리 하위 */}
                         {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} />}
+                        {activeTab === 'deposit' && <AdminDeposit adminTheme={adminTheme} />} {/* 충전 승인 관리 컴포넌트 추가 */}
 
                         {/* 콘텐츠 관리 하위 */}
                         {activeTab === 'myeongdang' && <AdminMyeongdang adminTheme={adminTheme} />}
