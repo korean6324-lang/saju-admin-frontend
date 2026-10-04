@@ -14,7 +14,7 @@ export default function AdminUserManage({ adminTheme }) {
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
 
-    // 폼 상태 관리
+    // 폼 상태 관리 (🚨 접속 IP 제한 관련 상태 추가)
     const [formData, setFormData] = useState({
         id: '', name: '', password: '', passwordConfirm: '',
         email1: '', email2: '',
@@ -23,7 +23,9 @@ export default function AdminUserManage({ adminTheme }) {
         department: '', position: '', memo: '',
         isLoginAllowed: true,
         permissions: { site: true, sms: true, design: true, mobile: true, config: true },
-        startPage: '사이트운영'
+        startPage: '사이트운영',
+        isIpRestrictionActive: false, // IP 제한 활성화 여부
+        allowedIp: ''                 // 허용할 IP 주소
     });
     
     const [isSaving, setIsSaving] = useState(false);
@@ -82,7 +84,9 @@ export default function AdminUserManage({ adminTheme }) {
             phone1: '02', phone2: '', phone3: '', mobile1: '010', mobile2: '', mobile3: '',
             department: '', position: '', memo: '', isLoginAllowed: true,
             permissions: { site: true, sms: true, design: true, mobile: true, config: true },
-            startPage: '사이트운영'
+            startPage: '사이트운영',
+            isIpRestrictionActive: false,
+            allowedIp: ''
         });
     };
 
@@ -92,6 +96,9 @@ export default function AdminUserManage({ adminTheme }) {
         }
         if (formData.password !== formData.passwordConfirm) {
             return alert("비밀번호가 일치하지 않습니다.");
+        }
+        if (formData.isIpRestrictionActive && !formData.allowedIp.trim()) {
+            return alert("지정 IP 접속을 허용하려면 IP 주소를 입력해주세요.");
         }
 
         setIsSaving(true);
@@ -308,6 +315,29 @@ export default function AdminUserManage({ adminTheme }) {
                             <span className="ios-label">직급</span>
                             <input type="text" className="ios-input-clean" placeholder="예: 대리, 과장" value={formData.position} onChange={e=>handleInputChange('position', e.target.value)} />
                         </div>
+                    </div>
+
+                    {/* 🚨 보안 및 접속 IP 제한 섹션 추가 */}
+                    <div className="ios-group-title" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ShieldAlert size={14} color="#8E8E93"/> 보안 및 접속 제한 (IP)</div>
+                    <div className="ios-list-group">
+                        <div className="ios-list-row">
+                            <span className="ios-label">지정 IP만 접속 허용</span>
+                            <div className={`ios-toggle ${formData.isIpRestrictionActive ? 'active' : ''}`} onClick={() => handleInputChange('isIpRestrictionActive', !formData.isIpRestrictionActive)}>
+                                <div className="ios-toggle-knob"></div>
+                            </div>
+                        </div>
+                        {formData.isIpRestrictionActive && (
+                            <div className="ios-list-row" style={{ backgroundColor: '#F9F9FB' }}>
+                                <span className="ios-label" style={{ color: '#007AFF' }}>허용 IP 주소</span>
+                                <input 
+                                    type="text" 
+                                    className="ios-input-clean" 
+                                    placeholder="예: 123.45.67.89" 
+                                    value={formData.allowedIp} 
+                                    onChange={e=>handleInputChange('allowedIp', e.target.value)} 
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className="ios-group-title">시스템 권한 제어</div>
