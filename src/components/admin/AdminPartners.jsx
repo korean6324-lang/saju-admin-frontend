@@ -4,10 +4,9 @@ import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 
-// 🚨 모듈화된 신규 컴포넌트 임포트
-import UserDetailModal from './UserDetailModal';
+// 🚨 상세 페이지로 확장됨에 따라 기존 모달(UserDetailModal) 임포트는 제거합니다.
 
-export default function AdminPartners({ adminTheme }) {
+export default function AdminPartners({ adminTheme, onGoToDetail }) {
     const queryClient = useQueryClient();
 
     // 전체 회원 리스트 상태 관리
@@ -18,7 +17,6 @@ export default function AdminPartners({ adminTheme }) {
     const [searchInput, setSearchInput] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
-    const [selectedUser, setSelectedUser] = useState(null);
 
     // 검색어 디바운싱 처리
     useEffect(() => {
@@ -32,7 +30,14 @@ export default function AdminPartners({ adminTheme }) {
         queryFn: async () => {
             let query = supabase.from('profiles').select('*', { count: 'exact' });
 
-            if (debouncedSearch) query = query.or(`${searchType}.ilike.%${debouncedSearch}%`);
+            // 🚨 검색 로직 개선: 이메일/ID 검색 시 양쪽 컬럼을 동시에 조회
+            if (debouncedSearch) {
+                if (searchType === 'email') {
+                    query = query.or(`email.ilike.%${debouncedSearch}%,login_id.ilike.%${debouncedSearch}%`);
+                } else {
+                    query = query.or(`${searchType}.ilike.%${debouncedSearch}%`);
+                }
+            }
 
             if (quickRole === 'free') query = query.eq('role', 'user').or('membership_tier.eq.free,membership_tier.is.null');
             else if (quickRole === 'basic') query = query.eq('role', 'user').eq('membership_tier', 'basic');
@@ -117,7 +122,7 @@ export default function AdminPartners({ adminTheme }) {
                     </select>
                     <div className="ios-search-box">
                         <select className="ios-select" value={searchType} onChange={e=>setSearchType(e.target.value)} style={{ borderRight: '0.5px solid #C6C6C8', paddingRight: '6px', marginRight: '6px' }}>
-                            <option value="email">이메일</option>
+                            <option value="email">계정(ID/이메일)</option>
                             <option value="name">이름</option>
                         </select>
                         <input type="text" className="ios-search-input" placeholder="검색어 입력..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
@@ -132,7 +137,8 @@ export default function AdminPartners({ adminTheme }) {
                     <thead>
                         <tr>
                             <th className="ios-th" onClick={() => handleSort('id')}>NO</th>
-                            <th className="ios-th" onClick={() => handleSort('email')}>계정 (이메일/이름) {getSortIcon('email')}</th>
+                            {/* 🚨 컬럼 제목 수정 */}
+                            <th className="ios-th" onClick={() => handleSort('email')}>계정 (ID/이메일) {getSortIcon('email')}</th>
                             <th className="ios-th" onClick={() => handleSort('role')}>등급 {getSortIcon('role')}</th>
                             <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('point_balance')}>포인트 {getSortIcon('point_balance')}</th>
                             <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('game_money_balance')}>게임머니 {getSortIcon('game_money_balance')}</th>
@@ -151,8 +157,13 @@ export default function AdminPartners({ adminTheme }) {
                                 <tr key={u.id} className={`ios-tr ${u.is_blocked ? 'blocked' : ''}`}>
                                     <td className="ios-td" style={{ color: '#8E8E93', fontSize: '12px' }}>{pageSize * (page - 1) + idx + 1}</td>
                                     <td className="ios-td">
-                                        <div style={{ fontWeight: '600', color: u.is_blocked ? '#FF3B30' : '#1C1C1E' }}>{u.email}</div>
-                                        <div style={{ fontSize: '11px', color: '#8E8E93' }}>{u.name || '-'}</div>
+                                        {/* 🚨 아이디가 있으면 아이디 노출, 없으면 SNS 이메일 노출 */}
+                                        <div style={{ fontWeight: '600', color: u.is_blocked ? '#FF3B30' : '#1C1C1E' }}>
+                                            {u.login_id || u.email}
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: '#8E8E93' }}>
+                                            {u.name || '-'} {u.login_id && u.email ? `(${u.email})` : ''}
+                                        </div>
                                     </td>
                                     <td className="ios-td">{getTierBadge(u.role, u.membership_tier)}</td>
                                     <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#D97706' }}>{(u.point_balance || 0).toLocaleString()} P</td>
@@ -160,7 +171,8 @@ export default function AdminPartners({ adminTheme }) {
                                     <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#007AFF' }}>{u.ticket_count || 0} 장</td>
                                     <td className="ios-td" style={{ fontSize: '12px', color: '#8E8E93' }}>{new Date(u.created_at).toLocaleDateString()}</td>
                                     <td className="ios-td" style={{ textAlign: 'right', paddingRight: '16px' }}>
-                                        <button className="ios-btn-micro" onClick={() => setSelectedUser(u)}>상세/자산 관리</button>
+                                        {/* 🚨 모달 띄우기 대신, 대시보드의 상세 페이지 함수(onGoToDetail)를 직접 호출하여 전환 */}
+                                        <button className="ios-btn-micro" onClick={() => onGoToDetail && onGoToDetail(u.id)}>상세/자산 관리</button>
                                     </td>
                                 </tr>
                             ))
@@ -174,16 +186,6 @@ export default function AdminPartners({ adminTheme }) {
                 <span style={{ fontSize: '13px', fontWeight: '700', color: '#1C1C1E' }}>{page} / {totalPages}</span>
                 <button className="ios-btn-micro outline" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>다음 ▶</button>
             </div>
-
-            {/* 🚨 분리된 모달 컴포넌트 렌더링 */}
-            {selectedUser && (
-                <UserDetailModal 
-                    user={selectedUser} 
-                    onClose={() => setSelectedUser(null)} 
-                    onRefresh={() => queryClient.invalidateQueries({ queryKey: ['adminUsersList'] })}
-                    setSelectedUser={setSelectedUser}
-                />
-            )}
         </div>
     );
 }
