@@ -65,40 +65,61 @@ export default function AdminPartners({ adminTheme }) {
     const [isSavingMemo, setIsSavingMemo] = useState(false);
 
     // ==========================================================
-    // 핸들러 함수 모음
+    // 핸들러 함수 모음 (자산 통합 및 관리)
     // ==========================================================
-    const handleUpdateTarotTicket = async (changeAmount) => {
+    
+    // 1. 통합 열람쿠폰 지급/차감
+    const handleUpdateTicket = async (changeAmount) => {
         if (!selectedUser) return;
-        const currentTickets = selectedUser.tarot_ticket_count || 0;
-        if (changeAmount < 0 && currentTickets < Math.abs(changeAmount)) return alert("보유한 열람권보다 더 많이 차감할 수 없습니다.");
+        const currentTickets = selectedUser.ticket_count || 0;
+        if (changeAmount < 0 && currentTickets < Math.abs(changeAmount)) return alert("보유한 쿠폰보다 더 많이 차감할 수 없습니다.");
         const actionText = changeAmount > 0 ? `${changeAmount}장 지급` : `${Math.abs(changeAmount)}장 차감`;
-        if (!window.confirm(`타로 열람권을 ${actionText} 하시겠습니까?`)) return;
+        if (!window.confirm(`통합 열람쿠폰을 ${actionText} 하시겠습니까?`)) return;
 
         try {
-            const newTicketCount = currentTickets + changeAmount;
-            const { error } = await supabase.from('profiles').update({ tarot_ticket_count: newTicketCount }).eq('id', selectedUser.id);
+            const newCount = currentTickets + changeAmount;
+            const { error } = await supabase.from('profiles').update({ ticket_count: newCount }).eq('id', selectedUser.id);
             if (error) throw error;
-            alert(`✅ 완료 (현재: ${newTicketCount}장)`);
-            setSelectedUser(prev => ({ ...prev, tarot_ticket_count: newTicketCount }));
+            alert(`✅ 완료 (현재: ${newCount}장)`);
+            setSelectedUser(prev => ({ ...prev, ticket_count: newCount }));
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
-        } catch (error) { alert("열람권 수정 오류"); } 
+        } catch (error) { alert("열람쿠폰 수정 오류"); } 
     };
 
-    const handleUpdateGeneralTicket = async (changeAmount) => {
+    // 2. 관리자 권한 포인트 직접 지급/차감
+    const handleUpdatePoint = async (changeAmount) => {
         if (!selectedUser) return;
-        const currentGeneralTickets = selectedUser.general_ticket_count || 0;
-        if (changeAmount < 0 && currentGeneralTickets < Math.abs(changeAmount)) return alert("보유한 열람권보다 더 많이 차감할 수 없습니다.");
-        const actionText = changeAmount > 0 ? `${changeAmount}장 지급` : `${Math.abs(changeAmount)}장 차감`;
-        if (!window.confirm(`종합 열람권을 ${actionText} 하시겠습니까?`)) return;
+        const currentPoints = selectedUser.point_balance || 0;
+        if (changeAmount < 0 && currentPoints < Math.abs(changeAmount)) return alert("잔액보다 더 많이 차감할 수 없습니다.");
+        const actionText = changeAmount > 0 ? `${changeAmount.toLocaleString()} P 지급` : `${Math.abs(changeAmount).toLocaleString()} P 차감`;
+        if (!window.confirm(`포인트를 ${actionText} 하시겠습니까?`)) return;
 
         try {
-            const newTicketCount = currentGeneralTickets + changeAmount;
-            const { error } = await supabase.from('profiles').update({ general_ticket_count: newTicketCount }).eq('id', selectedUser.id);
+            const newCount = currentPoints + changeAmount;
+            const { error } = await supabase.from('profiles').update({ point_balance: newCount }).eq('id', selectedUser.id);
             if (error) throw error;
-            alert(`✅ 완료 (현재: ${newTicketCount}장)`);
-            setSelectedUser(prev => ({ ...prev, general_ticket_count: newTicketCount }));
+            alert(`✅ 완료 (현재: ${newCount.toLocaleString()} P)`);
+            setSelectedUser(prev => ({ ...prev, point_balance: newCount }));
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
-        } catch (error) { alert("열람권 수정 오류"); } 
+        } catch (error) { alert("포인트 수정 오류"); } 
+    };
+
+    // 3. 관리자 권한 게임머니 직접 지급/차감
+    const handleUpdateGameMoney = async (changeAmount) => {
+        if (!selectedUser) return;
+        const currentGameMoney = selectedUser.game_money_balance || 0;
+        if (changeAmount < 0 && currentGameMoney < Math.abs(changeAmount)) return alert("잔액보다 더 많이 차감할 수 없습니다.");
+        const actionText = changeAmount > 0 ? `${changeAmount.toLocaleString()} G 지급` : `${Math.abs(changeAmount).toLocaleString()} G 차감`;
+        if (!window.confirm(`게임머니를 ${actionText} 하시겠습니까?`)) return;
+
+        try {
+            const newCount = currentGameMoney + changeAmount;
+            const { error } = await supabase.from('profiles').update({ game_money_balance: newCount }).eq('id', selectedUser.id);
+            if (error) throw error;
+            alert(`✅ 완료 (현재: ${newCount.toLocaleString()} G)`);
+            setSelectedUser(prev => ({ ...prev, game_money_balance: newCount }));
+            queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
+        } catch (error) { alert("게임머니 수정 오류"); } 
     };
 
     const handleToggleBlock = async (e, userId, isBlocked) => {
@@ -114,7 +135,7 @@ export default function AdminPartners({ adminTheme }) {
 
     const [isUpdatingTier, setIsUpdatingTier] = useState(false);
     
-    // 🚨 직접 update() 방식을 완전히 제거하고 백엔드 보안 함수(RPC)를 호출하도록 수정 완료
+    // 🚨 백엔드 보안 함수(RPC) 호출을 통한 등급 업데이트
     const handleChangeUserTier = async (newTier) => {
         if (!selectedUser) return;
         if (!window.confirm('선택하신 등급으로 변경하시겠습니까?')) return;
@@ -124,7 +145,6 @@ export default function AdminPartners({ adminTheme }) {
             let updatedRole = newTier === 'partner' ? 'partner' : 'user';
             let updatedTier = newTier === 'partner' ? (selectedUser.membership_tier || 'free') : newTier;
 
-            // 1. 프로필 테이블 등급 업데이트 (보안 트리거 우회를 위해 RPC 사용)
             const { error: profileError } = await supabase.rpc('admin_update_user_tier', {
                 p_target_user_id: selectedUser.id,
                 p_new_role: updatedRole,
@@ -133,7 +153,6 @@ export default function AdminPartners({ adminTheme }) {
                 
             if (profileError) throw profileError;
 
-            // 2. 파트너 상점 DB 연동 처리
             try {
                 if (updatedRole === 'partner') {
                     const { data: existingShop } = await supabase.from('partner_shops').select('partner_id').eq('partner_id', selectedUser.id).maybeSingle();
@@ -154,7 +173,6 @@ export default function AdminPartners({ adminTheme }) {
             alert('✅ 회원 등급 변경이 완료되었습니다.');
         } catch (error) { 
             console.error('등급 변경 에러:', error);
-            // 에러 객체가 깨지지 않고 정확한 원인이 출력되도록 수정
             const errorMsg = error.message || (typeof error === 'object' ? JSON.stringify(error) : error);
             alert(`❌ 등급 변경 실패: ${errorMsg}`); 
         } finally { 
@@ -198,113 +216,53 @@ export default function AdminPartners({ adminTheme }) {
     return (
         <div className="ios-wrap fade-in">
             <style dangerouslySetInnerHTML={{ __html: `
-                .ios-wrap {
-                    width: 100%; box-sizing: border-box;
-                    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif;
-                    background-color: transparent;
-                }
-
+                .ios-wrap { width: 100%; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif; background-color: transparent; }
                 .ios-title { font-size: 24px; font-weight: 800; color: #1C1C1E; margin: 0 0 6px 0; letter-spacing: -0.5px; }
                 .ios-desc { font-size: 13px; color: #8E8E93; margin: 0 0 24px 0; font-weight: 500; }
-
-                /* Search & Filter Bar */
-                .ios-toolbar {
-                    display: flex; justify-content: space-between; align-items: center;
-                    background: #FFFFFF; border-radius: 12px; padding: 10px 16px; margin-bottom: 16px;
-                    border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-                }
-                .ios-search-box {
-                    display: flex; align-items: center; background: #F2F2F7; border-radius: 8px; padding: 4px 10px; flex: 1; max-width: 320px;
-                }
-                .ios-search-input {
-                    border: none; background: transparent; outline: none; font-size: 13px; padding: 4px; width: 100%; color: #1C1C1E; font-weight: 500;
-                }
-                .ios-select {
-                    border: none; background: transparent; outline: none; font-size: 13px; color: #1C1C1E; font-weight: 600; padding: 4px;
-                }
-
-                /* iOS Table (List Look) */
-                .ios-table-wrap {
-                    background-color: #FFFFFF; border-radius: 12px; overflow: hidden;
-                    border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-                }
+                .ios-toolbar { display: flex; justify-content: space-between; align-items: center; background: #FFFFFF; border-radius: 12px; padding: 10px 16px; margin-bottom: 16px; border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+                .ios-search-box { display: flex; align-items: center; background: #F2F2F7; border-radius: 8px; padding: 4px 10px; flex: 1; max-width: 320px; }
+                .ios-search-input { border: none; background: transparent; outline: none; font-size: 13px; padding: 4px; width: 100%; color: #1C1C1E; font-weight: 500; }
+                .ios-select { border: none; background: transparent; outline: none; font-size: 13px; color: #1C1C1E; font-weight: 600; padding: 4px; }
+                .ios-table-wrap { background-color: #FFFFFF; border-radius: 12px; overflow: hidden; border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
                 .ios-table { width: 100%; border-collapse: collapse; }
-                .ios-th {
-                    background-color: #F9F9FB; padding: 12px 10px; text-align: left;
-                    font-size: 11px; font-weight: 700; color: #8E8E93; border-bottom: 0.5px solid #E5E5EA;
-                    text-transform: uppercase; letter-spacing: -0.2px; cursor: pointer;
-                }
-                .ios-td {
-                    padding: 12px 10px; border-bottom: 0.5px solid #E5E5EA;
-                    font-size: 13px; color: #1C1C1E; font-weight: 500; vertical-align: middle;
-                }
+                .ios-th { background-color: #F9F9FB; padding: 12px 10px; text-align: left; font-size: 11px; font-weight: 700; color: #8E8E93; border-bottom: 0.5px solid #E5E5EA; text-transform: uppercase; letter-spacing: -0.2px; cursor: pointer; }
+                .ios-td { padding: 12px 10px; border-bottom: 0.5px solid #E5E5EA; font-size: 13px; color: #1C1C1E; font-weight: 500; vertical-align: middle; }
                 .ios-tr:last-child .ios-td { border-bottom: none; }
                 .ios-tr:hover { background-color: #F9F9FB; }
                 .ios-tr.blocked { background-color: #FFF0F0; }
-
-                /* Badges */
                 .ios-badge { display: inline-flex; align-items: center; padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; }
                 .ios-badge.admin { background: #1C1C1E; color: #FFF; }
                 .ios-badge.partner { background: #E5F0FF; color: #007AFF; }
                 .ios-badge.premium { background: #FFF5E5; color: #FF9500; }
                 .ios-badge.basic { background: #E5FBEB; color: #34C759; }
                 .ios-badge.free { background: #F2F2F7; color: #8E8E93; }
-
-                /* Micro Buttons */
-                .ios-btn-micro {
-                    border: none; background: #F2F2F7; color: #007AFF; font-size: 11px; font-weight: 700;
-                    padding: 4px 8px; border-radius: 6px; cursor: pointer; transition: 0.2s; white-space: nowrap;
-                }
+                .ios-btn-micro { border: none; background: #F2F2F7; color: #007AFF; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer; transition: 0.2s; white-space: nowrap; }
                 .ios-btn-micro:active { transform: scale(0.95); opacity: 0.8; }
                 .ios-btn-micro.danger { color: #FF3B30; background: #FFE5E5; }
                 .ios-btn-micro.success { color: #34C759; background: #E5FBEB; }
                 .ios-btn-micro.outline { background: transparent; border: 1px solid #E5E5EA; color: #1C1C1E; }
-
-                /* Modal */
-                .ios-modal-overlay {
-                    position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-                    display: flex; justify-content: center; align-items: center; z-index: 10000; padding: 20px; animation: fadeIn 0.2s ease-out;
-                }
-                .ios-modal-card {
-                    background: #F2F2F7; width: 100%; max-width: 500px; border-radius: 20px; overflow: hidden;
-                    box-shadow: 0 20px 40px rgba(0,0,0,0.15); animation: slideUp 0.3s cubic-bezier(0.2, 0.85, 0.32, 1.2);
-                    display: flex; flex-direction: column; max-height: 90vh;
-                }
-                .ios-modal-header {
-                    padding: 16px 20px; background: #FFFFFF; display: flex; justify-content: space-between; align-items: center;
-                    border-bottom: 0.5px solid #E5E5EA;
-                }
+                .ios-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 10000; padding: 20px; animation: fadeIn 0.2s ease-out; }
+                .ios-modal-card { background: #F2F2F7; width: 100%; max-width: 500px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.15); animation: slideUp 0.3s cubic-bezier(0.2, 0.85, 0.32, 1.2); display: flex; flex-direction: column; max-height: 90vh; }
+                .ios-modal-header { padding: 16px 20px; background: #FFFFFF; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid #E5E5EA; }
                 .ios-modal-title { font-size: 16px; font-weight: 700; color: #1C1C1E; margin: 0; }
                 .ios-modal-close { background: #F2F2F7; border: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #8E8E93; cursor: pointer; }
                 .ios-modal-body { padding: 20px; overflow-y: auto; flex: 1; }
-                
-                /* Inset Group inside Modal */
                 .ios-inset-group { background: #FFFFFF; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
                 .ios-inset-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 0.5px solid #E5E5EA; min-height: 44px; }
                 .ios-inset-row:last-child { border-bottom: none; }
                 .ios-inset-label { font-size: 13px; font-weight: 600; color: #1C1C1E; }
                 .ios-inset-value { font-size: 13px; font-weight: 500; color: #8E8E93; text-align: right; }
-
-                /* Segment Controls inside Modal */
                 .ios-segment { display: inline-flex; background-color: #E5E5EA; border-radius: 8px; padding: 2px; }
-                .ios-segment-btn {
-                    padding: 6px 14px; font-size: 12px; font-weight: 600; color: #8E8E93;
-                    border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 4px; flex: 1; justify-content: center;
-                }
+                .ios-segment-btn { padding: 6px 14px; font-size: 12px; font-weight: 600; color: #8E8E93; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 4px; flex: 1; justify-content: center; }
                 .ios-segment-btn.active { background-color: #FFFFFF; color: #1C1C1E; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
-
-                .ios-textarea {
-                    width: 100%; border: none; outline: none; background: transparent; font-size: 13px;
-                    color: #1C1C1E; line-height: 1.5; resize: vertical; min-height: 120px; font-family: inherit;
-                }
-                
+                .ios-textarea { width: 100%; border: none; outline: none; background: transparent; font-size: 13px; color: #1C1C1E; line-height: 1.5; resize: vertical; min-height: 120px; font-family: inherit; }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
             `}} />
 
             <div>
                 <h2 className="ios-title">회원 및 권한 관리</h2>
-                <p className="ios-desc">플랫폼에 가입한 모든 회원을 검색하고 등급 및 권한을 관리합니다.</p>
+                <p className="ios-desc">플랫폼에 가입한 모든 회원을 검색하고 자산 및 권한을 관리합니다.</p>
             </div>
 
             <div className="ios-toolbar">
@@ -317,7 +275,6 @@ export default function AdminPartners({ adminTheme }) {
                         <option value="partner">파트너</option>
                         <option value="blocked">차단된 회원</option>
                     </select>
-
                     <div className="ios-search-box">
                         <select className="ios-select" value={searchType} onChange={e=>setSearchType(e.target.value)} style={{ borderRight: '0.5px solid #C6C6C8', paddingRight: '6px', marginRight: '6px' }}>
                             <option value="email">이메일</option>
@@ -330,6 +287,7 @@ export default function AdminPartners({ adminTheme }) {
                 <div style={{ fontSize: '12px', fontWeight: '600', color: '#8E8E93' }}>총 <span style={{ color: '#1C1C1E' }}>{usersData?.totalCount || 0}</span>명</div>
             </div>
 
+            {/* 🚨 상황판 표 (포인트, 게임머니, 쿠폰 통합) */}
             <div className="ios-table-wrap">
                 <table className="ios-table">
                     <thead>
@@ -337,17 +295,18 @@ export default function AdminPartners({ adminTheme }) {
                             <th className="ios-th" onClick={() => handleSort('id')}>NO</th>
                             <th className="ios-th" onClick={() => handleSort('email')}>계정 (이메일/이름) {getSortIcon('email')}</th>
                             <th className="ios-th" onClick={() => handleSort('role')}>등급 {getSortIcon('role')}</th>
-                            <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('tarot_ticket_count')}>타로 {getSortIcon('tarot_ticket_count')}</th>
-                            <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('general_ticket_count')}>종합 {getSortIcon('general_ticket_count')}</th>
+                            <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('point_balance')}>포인트 {getSortIcon('point_balance')}</th>
+                            <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('game_money_balance')}>게임머니 {getSortIcon('game_money_balance')}</th>
+                            <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('ticket_count')}>열람쿠폰 {getSortIcon('ticket_count')}</th>
                             <th className="ios-th" onClick={() => handleSort('created_at')}>가입일 {getSortIcon('created_at')}</th>
                             <th className="ios-th" style={{ textAlign: 'right', paddingRight: '16px' }}>관리</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoadingUsers ? (
-                            <tr><td colSpan="7" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>로딩 중...</td></tr>
+                            <tr><td colSpan="8" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>로딩 중...</td></tr>
                         ) : (!usersList.length) ? (
-                            <tr><td colSpan="7" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>회원이 없습니다.</td></tr>
+                            <tr><td colSpan="8" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>회원이 없습니다.</td></tr>
                         ) : (
                             usersList.map((u, idx) => (
                                 <tr key={u.id} className={`ios-tr ${u.is_blocked ? 'blocked' : ''}`}>
@@ -357,13 +316,12 @@ export default function AdminPartners({ adminTheme }) {
                                         <div style={{ fontSize: '11px', color: '#8E8E93' }}>{u.name || '-'}</div>
                                     </td>
                                     <td className="ios-td">{getTierBadge(u.role, u.membership_tier)}</td>
-                                    <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#FF9500' }}>{u.tarot_ticket_count || 0}</td>
-                                    <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#007AFF' }}>{u.general_ticket_count || 0}</td>
+                                    <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#D97706' }}>{(u.point_balance || 0).toLocaleString()} P</td>
+                                    <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#7C3AED' }}>{(u.game_money_balance || 0).toLocaleString()} G</td>
+                                    <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#007AFF' }}>{u.ticket_count || 0} 장</td>
                                     <td className="ios-td" style={{ fontSize: '12px', color: '#8E8E93' }}>{new Date(u.created_at).toLocaleDateString()}</td>
                                     <td className="ios-td" style={{ textAlign: 'right', paddingRight: '16px' }}>
-                                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-                                            <button className="ios-btn-micro" onClick={() => { setSelectedUser(u); setModalTab('info'); }}>상세 설정</button>
-                                        </div>
+                                        <button className="ios-btn-micro" onClick={() => { setSelectedUser(u); setModalTab('info'); }}>상세 설정</button>
                                     </td>
                                 </tr>
                             ))
@@ -378,7 +336,7 @@ export default function AdminPartners({ adminTheme }) {
                 <button className="ios-btn-micro outline" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>다음 ▶</button>
             </div>
 
-            {/* 회원 상세 모달 (iOS Card) */}
+            {/* 🚨 회원 상세 모달 (자산 개별 제어 폼 추가) */}
             {selectedUser && (
                 <div className="ios-modal-overlay" onClick={() => setSelectedUser(null)}>
                     <div className="ios-modal-card" onClick={e => e.stopPropagation()}>
@@ -389,7 +347,7 @@ export default function AdminPartners({ adminTheme }) {
                         
                         <div style={{ display: 'flex', padding: '12px 20px 0 20px', background: '#FFFFFF' }}>
                             <div className="ios-segment" style={{ width: '100%', marginBottom: '12px' }}>
-                                <div className={`ios-segment-btn ${modalTab === 'info' ? 'active' : ''}`} onClick={() => setModalTab('info')}><Settings size={14}/> 권한 및 열람권</div>
+                                <div className={`ios-segment-btn ${modalTab === 'info' ? 'active' : ''}`} onClick={() => setModalTab('info')}><Settings size={14}/> 정보 및 자산</div>
                                 <div className={`ios-segment-btn ${modalTab === 'memo' ? 'active' : ''}`} onClick={() => { setModalTab('memo'); setMemoText(selectedUser.admin_memo || ''); }}><FileText size={14}/> 관리자 메모</div>
                             </div>
                         </div>
@@ -419,30 +377,47 @@ export default function AdminPartners({ adminTheme }) {
                                         </div>
                                     </div>
 
+                                    {/* 1. 보유 포인트 제어 */}
                                     <div className="ios-inset-group">
                                         <div className="ios-inset-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                                                <span className="ios-inset-label">타로 열람권 잔여</span>
-                                                <span style={{ fontSize: '15px', fontWeight: '800', color: '#FF9500' }}>{selectedUser.tarot_ticket_count || 0} 장</span>
+                                                <span className="ios-inset-label">보유 포인트</span>
+                                                <span style={{ fontSize: '15px', fontWeight: '800', color: '#D97706' }}>{(selectedUser.point_balance || 0).toLocaleString()} P</span>
                                             </div>
                                             <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                                                <button className="ios-btn-micro outline" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdateTarotTicket(1)}>+1 지급</button>
-                                                <button className="ios-btn-micro outline" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdateTarotTicket(5)}>+5 지급</button>
-                                                <button className="ios-btn-micro danger" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdateTarotTicket(-1)} disabled={(selectedUser.tarot_ticket_count||0)<=0}>-1 차감</button>
+                                                <button className="ios-btn-micro outline" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdatePoint(10000)}>+1만 지급</button>
+                                                <button className="ios-btn-micro outline" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdatePoint(50000)}>+5만 지급</button>
+                                                <button className="ios-btn-micro danger" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdatePoint(-10000)} disabled={(selectedUser.point_balance||0) < 10000}>-1만 차감</button>
                                             </div>
                                         </div>
                                     </div>
 
+                                    {/* 2. 보유 게임머니 제어 */}
+                                    <div className="ios-inset-group">
+                                        <div className="ios-inset-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                                <span className="ios-inset-label">보유 게임머니</span>
+                                                <span style={{ fontSize: '15px', fontWeight: '800', color: '#7C3AED' }}>{(selectedUser.game_money_balance || 0).toLocaleString()} G</span>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                                                <button className="ios-btn-micro outline" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdateGameMoney(10000)}>+1만 지급</button>
+                                                <button className="ios-btn-micro outline" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdateGameMoney(50000)}>+5만 지급</button>
+                                                <button className="ios-btn-micro danger" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdateGameMoney(-10000)} disabled={(selectedUser.game_money_balance||0) < 10000}>-1만 차감</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 3. 통합 열람쿠폰 제어 */}
                                     <div className="ios-inset-group">
                                         <div className="ios-inset-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px', borderBottom: 'none' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                                                <span className="ios-inset-label">종합 열람권 <span style={{fontSize:'11px', color:'#8E8E93', fontWeight:'normal'}}>(사주/궁합 등)</span></span>
-                                                <span style={{ fontSize: '15px', fontWeight: '800', color: '#007AFF' }}>{selectedUser.general_ticket_count || 0} 장</span>
+                                                <span className="ios-inset-label">열람쿠폰 <span style={{fontSize:'11px', color:'#8E8E93', fontWeight:'normal'}}>(운세/타로 공용)</span></span>
+                                                <span style={{ fontSize: '15px', fontWeight: '800', color: '#007AFF' }}>{selectedUser.ticket_count || 0} 장</span>
                                             </div>
                                             <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                                                <button className="ios-btn-micro outline" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdateGeneralTicket(1)}>+1 지급</button>
-                                                <button className="ios-btn-micro outline" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdateGeneralTicket(5)}>+5 지급</button>
-                                                <button className="ios-btn-micro danger" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdateGeneralTicket(-1)} disabled={(selectedUser.general_ticket_count||0)<=0}>-1 차감</button>
+                                                <button className="ios-btn-micro outline" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdateTicket(1)}>+1장 지급</button>
+                                                <button className="ios-btn-micro outline" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdateTicket(5)}>+5장 지급</button>
+                                                <button className="ios-btn-micro danger" style={{flex:1, justifyContent:'center'}} onClick={() => handleUpdateTicket(-1)} disabled={(selectedUser.ticket_count||0)<=0}>-1장 차감</button>
                                             </div>
                                         </div>
                                     </div>
