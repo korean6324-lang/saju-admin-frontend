@@ -2,22 +2,21 @@
 import React, { useState } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Zap, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Copy } from 'lucide-react';
 
 export default function AdminCash() {
     const queryClient = useQueryClient();
-    const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'completed'
+    const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'approved' | 'rejected'
 
     // ==========================================================
-    // 1. 환전 신청 내역 조회 (DB 연동)
+    // 1. 환전 신청 내역 조회 (최신 확장 테이블 연동)
     // ==========================================================
     const { data: exchangeRequests = [], isLoading } = useQuery({
         queryKey: ['adminExchangeRequests', activeTab],
         queryFn: async () => {
             const { data, error } = await supabase
-                .from('energy_transactions')
+                .from('exchange_requests')
                 .select('*, profiles:user_id(email, name)')
-                .eq('trade_type', 'exchange')
                 .eq('status', activeTab)
                 .order('created_at', { ascending: false });
             if (error) throw error;
@@ -26,48 +25,56 @@ export default function AdminCash() {
     });
 
     // ==========================================================
-    // 2. 관리자 승인 (송금 완료 처리)
+    // 2. 관리자 승인 (송금 완료 처리 및 장부 확정)
     // ==========================================================
-    const handleApprove = async (id) => {
-        if (!window.confirm("고객 계좌로 송금을 완료하셨습니까?\n(승인 처리 시 상태가 '완료'로 변경됩니다.)")) return;
+    const handleApprove = async (id, userName, amount) => {
+        if (!window.confirm(`[${userName}] 님의 전자지갑/계좌로 ${Math.floor(amount * 0.95).toLocaleString()}원에 해당하는 송금을 완료하셨습니까?\n(승인 시 상태가 완료로 변경됩니다.)`)) return;
+        
         try {
-            const { error } = await supabase.from('energy_transactions').update({ status: 'completed' }).eq('id', id);
+            // 안전한 RPC 트랜잭션 호출
+            const { error } = await supabase.rpc('approve_exchange_request', { p_request_id: id });
             if (error) throw error;
             
-            alert("✅ 승인 및 송금 완료 처리되었습니다.");
+            alert("✅ 환전 승인 및 송금 완료 처리가 완료되었습니다.");
             queryClient.invalidateQueries(['adminExchangeRequests']);
         } catch (error) {
-            alert("❌ 처리 중 오류가 발생했습니다.");
+            alert(`❌ 처리 중 오류가 발생했습니다: ${error.message}`);
         }
     };
 
     // ==========================================================
-    // 3. 관리자 반려 (에너지 환불/롤백 처리)
+    // 3. 관리자 반려 (반려 사유 기록 및 포인트 환불 장부 처리)
     // ==========================================================
-    const handleReject = async (tx) => {
-        if (!window.confirm("이 환전 신청을 거절(반려)하시겠습니까?\n(반려 시 차감되었던 에너지가 고객의 지갑으로 즉시 환불됩니다.)")) return;
+    const handleReject = async (id, amount) => {
+        const reason = window.prompt("반려 사유를 입력해주세요.\n(반려 시 차감되었던 포인트가 고객에게 다시 환불됩니다.)", "지갑 주소/계좌 정보 오류");
+        if (reason === null) return; 
+        
         try {
-            // 1. 고객에게 에너지를 다시 지급 (롤백)
-            const { error: rpcError } = await supabase.rpc('process_energy_transaction', {
-                p_user_id: tx.user_id,
-                p_amount: Math.abs(tx.amount), // 음수(-)로 저장된 출금액을 양수(+)로 변환하여 복구
-                p_trade_type: 'admin',
-                p_description: '환전 신청 반려 (에너지 환불)',
-                p_status: 'completed'
+            // 안전한 RPC 트랜잭션 호출 (환불 및 사유 기록 동시 처리)
+            const { error } = await supabase.rpc('reject_exchange_request', { 
+                p_request_id: id, 
+                p_reason: reason 
             });
-
-            if (rpcError) throw rpcError;
-
-            // 2. 해당 신청 내역의 상태를 'rejected'로 변경
-            const { error: updateError } = await supabase.from('energy_transactions').update({ status: 'rejected' }).eq('id', tx.id);
-            if (updateError) throw updateError;
+            if (error) throw error;
             
-            alert("✅ 환전이 반려되었으며, 에너지가 고객에게 환불 처리되었습니다.");
+            alert(`✅ 반려 처리 및 ${amount.toLocaleString()} P 환불이 완료되었습니다.`);
             queryClient.invalidateQueries(['adminExchangeRequests']);
         } catch (error) {
-            console.error(error);
-            alert("❌ 처리 중 시스템 오류가 발생했습니다.");
+            alert(`❌ 처리 중 오류가 발생했습니다: ${error.message}`);
         }
+    };
+
+    // ==========================================================
+    // 4. 전자지갑 주소/계좌번호 원클릭 복사
+    // ==========================================================
+    const handleCopyAddress = (bankInfo) => {
+        // "지갑: 0x123..." 형태에서 불필요한 텍스트 제거 후 복사
+        const address = bankInfo.replace('지갑: ', '').trim();
+        navigator.clipboard.writeText(address).then(() => {
+            alert(`✅ 복사 성공: ${address}`);
+        }).catch(() => {
+            alert("❌ 복사에 실패했습니다. 직접 드래그하여 복사해주세요.");
+        });
     };
 
     return (
@@ -88,23 +95,27 @@ export default function AdminCash() {
                 .ios-tr:last-child .ios-td { border-bottom: none; }
                 .ios-tr:hover { background-color: #F9F9FB; }
                 
-                .ios-btn-micro { border: none; background: #F2F2F7; color: #007AFF; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+                .ios-btn-micro { border: none; background: #F2F2F7; color: #007AFF; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
                 .ios-btn-micro:active { transform: scale(0.95); opacity: 0.8; }
                 .ios-btn-micro.success { background: #34C759; color: #FFFFFF; }
                 .ios-btn-micro.danger { color: #FF3B30; background: #FFE5E5; }
+                .ios-btn-micro.outline { background: transparent; border: 1px solid #007AFF; color: #007AFF; }
             `}} />
 
             <div>
-                <h2 className="ios-title">에너지 환전(정산) 관리</h2>
-                <p className="ios-desc">고객이 신청한 에너지 환전 요청 내역을 확인하고 승인/반려를 처리합니다.</p>
+                <h2 className="ios-title">포인트 환전(출금) 정산</h2>
+                <p className="ios-desc">고객의 환전 요청을 확인하고, 전자지갑/계좌로 송금한 뒤 승인 처리합니다.</p>
             </div>
 
             <div className="ios-segment">
                 <div className={`ios-segment-btn ${activeTab === 'pending' ? 'active' : ''}`} onClick={() => setActiveTab('pending')}>
-                    <Clock size={14}/> 승인 대기중
+                    <Clock size={14}/> 환전 승인 대기중
                 </div>
-                <div className={`ios-segment-btn ${activeTab === 'completed' ? 'active' : ''}`} onClick={() => setActiveTab('completed')}>
+                <div className={`ios-segment-btn ${activeTab === 'approved' ? 'active' : ''}`} onClick={() => setActiveTab('approved')}>
                     <CheckCircle2 size={14}/> 송금/처리 완료
+                </div>
+                <div className={`ios-segment-btn ${activeTab === 'rejected' ? 'active' : ''}`} onClick={() => setActiveTab('rejected')}>
+                    <XCircle size={14}/> 반려/환불 내역
                 </div>
             </div>
 
@@ -114,9 +125,9 @@ export default function AdminCash() {
                         <tr>
                             <th className="ios-th">신청 일시</th>
                             <th className="ios-th">신청 회원 계정</th>
-                            <th className="ios-th" style={{ textAlign: 'right' }}>환전 신청액 (E)</th>
-                            <th className="ios-th" style={{ textAlign: 'right' }}>실 입금액 (원)</th>
-                            <th className="ios-th">입금 계좌 정보</th>
+                            <th className="ios-th" style={{ textAlign: 'right' }}>환전 신청 포인트</th>
+                            <th className="ios-th" style={{ textAlign: 'right' }}>실 송금액 (-5%)</th>
+                            <th className="ios-th" style={{ textAlign: 'right' }}>전자지갑 / 계좌 정보</th>
                             <th className="ios-th" style={{ textAlign: 'right', paddingRight: '16px' }}>관리 및 상태</th>
                         </tr>
                     </thead>
@@ -124,11 +135,12 @@ export default function AdminCash() {
                         {isLoading ? (
                             <tr><td colSpan="6" className="ios-td" style={{ textAlign: 'center', padding: '60px', color: '#8E8E93' }}>데이터 동기화 중...</td></tr>
                         ) : exchangeRequests.length === 0 ? (
-                            <tr><td colSpan="6" className="ios-td" style={{ textAlign: 'center', padding: '60px', color: '#8E8E93' }}>{activeTab === 'pending' ? '대기 중인 환전 신청 내역이 없습니다.' : '완료된 정산 내역이 없습니다.'}</td></tr>
+                            <tr><td colSpan="6" className="ios-td" style={{ textAlign: 'center', padding: '60px', color: '#8E8E93' }}>
+                                {activeTab === 'pending' ? '대기 중인 환전 신청 내역이 없습니다.' : '조회된 내역이 없습니다.'}
+                            </td></tr>
                         ) : (
                             exchangeRequests.map(tx => {
-                                const requestAmount = Math.abs(tx.amount); // DB엔 출금이라 음수(-)로 저장되어 있으므로 절댓값 처리
-                                const realAmount = Math.floor(requestAmount * 0.95); // 수수료 5% 제외 실제 송금액
+                                const realAmount = Math.floor(tx.request_amount * 0.95); // 기존 로직 계승: 5% 수수료 제외
                                 
                                 return (
                                     <tr key={tx.id} className="ios-tr">
@@ -139,23 +151,32 @@ export default function AdminCash() {
                                             <div style={{ fontWeight: '600' }}>{tx.profiles?.name || '이름미상'}</div>
                                             <div style={{ fontSize: '11px', color: '#8E8E93' }}>{tx.profiles?.email}</div>
                                         </td>
-                                        <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#FF9500' }}>
-                                            {requestAmount.toLocaleString()} E
+                                        <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#D97706' }}>
+                                            {tx.request_amount.toLocaleString()} P
                                         </td>
                                         <td className="ios-td" style={{ textAlign: 'right', fontWeight: '800', color: '#34C759' }}>
                                             ₩ {realAmount.toLocaleString()}
                                         </td>
-                                        <td className="ios-td" style={{ fontSize: '12px', fontWeight: '600', color: '#1C1C1E' }}>
-                                            {tx.bank_info}
+                                        <td className="ios-td" style={{ textAlign: 'right' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                                                <div style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px', fontWeight: '600', color: '#1C1C1E' }}>
+                                                    {tx.bank_info}
+                                                </div>
+                                                <button className="ios-btn-micro outline" onClick={() => handleCopyAddress(tx.bank_info)}>
+                                                    <Copy size={12}/> 복사
+                                                </button>
+                                            </div>
                                         </td>
                                         <td className="ios-td" style={{ textAlign: 'right', paddingRight: '16px' }}>
                                             {activeTab === 'pending' ? (
                                                 <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                                                    <button className="ios-btn-micro success" onClick={() => handleApprove(tx.id)}>송금 완료</button>
-                                                    <button className="ios-btn-micro danger" onClick={() => handleReject(tx)}>거절(환불)</button>
+                                                    <button className="ios-btn-micro success" onClick={() => handleApprove(tx.id, tx.profiles?.name || '회원', tx.request_amount)}>송금 완료</button>
+                                                    <button className="ios-btn-micro danger" onClick={() => handleReject(tx.id, tx.request_amount)}>거절(환불)</button>
                                                 </div>
+                                            ) : tx.status === 'rejected' ? (
+                                                <div style={{ fontSize: '11px', color: '#8E8E93' }}>사유: {tx.reject_reason}</div>
                                             ) : (
-                                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#34C759' }}><CheckCircle2 size={12} style={{verticalAlign:'middle', marginRight:'2px'}}/> 완료됨</span>
+                                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#34C759' }}><CheckCircle2 size={12} style={{verticalAlign:'middle', marginRight:'2px'}}/> 승인완료</span>
                                             )}
                                         </td>
                                     </tr>
