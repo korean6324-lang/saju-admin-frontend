@@ -12,8 +12,9 @@ import AdminOverview from '../components/admin/AdminOverview';
 import AdminMyeongdang from '../components/admin/AdminMyeongdang';
 import AdminMyeongdangRequests from '../components/admin/AdminMyeongdangRequests';
 import AdminNotice from '../components/admin/AdminNotice';
-import AdminCash from '../components/admin/AdminCash';
-import AdminDeposit from '../components/admin/AdminDeposit'; // 🚨 신규 추가: 충전 승인 관리 컴포넌트 임포트
+import AdminCash from '../components/admin/AdminCash'; // 기존 컴포넌트 유지
+import AdminExchange from '../components/admin/AdminExchange'; // 🚨 신규 추가: 환전(출금) 정산 컴포넌트 임포트
+import AdminDeposit from '../components/admin/AdminDeposit'; 
 import AdminMedia from '../components/admin/AdminMedia';
 import AdminBanner from '../components/admin/AdminBanner';
 import AdminPartners from '../components/admin/AdminPartners';
@@ -71,12 +72,11 @@ export default function AdminDashboard() {
         </div>
     );
 
-    // 🚨 불필요한 하위 메뉴 제거 및 정산관리에 '충전 승인 관리' 추가
     const menuItems = [
         { category: '서비스 관리', hideCategoryTitle: false, items: [
             { id: 'overview', icon: BarChart3, label: '대시보드 통계' },
             { id: 'user_manage', icon: UserPlus, label: '사용자관리' },
-            { id: 'member_manage', icon: Users, label: '회원 및 권한 관리' } // 단일 메뉴로 통합
+            { id: 'member_manage', icon: Users, label: '회원 및 권한 관리' }
         ]},
         { category: '정산관리', hideCategoryTitle: true, items: [
             { 
@@ -84,8 +84,8 @@ export default function AdminDashboard() {
                 icon: Wallet, 
                 label: '정산관리', 
                 subItems: [
-                    { id: 'cash', label: '1. 환전(출금) 정산' }, 
-                    { id: 'deposit', label: '2. 충전(입금) 승인 관리' } // 🚨 신규 메뉴 추가됨
+                    { id: 'exchange', label: '1. 환전(출금) 정산' }, // 🚨 'cash'에서 'exchange'로 ID 변경 연결
+                    { id: 'deposit', label: '2. 충전(입금) 승인 관리' }
                 ]
             }
         ]},
@@ -294,12 +294,13 @@ export default function AdminDashboard() {
                         {activeTab === 'overview' && <AdminOverview adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'user_manage' && <AdminUserManage adminTheme={adminTheme} />}
                         
-                        {/* 회원관리: 불필요한 하위탭 제거 후 직관적인 렌더링 */}
+                        {/* 회원관리 */}
                         {activeTab === 'member_manage' && <AdminPartners adminTheme={adminTheme} defaultTab="users" />}
                         
-                        {/* 🚨 정산관리 하위 */}
-                        {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} />}
-                        {activeTab === 'deposit' && <AdminDeposit adminTheme={adminTheme} />} {/* 충전 승인 관리 컴포넌트 추가 */}
+                        {/* 🚨 정산관리 하위 (신규 환전 승인 페이지 렌더링) */}
+                        {activeTab === 'exchange' && <AdminExchange adminTheme={adminTheme} />}
+                        {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} />} {/* 기존 파일 보존용 */}
+                        {activeTab === 'deposit' && <AdminDeposit adminTheme={adminTheme} />} 
 
                         {/* 콘텐츠 관리 하위 */}
                         {activeTab === 'myeongdang' && <AdminMyeongdang adminTheme={adminTheme} />}
