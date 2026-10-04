@@ -113,28 +113,51 @@ export default function AdminPartners({ adminTheme }) {
     };
 
     const [isUpdatingTier, setIsUpdatingTier] = useState(false);
+    
+    // 🚨 수정된 로직: 파트너 상점 DB 오류가 발생해도 회원 등급은 정상적으로 변경되도록 예외 처리 분리
     const handleChangeUserTier = async (newTier) => {
         if (!selectedUser) return;
-        if (!window.confirm('등급을 변경하시겠습니까?')) return;
+        if (!window.confirm('선택하신 등급으로 변경하시겠습니까?')) return;
         setIsUpdatingTier(true);
+        
         try {
             let updatedRole = newTier === 'partner' ? 'partner' : 'user';
-            const { error: profileError } = await supabase.from('profiles').update({ role: updatedRole, membership_tier: newTier === 'partner' ? selectedUser.membership_tier : newTier }).eq('id', selectedUser.id);
+            let updatedTier = newTier === 'partner' ? (selectedUser.membership_tier || 'free') : newTier;
+
+            // 1. 프로필 테이블 등급 업데이트 (메인 로직)
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({ role: updatedRole, membership_tier: updatedTier })
+                .eq('id', selectedUser.id);
+                
             if (profileError) throw profileError;
 
-            // 파트너 등급 부여/회수 시 상점 DB 연동 처리
-            if (updatedRole === 'partner') {
-                const { data: existingShop } = await supabase.from('partner_shops').select('partner_id').eq('partner_id', selectedUser.id).maybeSingle();
-                if (!existingShop) await supabase.from('partner_shops').insert([{ partner_id: selectedUser.id, shop_name: '신규 상점', is_active: true }]);
-                else await supabase.from('partner_shops').update({ is_active: true }).eq('partner_id', selectedUser.id);
-            } else {
-                await supabase.from('partner_shops').update({ is_active: false }).eq('partner_id', selectedUser.id);
+            // 2. 파트너 상점 DB 연동 처리 (테이블이 없을 수 있으므로 내부 에러 무시)
+            try {
+                if (updatedRole === 'partner') {
+                    const { data: existingShop } = await supabase.from('partner_shops').select('partner_id').eq('partner_id', selectedUser.id).maybeSingle();
+                    if (!existingShop) {
+                        await supabase.from('partner_shops').insert([{ partner_id: selectedUser.id, shop_name: '신규 상점', is_active: true }]);
+                    } else {
+                        await supabase.from('partner_shops').update({ is_active: true }).eq('partner_id', selectedUser.id);
+                    }
+                } else {
+                    await supabase.from('partner_shops').update({ is_active: false }).eq('partner_id', selectedUser.id);
+                }
+            } catch (shopError) {
+                console.warn('파트너 상점 DB 연동 무시됨 (테이블 미존재):', shopError);
             }
             
-            setSelectedUser(prev => ({ ...prev, role: updatedRole, membership_tier: newTier === 'partner' ? prev.membership_tier : newTier }));
+            // 상태 업데이트 및 리렌더링
+            setSelectedUser(prev => ({ ...prev, role: updatedRole, membership_tier: updatedTier }));
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
-            alert('✅ 변경 완료');
-        } catch (error) { alert('❌ 오류 발생'); } finally { setIsUpdatingTier(false); }
+            alert('✅ 회원 등급 변경이 완료되었습니다.');
+        } catch (error) { 
+            console.error('등급 변경 에러:', error);
+            alert(`❌ 등급 변경 실패: ${error.message}`); 
+        } finally { 
+            setIsUpdatingTier(false); 
+        }
     };
 
     const handleSaveMemo = async () => {
