@@ -114,7 +114,7 @@ export default function AdminPartners({ adminTheme }) {
 
     const [isUpdatingTier, setIsUpdatingTier] = useState(false);
     
-    // 🚨 수정된 로직: 파트너 상점 DB 오류가 발생해도 회원 등급은 정상적으로 변경되도록 예외 처리 분리
+    // 🚨 직접 update() 방식을 완전히 제거하고 백엔드 보안 함수(RPC)를 호출하도록 수정 완료
     const handleChangeUserTier = async (newTier) => {
         if (!selectedUser) return;
         if (!window.confirm('선택하신 등급으로 변경하시겠습니까?')) return;
@@ -124,15 +124,16 @@ export default function AdminPartners({ adminTheme }) {
             let updatedRole = newTier === 'partner' ? 'partner' : 'user';
             let updatedTier = newTier === 'partner' ? (selectedUser.membership_tier || 'free') : newTier;
 
-            // 1. 프로필 테이블 등급 업데이트 (메인 로직)
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({ role: updatedRole, membership_tier: updatedTier })
-                .eq('id', selectedUser.id);
+            // 1. 프로필 테이블 등급 업데이트 (보안 트리거 우회를 위해 RPC 사용)
+            const { error: profileError } = await supabase.rpc('admin_update_user_tier', {
+                p_target_user_id: selectedUser.id,
+                p_new_role: updatedRole,
+                p_new_tier: updatedTier
+            });
                 
             if (profileError) throw profileError;
 
-            // 2. 파트너 상점 DB 연동 처리 (테이블이 없을 수 있으므로 내부 에러 무시)
+            // 2. 파트너 상점 DB 연동 처리
             try {
                 if (updatedRole === 'partner') {
                     const { data: existingShop } = await supabase.from('partner_shops').select('partner_id').eq('partner_id', selectedUser.id).maybeSingle();
@@ -145,16 +146,17 @@ export default function AdminPartners({ adminTheme }) {
                     await supabase.from('partner_shops').update({ is_active: false }).eq('partner_id', selectedUser.id);
                 }
             } catch (shopError) {
-                console.warn('파트너 상점 DB 연동 무시됨 (테이블 미존재):', shopError);
+                console.warn('파트너 상점 DB 연동 무시됨:', shopError);
             }
             
-            // 상태 업데이트 및 리렌더링
             setSelectedUser(prev => ({ ...prev, role: updatedRole, membership_tier: updatedTier }));
             queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
             alert('✅ 회원 등급 변경이 완료되었습니다.');
         } catch (error) { 
             console.error('등급 변경 에러:', error);
-            alert(`❌ 등급 변경 실패: ${error.message}`); 
+            // 에러 객체가 깨지지 않고 정확한 원인이 출력되도록 수정
+            const errorMsg = error.message || (typeof error === 'object' ? JSON.stringify(error) : error);
+            alert(`❌ 등급 변경 실패: ${errorMsg}`); 
         } finally { 
             setIsUpdatingTier(false); 
         }
