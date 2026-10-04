@@ -12,8 +12,9 @@ import AdminOverview from '../components/admin/AdminOverview';
 import AdminMyeongdang from '../components/admin/AdminMyeongdang';
 import AdminMyeongdangRequests from '../components/admin/AdminMyeongdangRequests';
 import AdminNotice from '../components/admin/AdminNotice';
-import AdminCash from '../components/admin/AdminCash'; // 🚨 기존 AdminCash를 그대로 사용
+import AdminCash from '../components/admin/AdminCash'; // 기존 AdminCash를 그대로 사용
 import AdminDeposit from '../components/admin/AdminDeposit'; 
+import AdminProfit from '../components/admin/AdminProfit'; // 🚨 신규 추가: 수익금(통계) 관리 컴포넌트 임포트
 import AdminMedia from '../components/admin/AdminMedia';
 import AdminBanner from '../components/admin/AdminBanner';
 import AdminPartners from '../components/admin/AdminPartners';
@@ -83,8 +84,9 @@ export default function AdminDashboard() {
                 icon: Wallet, 
                 label: '정산관리', 
                 subItems: [
-                    { id: 'cash', label: '1. 환전(출금) 정산' }, // 🚨 다시 cash 로 복구
-                    { id: 'deposit', label: '2. 충전(입금) 승인 관리' }
+                    { id: 'cash', label: '1. 환전(출금) 정산' }, 
+                    { id: 'deposit', label: '2. 충전(입금) 승인 관리' },
+                    { id: 'profit', label: '3. 수익금 (통계) 관리' } // 🚨 새로 추가된 메뉴
                 ]
             }
         ]},
@@ -294,9 +296,10 @@ export default function AdminDashboard() {
                         {activeTab === 'user_manage' && <AdminUserManage adminTheme={adminTheme} />}
                         {activeTab === 'member_manage' && <AdminPartners adminTheme={adminTheme} defaultTab="users" />}
                         
-                        {/* 🚨 정산관리 하위 (AdminCash 하나로 통합 처리) */}
+                        {/* 🚨 정산관리 하위 (수익금 통계 관리 추가) */}
                         {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} />} 
                         {activeTab === 'deposit' && <AdminDeposit adminTheme={adminTheme} />} 
+                        {activeTab === 'profit' && <AdminProfit adminTheme={adminTheme} />} 
 
                         {/* 콘텐츠 관리 하위 */}
                         {activeTab === 'myeongdang' && <AdminMyeongdang adminTheme={adminTheme} />}
