@@ -12,8 +12,7 @@ import AdminOverview from '../components/admin/AdminOverview';
 import AdminMyeongdang from '../components/admin/AdminMyeongdang';
 import AdminMyeongdangRequests from '../components/admin/AdminMyeongdangRequests';
 import AdminNotice from '../components/admin/AdminNotice';
-import AdminCash from '../components/admin/AdminCash'; // 기존 컴포넌트 유지
-import AdminExchange from '../components/admin/AdminExchange'; // 🚨 신규 추가: 환전(출금) 정산 컴포넌트 임포트
+import AdminCash from '../components/admin/AdminCash'; // 🚨 기존 AdminCash를 그대로 사용
 import AdminDeposit from '../components/admin/AdminDeposit'; 
 import AdminMedia from '../components/admin/AdminMedia';
 import AdminBanner from '../components/admin/AdminBanner';
@@ -84,7 +83,7 @@ export default function AdminDashboard() {
                 icon: Wallet, 
                 label: '정산관리', 
                 subItems: [
-                    { id: 'exchange', label: '1. 환전(출금) 정산' }, // 🚨 'cash'에서 'exchange'로 ID 변경 연결
+                    { id: 'cash', label: '1. 환전(출금) 정산' }, // 🚨 다시 cash 로 복구
                     { id: 'deposit', label: '2. 충전(입금) 승인 관리' }
                 ]
             }
@@ -293,13 +292,10 @@ export default function AdminDashboard() {
                     <div style={{ width: '100%', maxWidth: '1600px', margin: '0 auto' }}>
                         {activeTab === 'overview' && <AdminOverview adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'user_manage' && <AdminUserManage adminTheme={adminTheme} />}
-                        
-                        {/* 회원관리 */}
                         {activeTab === 'member_manage' && <AdminPartners adminTheme={adminTheme} defaultTab="users" />}
                         
-                        {/* 🚨 정산관리 하위 (신규 환전 승인 페이지 렌더링) */}
-                        {activeTab === 'exchange' && <AdminExchange adminTheme={adminTheme} />}
-                        {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} />} {/* 기존 파일 보존용 */}
+                        {/* 🚨 정산관리 하위 (AdminCash 하나로 통합 처리) */}
+                        {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} />} 
                         {activeTab === 'deposit' && <AdminDeposit adminTheme={adminTheme} />} 
 
                         {/* 콘텐츠 관리 하위 */}
