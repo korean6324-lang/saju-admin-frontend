@@ -12,11 +12,12 @@ import AdminOverview from '../components/admin/AdminOverview';
 import AdminMyeongdang from '../components/admin/AdminMyeongdang';
 import AdminMyeongdangRequests from '../components/admin/AdminMyeongdangRequests';
 import AdminNotice from '../components/admin/AdminNotice';
-import AdminCash from '../components/admin/AdminCash'; // 기존 AdminCash를 그대로 사용
+import AdminCash from '../components/admin/AdminCash'; 
 import AdminDeposit from '../components/admin/AdminDeposit'; 
-import AdminProfit from '../components/admin/AdminProfit'; // 🚨 신규 추가: 수익금(통계) 관리 컴포넌트 임포트
+import AdminProfit from '../components/admin/AdminProfit'; 
 import AdminMedia from '../components/admin/AdminMedia';
 import AdminBanner from '../components/admin/AdminBanner';
+import AdminInquiry from '../components/admin/AdminInquiry'; // 🚨 신규 추가: 1:1 고객 문의 관리 컴포넌트 임포트
 import AdminPartners from '../components/admin/AdminPartners';
 import AdminAccount from '../components/admin/AdminAccount'; 
 import AdminUserManage from '../components/admin/AdminUserManage'; 
@@ -86,7 +87,7 @@ export default function AdminDashboard() {
                 subItems: [
                     { id: 'cash', label: '1. 환전(출금) 정산' }, 
                     { id: 'deposit', label: '2. 충전(입금) 승인 관리' },
-                    { id: 'profit', label: '3. 수익금 (통계) 관리' } // 🚨 새로 추가된 메뉴
+                    { id: 'profit', label: '3. 수익금 (통계) 관리' } 
                 ]
             }
         ]},
@@ -109,7 +110,8 @@ export default function AdminDashboard() {
                 label: '운영/마케팅 관리', 
                 subItems: [
                     { id: 'notice', label: '1. 공지사항 및 알림톡' },
-                    { id: 'banner', label: '2. 메인 배너 스케줄링' }
+                    { id: 'banner', label: '2. 메인 배너 스케줄링' },
+                    { id: 'inquiry', label: '3. 1:1 고객 문의 관리' } // 🚨 새로 추가된 메뉴
                 ]
             }
         ]},
@@ -296,7 +298,7 @@ export default function AdminDashboard() {
                         {activeTab === 'user_manage' && <AdminUserManage adminTheme={adminTheme} />}
                         {activeTab === 'member_manage' && <AdminPartners adminTheme={adminTheme} defaultTab="users" />}
                         
-                        {/* 🚨 정산관리 하위 (수익금 통계 관리 추가) */}
+                        {/* 정산관리 하위 */}
                         {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} />} 
                         {activeTab === 'deposit' && <AdminDeposit adminTheme={adminTheme} />} 
                         {activeTab === 'profit' && <AdminProfit adminTheme={adminTheme} />} 
@@ -306,9 +308,10 @@ export default function AdminDashboard() {
                         {activeTab === 'myeongdang_requests' && <AdminMyeongdangRequests adminTheme={adminTheme} />}
                         {activeTab === 'media' && <AdminMedia adminTheme={adminTheme} />}
 
-                        {/* 운영/마케팅 관리 하위 */}
+                        {/* 🚨 운영/마케팅 관리 하위 (1:1 문의 관리 렌더링 추가) */}
                         {activeTab === 'notice' && <AdminNotice adminTheme={adminTheme} />}
                         {activeTab === 'banner' && <AdminBanner adminTheme={adminTheme} />}
+                        {activeTab === 'inquiry' && <AdminInquiry adminTheme={adminTheme} />} 
 
                         {/* 환경설정 하위 */}
                         {activeTab === 'site_settings' && <AdminSiteSettings adminTheme={adminTheme} />} 
