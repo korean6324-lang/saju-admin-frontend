@@ -5,7 +5,7 @@ import { supabase } from '../api/supabaseClient';
 import { 
     Map, MonitorPlay, Image as ImageIcon, Users, BarChart3, 
     Bell, Wallet, LogOut, Settings, ChevronRight, UserPlus, Sliders,
-    Search, Layers, Megaphone
+    Search, Layers, Megaphone, ShieldBan // 🚨 ShieldBan 아이콘 추가
 } from 'lucide-react'; 
 
 import AdminOverview from '../components/admin/AdminOverview';
@@ -22,9 +22,10 @@ import AdminPartners from '../components/admin/AdminPartners';
 import AdminAccount from '../components/admin/AdminAccount'; 
 import AdminUserManage from '../components/admin/AdminUserManage'; 
 import AdminSiteSettings from '../components/admin/AdminSiteSettings'; 
-
-// 🚨 유저 상세 페이지 컴포넌트 임포트 (파일 경로는 실제 생성하신 위치에 맞게 조정해주세요)
 import AdminUserDetail from '../components/admin/AdminUserDetail'; 
+
+// 🚨 생성하신 차단 IP 관리 페이지 임포트
+import AdminIpManagement from './AdminIpManagement'; 
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
@@ -33,26 +34,22 @@ export default function AdminDashboard() {
     const [isChecking, setIsChecking] = useState(true);
     const [openMenus, setOpenMenus] = useState({});
     
-    // 🚨 유저 상세 페이지로 넘길 때 선택된 유저의 ID를 보관하는 상태
     const [selectedUserId, setSelectedUserId] = useState(null);
 
     const toggleMenu = (id) => {
         setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
-    // 자식 컴포넌트(AdminPartners 등)에서 상세 페이지로 이동시킬 때 호출할 함수
     const goToUserDetail = (userId) => {
         setSelectedUserId(userId);
-        setActiveTab('user_detail'); // 탭을 강제로 유저 상세 모드로 변경
+        setActiveTab('user_detail'); 
     };
 
-    // 상세 페이지에서 다시 목록으로 돌아올 때 호출할 함수
     const goBackToUsers = () => {
         setSelectedUserId(null);
-        setActiveTab('member_manage'); // 다시 회원 관리 탭으로 복귀
+        setActiveTab('member_manage'); 
     };
 
-    // 🌟 화사하고 밝은 모던 브라이트(Modern Bright) 테마
     const adminTheme = {
         bg: '#F8FAFC',            
         panelBg: '#FFFFFF',       
@@ -95,7 +92,9 @@ export default function AdminDashboard() {
         { category: '서비스 관리', hideCategoryTitle: false, items: [
             { id: 'overview', icon: BarChart3, label: '대시보드 통계' },
             { id: 'user_manage', icon: UserPlus, label: '사용자관리' },
-            { id: 'member_manage', icon: Users, label: '회원 및 권한 관리' }
+            { id: 'member_manage', icon: Users, label: '회원 및 권한 관리' },
+            // 🚨 서비스 관리 탭에 차단 IP 관리 메뉴 추가
+            { id: 'ip_management', icon: ShieldBan, label: '전체 차단 IP 관리' } 
         ]},
         { category: '정산관리', hideCategoryTitle: true, items: [
             { 
@@ -318,12 +317,11 @@ export default function AdminDashboard() {
                     <div style={{ width: '100%', maxWidth: '1600px', margin: '0 auto' }}>
                         {activeTab === 'overview' && <AdminOverview adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'user_manage' && <AdminUserManage adminTheme={adminTheme} />}
-                        
-                        {/* 🚨 기존 AdminPartners에 goToUserDetail 함수 전달 */}
                         {activeTab === 'member_manage' && <AdminPartners adminTheme={adminTheme} defaultTab="users" onGoToDetail={goToUserDetail} />}
-                        
-                        {/* 🚨 유저 상세 페이지 컴포넌트 렌더링 */}
                         {activeTab === 'user_detail' && <AdminUserDetail adminTheme={adminTheme} userId={selectedUserId} onGoBack={goBackToUsers} />}
+                        
+                        {/* 🚨 전체 차단 IP 관리 페이지 렌더링 연결 */}
+                        {activeTab === 'ip_management' && <AdminIpManagement />}
                         
                         {/* 정산관리 하위 */}
                         {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} />} 
