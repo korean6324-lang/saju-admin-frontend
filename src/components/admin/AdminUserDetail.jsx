@@ -1,12 +1,18 @@
 // src/components/admin/AdminUserDetail.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
-import { ArrowLeft, Save, ShieldAlert, Coins, Ticket, Key, Trash2, Ban, History, UserCheck, MonitorSmartphone, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Save, ShieldAlert, Coins, Ticket, Key, Trash2, Ban, History, UserCheck, MonitorSmartphone, RefreshCw, ChevronLeft, ChevronRight, ShieldBan, ShieldCheck } from 'lucide-react'; // 🚨 아이콘 추가
 
 export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const [user, setUser] = useState(null);
     const [accessLogs, setAccessLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // 🚨 1. 페이지네이션 및 차단 IP 관리를 위한 상태 추가
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [blockedIps, setBlockedIps] = useState(new Set());
+    const itemsPerPage = 10;
 
     // 1. 기본 정보 & 권한 폼
     const [infoForm, setInfoForm] = useState({
@@ -17,26 +23,42 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const [newPassword, setNewPassword] = useState('');
     const [assetForm, setAssetForm] = useState({ point: 0, game_money: 0, ticket: 0, reason: '' });
 
-    // 🚨 접속 로그만 단독으로 다시 불러오는 함수 (팝업 피드백 추가)
-    const fetchAccessLogs = async (isManual = false) => {
+    // 🚨 2. 접속 로그 호출 함수 업그레이드 (페이지네이션 적용 및 차단 상태 확인)
+    const fetchAccessLogs = async (page = 1, isManual = false) => {
         try {
-            const { data: logs, error } = await supabase
+            const from = (page - 1) * itemsPerPage;
+            const to = from + itemsPerPage - 1;
+
+            const { data: logs, count, error } = await supabase
                 .from('access_logs')
-                .select('*')
+                .select('*', { count: 'exact' })
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false })
-                .limit(10);
+                .range(from, to);
             
             if (error) {
                 console.error("로그 조회 에러 상세:", error);
                 alert(`접속 로그를 불러오지 못했습니다.\n원인: ${error.message}`);
             } else {
                 setAccessLogs(logs || []);
+                setTotalPages(Math.ceil((count || 0) / itemsPerPage));
+                setCurrentPage(page);
+
+                // 현재 목록에 있는 IP들이 차단되었는지 확인 (버튼 색상 변경용)
+                if (logs && logs.length > 0) {
+                    const uniqueIps = [...new Set(logs.map(log => log.ip_address))];
+                    const { data: blockedData } = await supabase
+                        .from('blocked_ips')
+                        .select('ip_address')
+                        .in('ip_address', uniqueIps);
+                    
+                    const blockedSet = new Set(blockedData?.map(b => b.ip_address) || []);
+                    setBlockedIps(blockedSet);
+                }
                 
-                // 사용자가 직접 '새로고침' 버튼을 눌렀을 때만 팝업 알림
                 if (isManual) {
                     if (logs && logs.length > 0) {
-                        alert(`✅ 최신 접속 로그 ${logs.length}건을 성공적으로 불러왔습니다.`);
+                        alert(`✅ 최신 접속 로그를 성공적으로 불러왔습니다. (현재 ${page}페이지)`);
                     } else {
                         alert(`ℹ️ DB를 확인했지만 아직 수집된 로그가 0건입니다.\n\n[해결 방법]\n1. 유저 화면(두 번째 탭, 화복당)으로 이동합니다.\n2. 키보드 F5(새로고침)를 한 번 누릅니다.\n3. 다시 여기로 와서 이 버튼을 눌러보세요!`);
                     }
@@ -44,6 +66,29 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
             }
         } catch (err) {
             console.error("네트워크 에러:", err);
+        }
+    };
+
+    // 🚨 3. 개별 IP 차단 / 차단 해제 토글 함수
+    const toggleIpBlock = async (ipAddress) => {
+        const isBlocked = blockedIps.has(ipAddress);
+        
+        try {
+            if (isBlocked) {
+                if (!window.confirm(`[${ipAddress}]\n해당 IP의 차단을 해제하시겠습니까?`)) return;
+                const { error } = await supabase.from('blocked_ips').delete().eq('ip_address', ipAddress);
+                if (error) throw error;
+                alert('✅ IP 차단이 해제되었습니다.');
+            } else {
+                const reason = window.prompt(`[${ipAddress}]\n차단 사유를 입력하세요 (생략 가능):`);
+                if (reason === null) return; 
+                const { error } = await supabase.from('blocked_ips').insert([{ ip_address: ipAddress, reason: reason || '관리자 강제 차단' }]);
+                if (error) throw error;
+                alert('🚨 해당 IP가 즉시 차단되었습니다.');
+            }
+            fetchAccessLogs(currentPage); // 상태 반영을 위해 목록 새로고침
+        } catch (error) {
+            alert("처리 중 에러가 발생했습니다: " + error.message);
         }
     };
 
@@ -64,8 +109,8 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                 });
             }
             
-            // 접속 IP 이력 호출 (초기 로드는 팝업 띄우지 않음)
-            await fetchAccessLogs(false);
+            // 접속 IP 이력 첫 페이지 호출
+            await fetchAccessLogs(1, false);
 
         } catch (error) { 
             console.error("로딩 에러:", error); 
@@ -249,43 +294,83 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     </div>
                 </div>
 
-                {/* 3. 보안 로그 & 위험 관리 */}
+                {/* 3. 보안 로그 & 위험 관리 (페이징 + IP 차단 기능 추가) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', gridColumn: '1 / -1' }}>
                     <div style={cardStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                             <h3 style={{ fontSize: '15px', color: adminTheme.textBright, display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontWeight: '700' }}>
                                 <MonitorSmartphone size={18}/> 최근 접속 IP 내역 (보안 로그)
                             </h3>
-                            {/* 🚨 isManual = true 로 호출하도록 수정 */}
                             <button 
-                                onClick={() => fetchAccessLogs(true)} 
+                                onClick={() => fetchAccessLogs(1, true)} 
                                 style={{ background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#007AFF', cursor: 'pointer', fontWeight: '600' }}
                             >
                                 <RefreshCw size={14} /> 새로고침
                             </button>
                         </div>
+                        
                         <div style={{ borderRadius: '8px', border: `1px solid ${adminTheme.border}`, overflow: 'hidden' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                                 <thead style={{ background: '#F8FAFC' }}>
                                     <tr>
                                         <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>접속 일시</th>
                                         <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>접속 IP</th>
+                                        <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>차단 관리</th>
                                         <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>환경 (브라우저/OS)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {accessLogs.length === 0 ? (
-                                        <tr><td colSpan="3" style={{ padding: '20px', textAlign: 'center', color: adminTheme.textMuted }}>수집된 접속 로그가 없습니다.</td></tr>
-                                    ) : accessLogs.map(log => (
-                                        <tr key={log.id}>
-                                            <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}` }}>{new Date(log.created_at).toLocaleString()}</td>
-                                            <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, fontWeight: '600', color: '#007AFF' }}>{log.ip_address}</td>
-                                            <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontSize: '11px' }}>{log.user_agent}</td>
-                                        </tr>
-                                    ))}
+                                        <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: adminTheme.textMuted }}>수집된 접속 로그가 없습니다.</td></tr>
+                                    ) : accessLogs.map(log => {
+                                        const isBlocked = blockedIps.has(log.ip_address);
+                                        return (
+                                            <tr key={log.id} style={{ background: isBlocked ? '#FEF2F2' : 'transparent' }}>
+                                                <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}` }}>{new Date(log.created_at).toLocaleString()}</td>
+                                                <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, fontWeight: '700', color: isBlocked ? '#DC2626' : '#007AFF' }}>
+                                                    {log.ip_address}
+                                                </td>
+                                                <td style={{ padding: '8px 16px', borderBottom: `1px solid ${adminTheme.border}` }}>
+                                                    <button 
+                                                        onClick={() => toggleIpBlock(log.ip_address)} 
+                                                        style={{ 
+                                                            display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', fontSize: '11px', fontWeight: '700', borderRadius: '4px', border: 'none', cursor: 'pointer', transition: 'all 0.2s', 
+                                                            background: isBlocked ? '#DC2626' : '#E2E8F0', color: isBlocked ? '#FFF' : '#475569' 
+                                                        }}
+                                                    >
+                                                        {isBlocked ? <><ShieldCheck size={12}/> 차단 해제</> : <><ShieldBan size={12}/> IP 차단</>}
+                                                    </button>
+                                                </td>
+                                                <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontSize: '11px' }}>{log.user_agent}</td>
+                                            </tr>
+                                        )
+                                    })}
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* 🚨 페이지 네비게이션 */}
+                        {totalPages > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
+                                <button 
+                                    disabled={currentPage === 1} 
+                                    onClick={() => fetchAccessLogs(currentPage - 1)} 
+                                    style={{ display: 'flex', alignItems: 'center', background: 'transparent', border: 'none', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? '#CBD5E1' : '#1C1C1E', fontWeight: '700' }}
+                                >
+                                    <ChevronLeft size={18}/> 이전
+                                </button>
+                                <span style={{ fontSize: '13px', fontWeight: '700', color: adminTheme.textMuted }}>
+                                    {currentPage} / {totalPages}
+                                </span>
+                                <button 
+                                    disabled={currentPage >= totalPages} 
+                                    onClick={() => fetchAccessLogs(currentPage + 1)} 
+                                    style={{ display: 'flex', alignItems: 'center', background: 'transparent', border: 'none', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', color: currentPage >= totalPages ? '#CBD5E1' : '#1C1C1E', fontWeight: '700' }}
+                                >
+                                    다음 <ChevronRight size={18}/>
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* 위험 구역 (계정 삭제) */}
