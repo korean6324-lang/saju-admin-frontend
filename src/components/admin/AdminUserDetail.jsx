@@ -13,14 +13,15 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const [blockedIps, setBlockedIps] = useState(new Set());
     const itemsPerPage = 10;
 
-    // 🚨 자산(장부) 로그 페이징 상태 추가
     const [coinLogs, setCoinLogs] = useState([]);
     const [coinCurrentPage, setCoinCurrentPage] = useState(1);
     const [coinTotalPages, setCoinTotalPages] = useState(1);
 
+    // 🚨 유저 폼에 환전 계좌/지갑 상태 추가
     const [infoForm, setInfoForm] = useState({
         login_id: '', exchange_password: '', phone: '',
-        role: 'user', membership_tier: 'free', is_blocked: false, memo: ''
+        role: 'user', membership_tier: 'free', is_blocked: false, memo: '',
+        bank_name: '', bank_account_number: '', bank_account_holder: '', crypto_wallet_address: ''
     });
 
     const [newPassword, setNewPassword] = useState('');
@@ -70,7 +71,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
         }
     };
 
-    // 🚨 특정 유저의 자산 장부(coin_history)를 불러오는 함수
     const fetchCoinLogs = async (page = 1, isManual = false) => {
         try {
             const from = (page - 1) * itemsPerPage;
@@ -122,14 +122,16 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
             if (profile) {
                 setUser(profile);
+                // 🚨 로드 시 지갑 및 계좌 정보도 함께 불러오기
                 setInfoForm({
                     login_id: profile.login_id || '', exchange_password: profile.exchange_password || '',
                     phone: profile.phone || '', role: profile.role || 'user', 
                     membership_tier: profile.membership_tier || 'free', is_blocked: profile.is_blocked || false,
-                    memo: profile.memo || ''
+                    memo: profile.memo || '',
+                    bank_name: profile.bank_name || '', bank_account_number: profile.bank_account_number || '',
+                    bank_account_holder: profile.bank_account_holder || '', crypto_wallet_address: profile.crypto_wallet_address || ''
                 });
             }
-            // 🚨 화면 로드 시 IP 로그와 장부 로그를 동시에 불러옴
             await fetchAccessLogs(1, false);
             await fetchCoinLogs(1, false);
         } catch (error) { 
@@ -143,12 +145,24 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const handleSaveInfo = async () => {
         if (!window.confirm("회원 기본 정보 및 권한을 수정하시겠습니까?")) return;
         try {
-            const { error } = await supabase.rpc('admin_update_user_full', {
+            // 1. 기존 기본 정보 및 권한 업데이트 (RPC 호출)
+            const { error: rpcError } = await supabase.rpc('admin_update_user_full', {
                 p_user_id: userId, p_login_id: infoForm.login_id, p_exchange_password: infoForm.exchange_password,
                 p_phone: infoForm.phone, p_role: infoForm.role, p_membership_tier: infoForm.membership_tier,
                 p_is_blocked: infoForm.is_blocked, p_memo: infoForm.memo
             });
-            if (error) throw error;
+            if (rpcError) throw rpcError;
+
+            // 🚨 2. 추가된 계좌 및 지갑 정보 업데이트
+            const { error: updateError } = await supabase.from('profiles').update({
+                bank_name: infoForm.bank_name,
+                bank_account_number: infoForm.bank_account_number,
+                bank_account_holder: infoForm.bank_account_holder,
+                crypto_wallet_address: infoForm.crypto_wallet_address
+            }).eq('id', userId);
+            
+            if (updateError) throw updateError;
+
             alert("✅ 정보가 성공적으로 수정되었습니다.");
             loadUserData();
         } catch (error) { alert("❌ 수정 실패: " + error.message); }
@@ -197,7 +211,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
 
             alert(`✅ 성공적으로 ${actionText}되었습니다.`);
             setAssetForm({ point: 0, game_money: 0, ticket: 0, reason: '' });
-            loadUserData(); // 🚨 처리 완료 후 정보 및 장부 즉시 갱신
+            loadUserData(); 
         } catch (error) { 
             alert(`❌ 자산 ${actionText} 실패: ` + error.message); 
         }
@@ -255,8 +269,8 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     <h3 style={{ fontSize: '15px', color: adminTheme.primary, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px', fontWeight: '700' }}>
                         <UserCheck size={18}/> 기본 정보 및 권한 제어
                     </h3>
+                    
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                        
                         <div>
                             <label style={labelStyle}>로그인 비밀번호 (강제 변경)</label>
                             <div style={{ display: 'flex', gap: '6px' }}>
@@ -264,7 +278,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                                 <button onClick={handleChangePassword} style={{ background: '#7C3AED', color: '#FFF', border: 'none', padding: '0 14px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '12px' }}>변경</button>
                             </div>
                         </div>
-
                         <div><label style={labelStyle}>휴대폰 번호 (수정)</label><input type="text" value={infoForm.phone} onChange={e=>setInfoForm({...infoForm, phone: e.target.value})} style={inputStyle} /></div>
                         <div><label style={labelStyle}>환전 비밀번호 (수정)</label><input type="text" value={infoForm.exchange_password} onChange={e=>setInfoForm({...infoForm, exchange_password: e.target.value})} style={inputStyle} /></div>
                         <div>
@@ -291,10 +304,28 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                             </select>
                         </div>
                     </div>
+
+                    {/* 🚨 고객의 계좌번호 및 전자지갑 주소 확인 및 수정 영역 추가 */}
+                    <div style={{ gridColumn: '1 / -1', marginTop: '16px', paddingTop: '16px', borderTop: `1px dashed ${adminTheme.border}`, marginBottom: '16px' }}>
+                        <h4 style={{ fontSize: '13px', color: '#D97706', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Coins size={14} /> 유저가 등록한 환전(수령) 계좌 및 지갑
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                            <div><label style={labelStyle}>은행명</label><input type="text" value={infoForm.bank_name} onChange={e=>setInfoForm({...infoForm, bank_name: e.target.value})} style={inputStyle} placeholder="예: 국민은행" /></div>
+                            <div><label style={labelStyle}>계좌번호</label><input type="text" value={infoForm.bank_account_number} onChange={e=>setInfoForm({...infoForm, bank_account_number: e.target.value})} style={inputStyle} placeholder="계좌번호 (- 포함)" /></div>
+                            <div><label style={labelStyle}>예금주</label><input type="text" value={infoForm.bank_account_holder} onChange={e=>setInfoForm({...infoForm, bank_account_holder: e.target.value})} style={inputStyle} placeholder="예금주" /></div>
+                        </div>
+                        <div>
+                            <label style={labelStyle}>전자지갑 주소 (USDT 등)</label>
+                            <input type="text" value={infoForm.crypto_wallet_address} onChange={e=>setInfoForm({...infoForm, crypto_wallet_address: e.target.value})} style={inputStyle} placeholder="전자지갑 주소" />
+                        </div>
+                    </div>
+
                     <div style={{ marginBottom: '20px' }}>
                         <label style={labelStyle}>관리자 메모 (고객은 볼 수 없습니다)</label>
                         <textarea value={infoForm.memo} onChange={e=>setInfoForm({...infoForm, memo: e.target.value})} style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' }} placeholder="특이사항 메모..." />
                     </div>
+                    
                     <button onClick={handleSaveInfo} style={{ width: '100%', background: '#1C1C1E', color: '#FFF', border: 'none', padding: '14px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>정보 및 권한 저장</button>
                 </div>
 
@@ -320,7 +351,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     </div>
                 </div>
 
-                {/* 🚨 3. 추가됨: 자산 변동 내역 (장부) */}
+                {/* 3. 자산 변동 내역 (장부) */}
                 <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                         <h3 style={{ fontSize: '15px', color: '#007AFF', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontWeight: '700' }}>
