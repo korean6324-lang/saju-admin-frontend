@@ -1,6 +1,6 @@
 // src/components/admin/AdminSiteSettings.jsx
 import React, { useState, useEffect } from 'react';
-import { Save, Search, Check, Upload, Layout, FileText, Users, Loader2, Image as ImageIcon, Shield, Mail, Phone, Settings, X } from 'lucide-react';
+import { Save, Search, Check, Upload, Layout, FileText, Users, Loader2, Image as ImageIcon, Shield, Mail, Phone, Settings, X, Megaphone } from 'lucide-react';
 import { supabase } from '../../api/supabaseClient'; 
 
 export default function AdminSiteSettings({ adminTheme }) {
@@ -21,12 +21,8 @@ export default function AdminSiteSettings({ adminTheme }) {
         email: 'dream@bokhouse.com',
         siteTitle: '화복당(和福堂) - 프리미엄 운세', 
         faviconUrl: '', 
-        // 🚨 계좌 및 지갑 설정 상태
-        depositType: 'bank', // 'bank' | 'wallet'
-        bankName: '',
-        accountNumber: '',
-        accountHolder: '',
-        walletAddress: ''
+        depositType: 'bank', 
+        bankName: '', accountNumber: '', accountHolder: '', walletAddress: ''
     });
 
     const [policies, setPolicies] = useState({
@@ -49,6 +45,15 @@ export default function AdminSiteSettings({ adminTheme }) {
     ]);
 
     const [approveMethod, setApproveMethod] = useState('auto');
+
+    // 🚨 4번, 5번 배너 상태 추가됨
+    const [banners, setBanners] = useState({
+        b1_active: true, b1_title: '화복당 멤버십 가입', b1_desc: '모든 사주 분석 무제한 열람', b1_link: '/membership',
+        b2_active: true, b2_title: '심층 AI 타로 상담', b2_desc: '고민에 대한 명쾌한 해답', b2_link: '/tarot',
+        b3_active: true, b3_title: '나만의 맞춤 부적', b3_desc: '부족한 기운을 채워주는 부적', b3_link: '',
+        b4_active: false, b4_title: '', b4_desc: '', b4_link: '',
+        b5_active: false, b5_title: '', b5_desc: '', b5_link: '',
+    });
 
     useEffect(() => {
         fetchSettings();
@@ -77,7 +82,6 @@ export default function AdminSiteSettings({ adminTheme }) {
                     email: data.email || prev.email,
                     siteTitle: data.site_title || prev.siteTitle, 
                     faviconUrl: data.favicon_url || prev.faviconUrl,
-                    // 🚨 DB에서 입금방식 및 지갑 정보 불러오기
                     depositType: data.deposit_type || 'bank',
                     bankName: data.bank_name || prev.bankName,
                     accountNumber: data.account_number || prev.accountNumber,
@@ -92,6 +96,15 @@ export default function AdminSiteSettings({ adminTheme }) {
                     emailRejectContent: data.email_reject_policy || prev.emailRejectContent,
                     operationContent: data.operation_policy || prev.operationContent, 
                 }));
+
+                // 🚨 DB에서 4번, 5번 배너 정보도 로드
+                setBanners({
+                    b1_active: data.banner_1_active ?? true, b1_title: data.banner_1_title || '화복당 멤버십 가입', b1_desc: data.banner_1_desc || '모든 사주 분석 무제한 열람', b1_link: data.banner_1_link || '/membership',
+                    b2_active: data.banner_2_active ?? true, b2_title: data.banner_2_title || '심층 AI 타로 상담', b2_desc: data.banner_2_desc || '고민에 대한 명쾌한 해답', b2_link: data.banner_2_link || '/tarot',
+                    b3_active: data.banner_3_active ?? true, b3_title: data.banner_3_title || '나만의 맞춤 부적', b3_desc: data.banner_3_desc || '부족한 기운을 채워주는 부적', b3_link: data.banner_3_link || '',
+                    b4_active: data.banner_4_active ?? false, b4_title: data.banner_4_title || '', b4_desc: data.banner_4_desc || '', b4_link: data.banner_4_link || '',
+                    b5_active: data.banner_5_active ?? false, b5_title: data.banner_5_title || '', b5_desc: data.banner_5_desc || '', b5_link: data.banner_5_link || '',
+                });
             }
         } catch (error) { console.error("초기 설정 로드 실패:", error); }
     };
@@ -148,7 +161,6 @@ export default function AdminSiteSettings({ adminTheme }) {
                 email: basicInfo.email,
                 site_title: basicInfo.siteTitle, 
                 favicon_url: basicInfo.faviconUrl,
-                // 🚨 입금방식 및 지갑 정보 DB 저장
                 deposit_type: basicInfo.depositType,
                 bank_name: basicInfo.bankName,
                 account_number: basicInfo.accountNumber,
@@ -158,6 +170,12 @@ export default function AdminSiteSettings({ adminTheme }) {
                 privacy_policy: policies.privacyContent,
                 email_reject_policy: policies.emailRejectContent, 
                 operation_policy: policies.operationContent, 
+                // 🚨 확장된 5개 배너 정보 모두 저장
+                banner_1_active: banners.b1_active, banner_1_title: banners.b1_title, banner_1_desc: banners.b1_desc, banner_1_link: banners.b1_link,
+                banner_2_active: banners.b2_active, banner_2_title: banners.b2_title, banner_2_desc: banners.b2_desc, banner_2_link: banners.b2_link,
+                banner_3_active: banners.b3_active, banner_3_title: banners.b3_title, banner_3_desc: banners.b3_desc, banner_3_link: banners.b3_link,
+                banner_4_active: banners.b4_active, banner_4_title: banners.b4_title, banner_4_desc: banners.b4_desc, banner_4_link: banners.b4_link,
+                banner_5_active: banners.b5_active, banner_5_title: banners.b5_title, banner_5_desc: banners.b5_desc, banner_5_link: banners.b5_link,
                 updated_at: new Date()
             });
 
@@ -173,10 +191,10 @@ export default function AdminSiteSettings({ adminTheme }) {
                 .ios-settings-wrap { width: 100%; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif; background-color: transparent; }
                 .ios-title { font-size: 22px; font-weight: 800; color: #1C1C1E; margin: 0 0 6px 0; letter-spacing: -0.5px; }
                 .ios-desc { font-size: 12px; color: #8E8E93; margin: 0 0 24px 0; font-weight: 500; }
-                .ios-segment-main { display: inline-flex; background-color: #E5E5EA; border-radius: 10px; padding: 3px; margin-bottom: 24px; }
-                .ios-segment-main-btn { padding: 8px 18px; font-size: 13px; font-weight: 700; color: #8E8E93; border-radius: 8px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
+                .ios-segment-main { display: inline-flex; flex-wrap: wrap; background-color: #E5E5EA; border-radius: 10px; padding: 3px; margin-bottom: 24px; gap: 2px; }
+                .ios-segment-main-btn { padding: 8px 18px; font-size: 13px; font-weight: 700; color: #8E8E93; border-radius: 8px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
                 .ios-segment-main-btn.active { background-color: #FFFFFF; color: #1C1C1E; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-                .ios-segment-sub { display: inline-flex; background-color: transparent; border-bottom: 0.5px solid #E5E5EA; margin-bottom: 20px; width: 100%; }
+                .ios-segment-sub { display: inline-flex; background-color: transparent; border-bottom: 0.5px solid #E5E5EA; margin-bottom: 20px; width: 100%; overflow-x: auto; white-space: nowrap; }
                 .ios-segment-sub-btn { padding: 10px 16px; font-size: 13px; font-weight: 600; color: #8E8E93; cursor: pointer; transition: 0.2s; border-bottom: 2px solid transparent; margin-bottom: -1px; }
                 .ios-segment-sub-btn.active { color: #007AFF; border-bottom-color: #007AFF; }
                 .ios-group-title { font-size: 12px; font-weight: 600; color: #8E8E93; text-transform: uppercase; margin: 0 0 6px 16px; letter-spacing: -0.2px; }
@@ -188,9 +206,8 @@ export default function AdminSiteSettings({ adminTheme }) {
                 .ios-input-clean { flex: 1; min-width: 100px; max-width: 280px; border: none; outline: none; text-align: right; font-size: 13px; color: #007AFF; font-family: inherit; background: transparent; font-weight: 500; }
                 .ios-input-clean::placeholder { color: #C7C7CC; font-weight: 400; }
                 .ios-select-clean { border: none; outline: none; background: transparent; text-align: right; direction: rtl; font-size: 13px; color: #007AFF; font-weight: 500; -webkit-appearance: none; appearance: none; font-family: inherit; cursor: pointer; padding: 0 4px; }
-                .ios-hint { font-size: 11px; color: #8E8E93; font-weight: 500; width: 100%; text-align: right; margin-top: 4px; display: block; }
                 .ios-btn-micro { border: none; background: #F2F2F7; color: #007AFF; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
-                .ios-btn-micro:active { transform: scale(0.95); opacity: 0.8; }
+                .ios-btn-micro.active { transform: scale(0.95); opacity: 0.8; }
                 .ios-btn-micro.danger { color: #FF3B30; background: #FFE5E5; }
                 .ios-btn-micro.outline { background: transparent; border: 1px solid #E5E5EA; color: #1C1C1E; }
                 .ios-submit-btn { width: 100%; background-color: #007AFF; color: #FFFFFF; font-size: 16px; font-weight: 700; padding: 16px; border-radius: 14px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.2s, opacity 0.2s; box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2); margin-top: 16px; }
@@ -212,13 +229,14 @@ export default function AdminSiteSettings({ adminTheme }) {
 
             <div>
                 <h2 className="ios-title">사이트 관리 및 정책 설정</h2>
-                <p className="ios-desc">홈페이지 기본정보, 이용약관, 회원가입 정책 등을 일괄 관리합니다.</p>
+                <p className="ios-desc">홈페이지 기본정보, 이용약관, 배너 정책 등을 일괄 관리합니다.</p>
             </div>
 
             <div className="ios-segment-main">
                 <div className={`ios-segment-main-btn ${mainTab === 'basic' ? 'active' : ''}`} onClick={() => { setMainTab('basic'); setSubTab('info'); }}><Layout size={14}/> 기본정보</div>
                 <div className={`ios-segment-main-btn ${mainTab === 'policy' ? 'active' : ''}`} onClick={() => { setMainTab('policy'); setSubTab('terms'); }}><FileText size={14}/> 운영정책</div>
                 <div className={`ios-segment-main-btn ${mainTab === 'member' ? 'active' : ''}`} onClick={() => { setMainTab('member'); setSubTab('join'); }}><Users size={14}/> 회원정책</div>
+                <div className={`ios-segment-main-btn ${mainTab === 'marketing' ? 'active' : ''}`} onClick={() => { setMainTab('marketing'); setSubTab('banners'); }}><Megaphone size={14}/> 마케팅/배너</div>
             </div>
 
             {mainTab === 'basic' && (
@@ -299,7 +317,6 @@ export default function AdminSiteSettings({ adminTheme }) {
                                 </div>
                             </div>
 
-                            {/* 🚨 입금 방식 선택 및 정보 입력 영역 */}
                             <div className="ios-group-title">무통장 / 전자지갑 입금 설정</div>
                             <div className="ios-list-group">
                                 <div className="ios-list-row">
@@ -374,6 +391,76 @@ export default function AdminSiteSettings({ adminTheme }) {
                             </div>
                             <div style={{ padding: '12px 16px', backgroundColor: '#F9F9FB', fontSize: '11px', color: '#8E8E93', borderTop: '0.5px solid #E5E5EA' }}>
                                 * 파비콘은 브라우저 탭에 표시되는 아이콘입니다. (권장: 16x16px 정사각형 이미지)
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* 🚨 확장된 마케팅/배너 탭 내용 */}
+            {mainTab === 'marketing' && (
+                <div className="fade-in">
+                    <div className="ios-segment-sub">
+                        <div className={`ios-segment-sub-btn ${subTab === 'banners' ? 'active' : ''}`} onClick={() => setSubTab('banners')}>우측 추천 서비스 배너 관리</div>
+                    </div>
+
+                    {subTab === 'banners' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <div style={{ fontSize: '12px', color: '#8E8E93', marginBottom: '-10px' }}>* 배너 스위치를 끄면 유저 화면에서 숨겨집니다. 레이아웃 크기는 고정되어 있습니다.</div>
+                            
+                            {/* Banner 1: PREMIUM */}
+                            <div className="ios-list-group" style={{ border: '1.5px solid #FDE68A', marginBottom: 0 }}>
+                                <div style={{ background: '#FFF9F0', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #FDE68A' }}>
+                                    <span style={{ fontWeight: '800', color: '#D97706', fontSize: '13px' }}>[배너 1] PREMIUM 영역</span>
+                                    <div className={`ios-toggle ${banners.b1_active ? 'active' : ''}`} onClick={() => setBanners({...banners, b1_active: !banners.b1_active})}><div className="ios-toggle-knob"></div></div>
+                                </div>
+                                <div className="ios-list-row"><span className="ios-label">배너 타이틀</span><input type="text" className="ios-input-clean" value={banners.b1_title} onChange={e => setBanners({...banners, b1_title: e.target.value})} placeholder="예: 화복당 멤버십 가입"/></div>
+                                <div className="ios-list-row"><span className="ios-label">서브 설명</span><input type="text" className="ios-input-clean" value={banners.b1_desc} onChange={e => setBanners({...banners, b1_desc: e.target.value})} placeholder="예: 모든 사주 분석 무제한 열람"/></div>
+                                <div className="ios-list-row"><span className="ios-label">클릭 시 이동 링크</span><input type="text" className="ios-input-clean" value={banners.b1_link} onChange={e => setBanners({...banners, b1_link: e.target.value})} placeholder="예: /membership (내부) 또는 http... (외부)"/></div>
+                            </div>
+
+                            {/* Banner 2: NEW */}
+                            <div className="ios-list-group" style={{ border: '1.5px solid #E5E5EA', marginBottom: 0 }}>
+                                <div style={{ background: '#F4F4F9', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E5E5EA' }}>
+                                    <span style={{ fontWeight: '800', color: '#5E5CE6', fontSize: '13px' }}>[배너 2] NEW 영역</span>
+                                    <div className={`ios-toggle ${banners.b2_active ? 'active' : ''}`} onClick={() => setBanners({...banners, b2_active: !banners.b2_active})}><div className="ios-toggle-knob"></div></div>
+                                </div>
+                                <div className="ios-list-row"><span className="ios-label">배너 타이틀</span><input type="text" className="ios-input-clean" value={banners.b2_title} onChange={e => setBanners({...banners, b2_title: e.target.value})} placeholder="예: 심층 AI 타로 상담"/></div>
+                                <div className="ios-list-row"><span className="ios-label">서브 설명</span><input type="text" className="ios-input-clean" value={banners.b2_desc} onChange={e => setBanners({...banners, b2_desc: e.target.value})} placeholder="예: 고민에 대한 명쾌한 해답"/></div>
+                                <div className="ios-list-row"><span className="ios-label">클릭 시 이동 링크</span><input type="text" className="ios-input-clean" value={banners.b2_link} onChange={e => setBanners({...banners, b2_link: e.target.value})} placeholder="예: /tarot"/></div>
+                            </div>
+
+                            {/* Banner 3: EVENT */}
+                            <div className="ios-list-group" style={{ border: '1.5px solid #FFD1D1', marginBottom: 0 }}>
+                                <div style={{ background: '#FFF0F0', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #FFD1D1' }}>
+                                    <span style={{ fontWeight: '800', color: '#FF3B30', fontSize: '13px' }}>[배너 3] EVENT 영역</span>
+                                    <div className={`ios-toggle ${banners.b3_active ? 'active' : ''}`} onClick={() => setBanners({...banners, b3_active: !banners.b3_active})}><div className="ios-toggle-knob"></div></div>
+                                </div>
+                                <div className="ios-list-row"><span className="ios-label">배너 타이틀</span><input type="text" className="ios-input-clean" value={banners.b3_title} onChange={e => setBanners({...banners, b3_title: e.target.value})} placeholder="예: 나만의 맞춤 부적"/></div>
+                                <div className="ios-list-row"><span className="ios-label">서브 설명</span><input type="text" className="ios-input-clean" value={banners.b3_desc} onChange={e => setBanners({...banners, b3_desc: e.target.value})} placeholder="예: 부족한 기운을 채워주는 부적"/></div>
+                                <div className="ios-list-row"><span className="ios-label">클릭 시 이동 링크</span><input type="text" className="ios-input-clean" value={banners.b3_link} onChange={e => setBanners({...banners, b3_link: e.target.value})} placeholder=""/></div>
+                            </div>
+
+                            {/* 🚨 Banner 4: RECOMMEND */}
+                            <div className="ios-list-group" style={{ border: '1.5px solid #BBF7D0', marginBottom: 0 }}>
+                                <div style={{ background: '#F0FDF4', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #BBF7D0' }}>
+                                    <span style={{ fontWeight: '800', color: '#16A34A', fontSize: '13px' }}>[배너 4] RECOMMEND 영역 (그린)</span>
+                                    <div className={`ios-toggle ${banners.b4_active ? 'active' : ''}`} onClick={() => setBanners({...banners, b4_active: !banners.b4_active})}><div className="ios-toggle-knob"></div></div>
+                                </div>
+                                <div className="ios-list-row"><span className="ios-label">배너 타이틀</span><input type="text" className="ios-input-clean" value={banners.b4_title} onChange={e => setBanners({...banners, b4_title: e.target.value})} placeholder="예: 오늘의 운세 확인"/></div>
+                                <div className="ios-list-row"><span className="ios-label">서브 설명</span><input type="text" className="ios-input-clean" value={banners.b4_desc} onChange={e => setBanners({...banners, b4_desc: e.target.value})} placeholder="예: 매일 업데이트되는 운세"/></div>
+                                <div className="ios-list-row"><span className="ios-label">이동 링크 (URL)</span><input type="text" className="ios-input-clean" value={banners.b4_link} onChange={e => setBanners({...banners, b4_link: e.target.value})} placeholder="/unse"/></div>
+                            </div>
+
+                            {/* 🚨 Banner 5: SPECIAL */}
+                            <div className="ios-list-group" style={{ border: '1.5px solid #BFDBFE', marginBottom: 0 }}>
+                                <div style={{ background: '#EFF6FF', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #BFDBFE' }}>
+                                    <span style={{ fontWeight: '800', color: '#2563EB', fontSize: '13px' }}>[배너 5] SPECIAL 영역 (블루)</span>
+                                    <div className={`ios-toggle ${banners.b5_active ? 'active' : ''}`} onClick={() => setBanners({...banners, b5_active: !banners.b5_active})}><div className="ios-toggle-knob"></div></div>
+                                </div>
+                                <div className="ios-list-row"><span className="ios-label">배너 타이틀</span><input type="text" className="ios-input-clean" value={banners.b5_title} onChange={e => setBanners({...banners, b5_title: e.target.value})} placeholder="예: 1:1 심층 사주 상담"/></div>
+                                <div className="ios-list-row"><span className="ios-label">서브 설명</span><input type="text" className="ios-input-clean" value={banners.b5_desc} onChange={e => setBanners({...banners, b5_desc: e.target.value})} placeholder="예: 전문가와 함께하는 인생 설계"/></div>
+                                <div className="ios-list-row"><span className="ios-label">이동 링크 (URL)</span><input type="text" className="ios-input-clean" value={banners.b5_link} onChange={e => setBanners({...banners, b5_link: e.target.value})} placeholder="/support"/></div>
                             </div>
                         </div>
                     )}
