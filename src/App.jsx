@@ -2,10 +2,12 @@
 import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'; 
-import { supabase } from './api/supabaseClient'; // 🚨 Supabase 클라이언트 임포트 추가
+import { supabase } from './api/supabaseClient'; 
 
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard'; 
+// 🚨 전체 차단 IP 관리 페이지 임포트 추가
+import AdminIpManagement from './pages/AdminIpManagement'; 
 
 const queryClient = new QueryClient();
 
@@ -85,6 +87,9 @@ function App() {
         <Routes>
           <Route path="/" element={<AdminLogin />} />
           <Route path="/dashboard" element={<AdminDashboard />} />
+          
+          {/* 🚨 전체 차단 IP 관리 라우트 추가 */}
+          <Route path="/ip-management" element={<AdminIpManagement />} />
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
