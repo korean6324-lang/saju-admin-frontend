@@ -13,6 +13,11 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const [blockedIps, setBlockedIps] = useState(new Set());
     const itemsPerPage = 10;
 
+    // 🚨 자산(장부) 로그 페이징 상태 추가
+    const [coinLogs, setCoinLogs] = useState([]);
+    const [coinCurrentPage, setCoinCurrentPage] = useState(1);
+    const [coinTotalPages, setCoinTotalPages] = useState(1);
+
     const [infoForm, setInfoForm] = useState({
         login_id: '', exchange_password: '', phone: '',
         role: 'user', membership_tier: 'free', is_blocked: false, memo: ''
@@ -56,13 +61,36 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     if (logs && logs.length > 0) {
                         alert(`✅ 최신 접속 로그를 성공적으로 불러왔습니다. (현재 ${page}페이지)`);
                     } else {
-                        alert(`ℹ️ DB를 확인했지만 아직 수집된 로그가 0건입니다.\n\n[해결 방법]\n1. 유저 화면(두 번째 탭, 화복당)으로 이동합니다.\n2. 키보드 F5(새로고침)를 한 번 누릅니다.\n3. 다시 여기로 와서 이 버튼을 눌러보세요!`);
+                        alert(`ℹ️ DB를 확인했지만 아직 수집된 로그가 0건입니다.`);
                     }
                 }
             }
         } catch (err) {
             console.error("네트워크 에러:", err);
         }
+    };
+
+    // 🚨 특정 유저의 자산 장부(coin_history)를 불러오는 함수
+    const fetchCoinLogs = async (page = 1, isManual = false) => {
+        try {
+            const from = (page - 1) * itemsPerPage;
+            const to = from + itemsPerPage - 1;
+
+            const { data: cLogs, count, error } = await supabase
+                .from('coin_history')
+                .select('*', { count: 'exact' })
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .range(from, to);
+            
+            if (error) throw error;
+
+            setCoinLogs(cLogs || []);
+            setCoinTotalPages(Math.ceil((count || 0) / itemsPerPage));
+            setCoinCurrentPage(page);
+
+            if (isManual) alert(`✅ 자산 장부 내역을 불러왔습니다. (현재 ${page}페이지)`);
+        } catch (err) { console.error("자산 로그 에러:", err); }
     };
 
     const toggleIpBlock = async (ipAddress) => {
@@ -101,7 +129,9 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     memo: profile.memo || ''
                 });
             }
+            // 🚨 화면 로드 시 IP 로그와 장부 로그를 동시에 불러옴
             await fetchAccessLogs(1, false);
+            await fetchCoinLogs(1, false);
         } catch (error) { 
             console.error("로딩 에러:", error); 
         }
@@ -149,44 +179,17 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
         if (!window.confirm(`포인트: ${pt * multiplier}, 게임머니: ${gm * multiplier}, 열람권: ${tk * multiplier}\n해당 자산을 ${actionText}하시겠습니까?`)) return;
 
         try {
-            // 1. 실제 자산 업데이트 (DB 함수 호출)
             const { error } = await supabase.rpc('admin_adjust_user_assets', {
                 p_user_id: userId, p_point_change: pt * multiplier, p_game_money_change: gm * multiplier, p_ticket_change: tk * multiplier
             });
             if (error) throw error;
 
-            // 🚨 2. 포인트, 게임머니, 열람권 각각의 변동 내역을 분리하여 상세하게 장부에 기록
             const logsToInsert = [];
             
-            if (pt !== 0) {
-                logsToInsert.push({
-                    user_id: userId, 
-                    asset_type: 'point', 
-                    trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', 
-                    amount: pt * multiplier, 
-                    description: `[관리자 직권] ${assetForm.reason}`
-                });
-            }
-            if (gm !== 0) {
-                logsToInsert.push({
-                    user_id: userId, 
-                    asset_type: 'game_money', 
-                    trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', 
-                    amount: gm * multiplier, 
-                    description: `[관리자 직권] ${assetForm.reason}`
-                });
-            }
-            if (tk !== 0) {
-                logsToInsert.push({
-                    user_id: userId, 
-                    asset_type: 'ticket', 
-                    trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', 
-                    amount: tk * multiplier, 
-                    description: `[관리자 직권] ${assetForm.reason}`
-                });
-            }
+            if (pt !== 0) logsToInsert.push({ user_id: userId, asset_type: 'point', trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', amount: pt * multiplier, description: `[관리자 직권] ${assetForm.reason}` });
+            if (gm !== 0) logsToInsert.push({ user_id: userId, asset_type: 'game_money', trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', amount: gm * multiplier, description: `[관리자 직권] ${assetForm.reason}` });
+            if (tk !== 0) logsToInsert.push({ user_id: userId, asset_type: 'ticket', trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', amount: tk * multiplier, description: `[관리자 직권] ${assetForm.reason}` });
 
-            // 준비된 상세 로그들을 데이터베이스(장부)에 일괄 삽입
             if (logsToInsert.length > 0) {
                 const { error: logError } = await supabase.from('coin_history').insert(logsToInsert);
                 if (logError) console.error("장부 상세 기록 에러:", logError);
@@ -194,7 +197,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
 
             alert(`✅ 성공적으로 ${actionText}되었습니다.`);
             setAssetForm({ point: 0, game_money: 0, ticket: 0, reason: '' });
-            loadUserData();
+            loadUserData(); // 🚨 처리 완료 후 정보 및 장부 즉시 갱신
         } catch (error) { 
             alert(`❌ 자산 ${actionText} 실패: ` + error.message); 
         }
@@ -317,7 +320,58 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     </div>
                 </div>
 
-                {/* 3. 보안 로그 & 위험 관리 */}
+                {/* 🚨 3. 추가됨: 자산 변동 내역 (장부) */}
+                <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <h3 style={{ fontSize: '15px', color: '#007AFF', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontWeight: '700' }}>
+                            <History size={18}/> 해당 유저 자산 변동 장부
+                        </h3>
+                        <button onClick={() => fetchCoinLogs(1, true)} style={{ background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#007AFF', cursor: 'pointer', fontWeight: '600' }}><RefreshCw size={14} /> 새로고침</button>
+                    </div>
+                    <div style={{ borderRadius: '8px', border: `1px solid ${adminTheme.border}`, overflow: 'hidden' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                            <thead style={{ background: '#F8FAFC' }}>
+                                <tr>
+                                    <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>일시</th>
+                                    <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>자산 구분</th>
+                                    <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>사유 및 내역</th>
+                                    <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600', textAlign: 'right' }}>변동 금액</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {coinLogs.length === 0 ? (
+                                    <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: adminTheme.textMuted }}>장부 내역이 없습니다.</td></tr>
+                                ) : coinLogs.map(log => {
+                                    const amount = log.amount || log.change_amount || 0;
+                                    const isPlus = amount > 0;
+                                    const unit = log.asset_type === 'point' ? 'P' : (log.asset_type === 'game_money' ? 'G' : '장');
+                                    
+                                    return (
+                                        <tr key={log.id}>
+                                            <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}` }}>{new Date(log.created_at).toLocaleString()}</td>
+                                            <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, fontWeight: '600', color: log.asset_type === 'point' ? '#D97706' : '#7C3AED' }}>
+                                                {log.asset_type === 'point' ? '포인트' : log.asset_type === 'game_money' ? '게임머니' : '열람권'}
+                                            </td>
+                                            <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: '#1C1C1E', fontWeight: '500' }}>{log.description}</td>
+                                            <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, fontWeight: '700', color: isPlus ? '#16A34A' : '#DC2626', textAlign: 'right' }}>
+                                                {isPlus ? '+' : ''}{amount.toLocaleString()} {unit}
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    {coinTotalPages > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
+                            <button disabled={coinCurrentPage === 1} onClick={() => fetchCoinLogs(coinCurrentPage - 1)} style={{ display: 'flex', alignItems: 'center', background: 'transparent', border: 'none', cursor: coinCurrentPage === 1 ? 'not-allowed' : 'pointer', color: coinCurrentPage === 1 ? '#CBD5E1' : '#1C1C1E', fontWeight: '700' }}><ChevronLeft size={18}/> 이전</button>
+                            <span style={{ fontSize: '13px', fontWeight: '700', color: adminTheme.textMuted }}>{coinCurrentPage} / {coinTotalPages}</span>
+                            <button disabled={coinCurrentPage >= coinTotalPages} onClick={() => fetchCoinLogs(coinCurrentPage + 1)} style={{ display: 'flex', alignItems: 'center', background: 'transparent', border: 'none', cursor: coinCurrentPage >= coinTotalPages ? 'not-allowed' : 'pointer', color: coinCurrentPage >= coinTotalPages ? '#CBD5E1' : '#1C1C1E', fontWeight: '700' }}>다음 <ChevronRight size={18}/></button>
+                        </div>
+                    )}
+                </div>
+
+                {/* 4. 접속 IP 보안 로그 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', gridColumn: '1 / -1' }}>
                     <div style={cardStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
