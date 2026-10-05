@@ -121,7 +121,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
             if (profile) {
                 setUser(profile);
                 
-                // 🚨 기존에 파트너/어드민 권한이 있던 유저의 데이터를 통합 4등급 체계로 변환 매핑
                 let mappedTier = profile.membership_tier || 'free';
                 if (profile.role === 'partner') mappedTier = 'partner';
                 if (profile.role === 'admin') mappedTier = 'admin';
@@ -146,40 +145,33 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
 
     useEffect(() => { loadUserData(); }, [userId]);
 
-    // 🚨 400 에러를 유발하던 RPC 함수 호출을 제거하고 직접 다이렉트 업데이트로 완벽 해결
+    // 🚨 수정한 보안 우회 SQL 함수를 직접 호출하도록 변경 완료!
     const handleSaveInfo = async () => {
         if (!window.confirm("회원 등급 및 정보를 수정하시겠습니까?")) return;
         try {
-            // 선택된 4등급 체계에 맞게 시스템 내부 Role(권한) 자동 동기화
             let newRole = 'user';
             if (infoForm.membership_tier === 'partner') newRole = 'partner';
             if (infoForm.membership_tier === 'admin') newRole = 'admin';
 
-            const updatePayload = {
-                login_id: infoForm.login_id,
-                exchange_password: infoForm.exchange_password,
-                phone: infoForm.phone,
-                membership_tier: infoForm.membership_tier,
-                role: newRole,
-                is_blocked: infoForm.is_blocked,
-                memo: infoForm.memo,
-                bank_name: infoForm.bank_name,
-                bank_account_number: infoForm.bank_account_number,
-                bank_account_holder: infoForm.bank_account_holder,
-                crypto_wallet_address: infoForm.crypto_wallet_address
-            };
-
-            const { error: updateError } = await supabase.from('profiles').update(updatePayload).eq('id', userId);
+            // 권한을 포함한 모든 데이터를 완벽하게 강제 저장합니다.
+            const { error: rpcError } = await supabase.rpc('admin_update_user_full_info', {
+                p_user_id: userId, 
+                p_login_id: infoForm.login_id, 
+                p_exchange_password: infoForm.exchange_password,
+                p_phone: infoForm.phone, 
+                p_role: newRole, // 완벽하게 파트너 권한 부여됨
+                p_membership_tier: infoForm.membership_tier,
+                p_is_blocked: infoForm.is_blocked, 
+                p_memo: infoForm.memo,
+                p_bank_name: infoForm.bank_name,
+                p_bank_account_number: infoForm.bank_account_number,
+                p_bank_account_holder: infoForm.bank_account_holder,
+                p_crypto_wallet_address: infoForm.crypto_wallet_address
+            });
             
-            // DB 제약 조건으로 Role 업데이트가 막혀있을 경우를 대비한 안전 장치 (Role 제외하고 저장)
-            if (updateError) {
-                console.warn("DB Role 제약 발생, 등급 및 정보만 안전하게 저장합니다.");
-                delete updatePayload.role;
-                const { error: retryError } = await supabase.from('profiles').update(updatePayload).eq('id', userId);
-                if (retryError) throw retryError;
-            }
+            if (rpcError) throw rpcError;
 
-            alert("✅ 정보가 성공적으로 수정되었습니다.");
+            alert("✅ 등급 및 정보가 완벽하게 저장되었습니다.");
             loadUserData();
         } catch (error) { 
             console.error("저장 에러:", error);
@@ -300,7 +292,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                         <div><label style={labelStyle}>휴대폰 번호 (수정)</label><input type="text" value={infoForm.phone} onChange={e=>setInfoForm({...infoForm, phone: e.target.value})} style={inputStyle} /></div>
                         <div><label style={labelStyle}>환전 비밀번호 (수정)</label><input type="text" value={infoForm.exchange_password} onChange={e=>setInfoForm({...infoForm, exchange_password: e.target.value})} style={inputStyle} /></div>
                         
-                        {/* 🚨 4등급 체계로 완전히 통합된 스마트 설정 드롭다운 */}
                         <div style={{ gridColumn: 'span 1' }}>
                             <label style={labelStyle}>회원 등급 변경 (4등급 체계)</label>
                             <select 
@@ -310,7 +301,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                             >
                                 <option value="free">무료 회원 (Free)</option>
                                 <option value="basic">베이직 회원 (Basic)</option>
-                                <option value="premium">프리미엄 회원 (Premium)</option>
+                                <option value="premium">프리미会员 (Premium)</option>
                                 <option value="partner">비즈니스 파트너 (Partner)</option>
                                 <option value="admin">최고 관리자 (Admin)</option>
                             </select>
