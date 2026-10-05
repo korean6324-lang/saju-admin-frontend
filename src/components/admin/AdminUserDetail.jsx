@@ -1,7 +1,7 @@
 // src/components/admin/AdminUserDetail.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
-import { ArrowLeft, Save, ShieldAlert, Coins, Ticket, Key, Trash2, Ban, History, UserCheck, MonitorSmartphone } from 'lucide-react';
+import { ArrowLeft, Save, ShieldAlert, Coins, Ticket, Key, Trash2, Ban, History, UserCheck, MonitorSmartphone, RefreshCw } from 'lucide-react'; // 🚨 RefreshCw 아이콘 추가
 
 export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const [user, setUser] = useState(null);
@@ -22,7 +22,29 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
         point: 0, game_money: 0, ticket: 0, reason: ''
     });
 
-    // 데이터 로드
+    // 🚨 접속 로그만 단독으로 다시 불러오는 함수 (새로고침용)
+    const fetchAccessLogs = async () => {
+        try {
+            const { data: logs, error } = await supabase
+                .from('access_logs')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(10);
+            
+            if (error) {
+                console.error("로그 조회 에러 상세:", error);
+                // 에러 발생 시 원인을 파악할 수 있도록 경고창 띄움
+                alert(`접속 로그를 불러오지 못했습니다.\n원인: ${error.message}`);
+            } else {
+                setAccessLogs(logs || []);
+            }
+        } catch (err) {
+            console.error("네트워크 에러:", err);
+        }
+    };
+
+    // 전체 데이터 로드
     const loadUserData = async () => {
         if (!userId) return;
         setIsLoading(true);
@@ -38,10 +60,13 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     memo: profile.memo || ''
                 });
             }
-            // 접속 IP 이력 (최근 10건)
-            const { data: logs } = await supabase.from('access_logs').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(10);
-            if (logs) setAccessLogs(logs);
-        } catch (error) { console.error("로딩 에러:", error); }
+            
+            // 접속 IP 이력 호출
+            await fetchAccessLogs();
+
+        } catch (error) { 
+            console.error("로딩 에러:", error); 
+        }
         setIsLoading(false);
     };
 
@@ -53,7 +78,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const handleSaveInfo = async () => {
         if (!window.confirm("회원 기본 정보 및 권한을 수정하시겠습니까?")) return;
         try {
-            // 로그인 아이디는 수정창이 없으므로 기존 데이터를 그대로 전송하여 보존
             const { error } = await supabase.rpc('admin_update_user_full', {
                 p_user_id: userId, p_login_id: infoForm.login_id, p_exchange_password: infoForm.exchange_password,
                 p_phone: infoForm.phone, p_role: infoForm.role, p_membership_tier: infoForm.membership_tier,
@@ -95,7 +119,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
             });
             if (error) throw error;
 
-            // 관리자 자산 변동 장부 기록 (옵션)
             await supabase.from('coin_history').insert([{
                 user_id: userId, asset_type: 'point', trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', amount: pt * multiplier, description: `[관리자 직권] ${assetForm.reason}`
             }]);
@@ -134,7 +157,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
                 <div>
-                    {/* 🚨 수정됨: 이름이 없으면 아이디(login_id) 노출, 일반가입 아이디도 없으면 이메일 노출 */}
                     <h2 style={{ fontSize: '24px', fontWeight: '800', color: adminTheme.textBright, margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>
                         {user.name || user.login_id || user.email} 
                         <span style={{ fontSize: '15px', color: adminTheme.textMuted, fontWeight: '500', marginLeft: '8px' }}>
@@ -161,7 +183,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     </h3>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                         
-                        {/* 🚨 기존 로그인 ID 수정칸 제거 -> 비밀번호 강제 변경 기능으로 교체 */}
                         <div>
                             <label style={labelStyle}>로그인 비밀번호 (강제 변경)</label>
                             <div style={{ display: 'flex', gap: '6px' }}>
@@ -228,9 +249,18 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                 {/* 3. 보안 로그 & 위험 관리 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', gridColumn: '1 / -1' }}>
                     <div style={cardStyle}>
-                        <h3 style={{ fontSize: '15px', color: adminTheme.textBright, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px', fontWeight: '700' }}>
-                            <MonitorSmartphone size={18}/> 최근 접속 IP 내역 (보안 로그)
-                        </h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                            <h3 style={{ fontSize: '15px', color: adminTheme.textBright, display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontWeight: '700' }}>
+                                <MonitorSmartphone size={18}/> 최근 접속 IP 내역 (보안 로그)
+                            </h3>
+                            {/* 🚨 실시간 새로고침 버튼 추가 */}
+                            <button 
+                                onClick={fetchAccessLogs} 
+                                style={{ background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#007AFF', cursor: 'pointer', fontWeight: '600' }}
+                            >
+                                <RefreshCw size={14} /> 새로고침
+                            </button>
+                        </div>
                         <div style={{ borderRadius: '8px', border: `1px solid ${adminTheme.border}`, overflow: 'hidden' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                                 <thead style={{ background: '#F8FAFC' }}>
