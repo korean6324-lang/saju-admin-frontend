@@ -17,7 +17,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const [coinCurrentPage, setCoinCurrentPage] = useState(1);
     const [coinTotalPages, setCoinTotalPages] = useState(1);
 
-    // 🚨 유저 폼에 환전 계좌/지갑 상태 추가
     const [infoForm, setInfoForm] = useState({
         login_id: '', exchange_password: '', phone: '',
         role: 'user', membership_tier: 'free', is_blocked: false, memo: '',
@@ -41,7 +40,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
             
             if (error) {
                 console.error("로그 조회 에러 상세:", error);
-                alert(`접속 로그를 불러오지 못했습니다.\n원인: ${error.message}`);
             } else {
                 setAccessLogs(logs || []);
                 setTotalPages(Math.ceil((count || 0) / itemsPerPage));
@@ -122,7 +120,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
             if (profile) {
                 setUser(profile);
-                // 🚨 로드 시 지갑 및 계좌 정보도 함께 불러오기
                 setInfoForm({
                     login_id: profile.login_id || '', exchange_password: profile.exchange_password || '',
                     phone: profile.phone || '', role: profile.role || 'user', 
@@ -142,30 +139,49 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
 
     useEffect(() => { loadUserData(); }, [userId]);
 
+    // 🚨 권한(role) 제외 안전 업데이트 로직으로 변경됨
     const handleSaveInfo = async () => {
-        if (!window.confirm("회원 기본 정보 및 권한을 수정하시겠습니까?")) return;
+        if (!window.confirm("회원 정보를 수정하시겠습니까?")) return;
         try {
-            // 1. 기존 기본 정보 및 권한 업데이트 (RPC 호출)
-            const { error: rpcError } = await supabase.rpc('admin_update_user_full', {
-                p_user_id: userId, p_login_id: infoForm.login_id, p_exchange_password: infoForm.exchange_password,
-                p_phone: infoForm.phone, p_role: infoForm.role, p_membership_tier: infoForm.membership_tier,
-                p_is_blocked: infoForm.is_blocked, p_memo: infoForm.memo
+            // 새롭게 생성한 안전 저장망(SQL)을 통해 Role 제외 모든 데이터 저장
+            const { error: rpcError } = await supabase.rpc('admin_update_profile_info', {
+                p_user_id: userId, 
+                p_login_id: infoForm.login_id, 
+                p_exchange_password: infoForm.exchange_password,
+                p_phone: infoForm.phone, 
+                p_membership_tier: infoForm.membership_tier,
+                p_is_blocked: infoForm.is_blocked, 
+                p_memo: infoForm.memo,
+                p_bank_name: infoForm.bank_name,
+                p_bank_account_number: infoForm.bank_account_number,
+                p_bank_account_holder: infoForm.bank_account_holder,
+                p_crypto_wallet_address: infoForm.crypto_wallet_address
             });
-            if (rpcError) throw rpcError;
-
-            // 🚨 2. 추가된 계좌 및 지갑 정보 업데이트
-            const { error: updateError } = await supabase.from('profiles').update({
-                bank_name: infoForm.bank_name,
-                bank_account_number: infoForm.bank_account_number,
-                bank_account_holder: infoForm.bank_account_holder,
-                crypto_wallet_address: infoForm.crypto_wallet_address
-            }).eq('id', userId);
             
-            if (updateError) throw updateError;
+            // 만약 SQL을 아직 돌리지 않았다면 자동으로 다이렉트 업데이트 시도 (Fallback)
+            if (rpcError) {
+                const { error: updateError } = await supabase.from('profiles').update({
+                    login_id: infoForm.login_id,
+                    exchange_password: infoForm.exchange_password,
+                    phone: infoForm.phone,
+                    membership_tier: infoForm.membership_tier,
+                    is_blocked: infoForm.is_blocked,
+                    memo: infoForm.memo,
+                    bank_name: infoForm.bank_name,
+                    bank_account_number: infoForm.bank_account_number,
+                    bank_account_holder: infoForm.bank_account_holder,
+                    crypto_wallet_address: infoForm.crypto_wallet_address
+                }).eq('id', userId);
+                
+                if (updateError) throw updateError;
+            }
 
             alert("✅ 정보가 성공적으로 수정되었습니다.");
             loadUserData();
-        } catch (error) { alert("❌ 수정 실패: " + error.message); }
+        } catch (error) { 
+            console.error("저장 에러:", error);
+            alert("❌ 수정 실패: " + error.message); 
+        }
     };
 
     const handleChangePassword = async () => {
@@ -267,7 +283,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                 {/* 1. 기본 정보 및 계정 권한 */}
                 <div style={cardStyle}>
                     <h3 style={{ fontSize: '15px', color: adminTheme.primary, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px', fontWeight: '700' }}>
-                        <UserCheck size={18}/> 기본 정보 및 권한 제어
+                        <UserCheck size={18}/> 기본 정보 관리
                     </h3>
                     
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -280,14 +296,18 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                         </div>
                         <div><label style={labelStyle}>휴대폰 번호 (수정)</label><input type="text" value={infoForm.phone} onChange={e=>setInfoForm({...infoForm, phone: e.target.value})} style={inputStyle} /></div>
                         <div><label style={labelStyle}>환전 비밀번호 (수정)</label><input type="text" value={infoForm.exchange_password} onChange={e=>setInfoForm({...infoForm, exchange_password: e.target.value})} style={inputStyle} /></div>
+                        
+                        {/* 🚨 보안 이슈로 인한 Role 잠금 처리 */}
                         <div>
-                            <label style={labelStyle}>회원 등급 변경</label>
-                            <select value={infoForm.role} onChange={e=>setInfoForm({...infoForm, role: e.target.value})} style={{ ...inputStyle, cursor: 'pointer' }}>
+                            <label style={labelStyle}>회원 등급 변경 (보안 잠금)</label>
+                            <select value={infoForm.role} style={{ ...inputStyle, background: '#E5E5EA', cursor: 'not-allowed', color: '#8E8E93' }} disabled>
                                 <option value="user">일반 회원 (User)</option>
                                 <option value="partner">파트너 (Partner)</option>
                                 <option value="admin">관리자 (Admin)</option>
                             </select>
+                            <span style={{ fontSize: '11px', color: '#DC2626', display: 'block', marginTop: '4px', letterSpacing: '-0.3px' }}>*DB 정책상 직접 변경 불가</span>
                         </div>
+
                         <div>
                             <label style={labelStyle}>유료 구독 상태</label>
                             <select value={infoForm.membership_tier} onChange={e=>setInfoForm({...infoForm, membership_tier: e.target.value})} style={{ ...inputStyle, cursor: 'pointer' }}>
@@ -305,7 +325,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                         </div>
                     </div>
 
-                    {/* 🚨 고객의 계좌번호 및 전자지갑 주소 확인 및 수정 영역 추가 */}
                     <div style={{ gridColumn: '1 / -1', marginTop: '16px', paddingTop: '16px', borderTop: `1px dashed ${adminTheme.border}`, marginBottom: '16px' }}>
                         <h4 style={{ fontSize: '13px', color: '#D97706', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <Coins size={14} /> 유저가 등록한 환전(수령) 계좌 및 지갑
@@ -326,7 +345,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                         <textarea value={infoForm.memo} onChange={e=>setInfoForm({...infoForm, memo: e.target.value})} style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' }} placeholder="특이사항 메모..." />
                     </div>
                     
-                    <button onClick={handleSaveInfo} style={{ width: '100%', background: '#1C1C1E', color: '#FFF', border: 'none', padding: '14px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>정보 및 권한 저장</button>
+                    <button onClick={handleSaveInfo} style={{ width: '100%', background: '#1C1C1E', color: '#FFF', border: 'none', padding: '14px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>정보 저장하기</button>
                 </div>
 
                 {/* 2. 자산 지급/차감 */}
