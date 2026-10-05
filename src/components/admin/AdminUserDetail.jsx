@@ -1,20 +1,18 @@
 // src/components/admin/AdminUserDetail.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
-import { ArrowLeft, Save, ShieldAlert, Coins, Ticket, Key, Trash2, Ban, History, UserCheck, MonitorSmartphone, RefreshCw, ChevronLeft, ChevronRight, ShieldBan, ShieldCheck } from 'lucide-react'; // 🚨 아이콘 추가
+import { ArrowLeft, Save, ShieldAlert, Coins, Ticket, Key, Trash2, Ban, History, UserCheck, MonitorSmartphone, RefreshCw, ChevronLeft, ChevronRight, ShieldBan, ShieldCheck } from 'lucide-react';
 
 export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const [user, setUser] = useState(null);
     const [accessLogs, setAccessLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // 🚨 1. 페이지네이션 및 차단 IP 관리를 위한 상태 추가
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [blockedIps, setBlockedIps] = useState(new Set());
     const itemsPerPage = 10;
 
-    // 1. 기본 정보 & 권한 폼
     const [infoForm, setInfoForm] = useState({
         login_id: '', exchange_password: '', phone: '',
         role: 'user', membership_tier: 'free', is_blocked: false, memo: ''
@@ -23,7 +21,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const [newPassword, setNewPassword] = useState('');
     const [assetForm, setAssetForm] = useState({ point: 0, game_money: 0, ticket: 0, reason: '' });
 
-    // 🚨 2. 접속 로그 호출 함수 업그레이드 (페이지네이션 적용 및 차단 상태 확인)
     const fetchAccessLogs = async (page = 1, isManual = false) => {
         try {
             const from = (page - 1) * itemsPerPage;
@@ -44,7 +41,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                 setTotalPages(Math.ceil((count || 0) / itemsPerPage));
                 setCurrentPage(page);
 
-                // 현재 목록에 있는 IP들이 차단되었는지 확인 (버튼 색상 변경용)
                 if (logs && logs.length > 0) {
                     const uniqueIps = [...new Set(logs.map(log => log.ip_address))];
                     const { data: blockedData } = await supabase
@@ -69,7 +65,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
         }
     };
 
-    // 🚨 3. 개별 IP 차단 / 차단 해제 토글 함수
     const toggleIpBlock = async (ipAddress) => {
         const isBlocked = blockedIps.has(ipAddress);
         
@@ -86,18 +81,16 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                 if (error) throw error;
                 alert('🚨 해당 IP가 즉시 차단되었습니다.');
             }
-            fetchAccessLogs(currentPage); // 상태 반영을 위해 목록 새로고침
+            fetchAccessLogs(currentPage);
         } catch (error) {
             alert("처리 중 에러가 발생했습니다: " + error.message);
         }
     };
 
-    // 전체 데이터 로드
     const loadUserData = async () => {
         if (!userId) return;
         setIsLoading(true);
         try {
-            // 회원 기본 정보
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
             if (profile) {
                 setUser(profile);
@@ -108,10 +101,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     memo: profile.memo || ''
                 });
             }
-            
-            // 접속 IP 이력 첫 페이지 호출
             await fetchAccessLogs(1, false);
-
         } catch (error) { 
             console.error("로딩 에러:", error); 
         }
@@ -120,9 +110,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
 
     useEffect(() => { loadUserData(); }, [userId]);
 
-    // ==========================================
-    // 핸들러 함수들
-    // ==========================================
     const handleSaveInfo = async () => {
         if (!window.confirm("회원 기본 정보 및 권한을 수정하시겠습니까?")) return;
         try {
@@ -162,19 +149,55 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
         if (!window.confirm(`포인트: ${pt * multiplier}, 게임머니: ${gm * multiplier}, 열람권: ${tk * multiplier}\n해당 자산을 ${actionText}하시겠습니까?`)) return;
 
         try {
+            // 1. 실제 자산 업데이트 (DB 함수 호출)
             const { error } = await supabase.rpc('admin_adjust_user_assets', {
                 p_user_id: userId, p_point_change: pt * multiplier, p_game_money_change: gm * multiplier, p_ticket_change: tk * multiplier
             });
             if (error) throw error;
 
-            await supabase.from('coin_history').insert([{
-                user_id: userId, asset_type: 'point', trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', amount: pt * multiplier, description: `[관리자 직권] ${assetForm.reason}`
-            }]);
+            // 🚨 2. 포인트, 게임머니, 열람권 각각의 변동 내역을 분리하여 상세하게 장부에 기록
+            const logsToInsert = [];
+            
+            if (pt !== 0) {
+                logsToInsert.push({
+                    user_id: userId, 
+                    asset_type: 'point', 
+                    trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', 
+                    amount: pt * multiplier, 
+                    description: `[관리자 직권] ${assetForm.reason}`
+                });
+            }
+            if (gm !== 0) {
+                logsToInsert.push({
+                    user_id: userId, 
+                    asset_type: 'game_money', 
+                    trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', 
+                    amount: gm * multiplier, 
+                    description: `[관리자 직권] ${assetForm.reason}`
+                });
+            }
+            if (tk !== 0) {
+                logsToInsert.push({
+                    user_id: userId, 
+                    asset_type: 'ticket', 
+                    trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', 
+                    amount: tk * multiplier, 
+                    description: `[관리자 직권] ${assetForm.reason}`
+                });
+            }
+
+            // 준비된 상세 로그들을 데이터베이스(장부)에 일괄 삽입
+            if (logsToInsert.length > 0) {
+                const { error: logError } = await supabase.from('coin_history').insert(logsToInsert);
+                if (logError) console.error("장부 상세 기록 에러:", logError);
+            }
 
             alert(`✅ 성공적으로 ${actionText}되었습니다.`);
             setAssetForm({ point: 0, game_money: 0, ticket: 0, reason: '' });
             loadUserData();
-        } catch (error) { alert(`❌ 자산 ${actionText} 실패: ` + error.message); }
+        } catch (error) { 
+            alert(`❌ 자산 ${actionText} 실패: ` + error.message); 
+        }
     };
 
     const handleDeleteUser = async () => {
@@ -294,7 +317,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     </div>
                 </div>
 
-                {/* 3. 보안 로그 & 위험 관리 (페이징 + IP 차단 기능 추가) */}
+                {/* 3. 보안 로그 & 위험 관리 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', gridColumn: '1 / -1' }}>
                     <div style={cardStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -349,7 +372,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                             </table>
                         </div>
 
-                        {/* 🚨 페이지 네비게이션 */}
                         {totalPages > 0 && (
                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
                                 <button 
@@ -373,7 +395,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                         )}
                     </div>
 
-                    {/* 위험 구역 (계정 삭제) */}
                     <div style={{ ...cardStyle, border: '1px solid #FECACA', background: '#FEF2F2' }}>
                         <h3 style={{ fontSize: '15px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontWeight: '700' }}>
                             <Trash2 size={18}/> 위험 구역 (Danger Zone)
