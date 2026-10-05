@@ -1,6 +1,6 @@
 // src/components/admin/AdminSiteSettings.jsx
 import React, { useState, useEffect } from 'react';
-import { Save, Search, Check, Upload, Layout, FileText, Users, Loader2, Image as ImageIcon, Shield, Mail, Phone, Settings, X, Megaphone } from 'lucide-react';
+import { Save, Search, Check, Upload, Layout, FileText, Users, Loader2, Image as ImageIcon, Shield, Mail, Phone, Settings, X, Megaphone, Gift } from 'lucide-react';
 import { supabase } from '../../api/supabaseClient'; 
 
 export default function AdminSiteSettings({ adminTheme }) {
@@ -46,13 +46,18 @@ export default function AdminSiteSettings({ adminTheme }) {
 
     const [approveMethod, setApproveMethod] = useState('auto');
 
-    // 🚨 5개 배너 연동 상태 완벽 설정
     const [banners, setBanners] = useState({
         b1_active: true, b1_title: '', b1_desc: '', b1_link: '',
         b2_active: true, b2_title: '', b2_desc: '', b2_link: '',
         b3_active: true, b3_title: '', b3_desc: '', b3_link: '',
         b4_active: false, b4_title: '', b4_desc: '', b4_link: '',
         b5_active: false, b5_title: '', b5_desc: '', b5_link: '',
+    });
+
+    // 🚨 이벤트/혜택 상태 추가
+    const [eventSettings, setEventSettings] = useState({
+        signup_active: true,
+        signup_tickets: 3
     });
 
     useEffect(() => {
@@ -76,13 +81,18 @@ export default function AdminSiteSettings({ adminTheme }) {
                     ...prev, termsContent: data.terms_of_service || prev.termsContent, privacyContent: data.privacy_policy || prev.privacyContent, emailRejectContent: data.email_reject_policy || prev.emailRejectContent, operationContent: data.operation_policy || prev.operationContent, 
                 }));
 
-                // DB에서 불러온 배너 데이터 세팅
                 setBanners({
                     b1_active: data.banner_1_active ?? true, b1_title: data.banner_1_title || '화복당 멤버십 가입', b1_desc: data.banner_1_desc || '모든 사주 분석 무제한 열람', b1_link: data.banner_1_link || '/membership',
                     b2_active: data.banner_2_active ?? true, b2_title: data.banner_2_title || '심층 AI 타로 상담', b2_desc: data.banner_2_desc || '고민에 대한 명쾌한 해답', b2_link: data.banner_2_link || '/tarot',
                     b3_active: data.banner_3_active ?? true, b3_title: data.banner_3_title || '나만의 맞춤 부적', b3_desc: data.banner_3_desc || '부족한 기운을 채워주는 부적', b3_link: data.banner_3_link || '',
                     b4_active: data.banner_4_active ?? false, b4_title: data.banner_4_title || '오늘의 운세 확인', b4_desc: data.banner_4_desc || '매일 업데이트되는 운세', b4_link: data.banner_4_link || '/unse',
                     b5_active: data.banner_5_active ?? false, b5_title: data.banner_5_title || '1:1 심층 상담', b5_desc: data.banner_5_desc || '전문가와 함께하는 인생 설계', b5_link: data.banner_5_link || '/support',
+                });
+
+                // 🚨 DB에서 불러온 이벤트/혜택 데이터 세팅
+                setEventSettings({
+                    signup_active: data.signup_event_active ?? true,
+                    signup_tickets: data.signup_ticket_count ?? 3
                 });
             }
         } catch (error) { console.error("초기 설정 로드 실패:", error); }
@@ -119,7 +129,6 @@ export default function AdminSiteSettings({ adminTheme }) {
             const main_phone = `${basicInfo.phone1}-${basicInfo.phone2}-${basicInfo.phone3}`;
             const mobile_phone = `${basicInfo.mobile1}-${basicInfo.mobile2}-${basicInfo.mobile3}`;
 
-            // 🚨 null 값 방지를 위해 fallback 추가 처리
             const { error } = await supabase.from('site_settings').upsert({
                 id: 1, 
                 company_name: basicInfo.companyName, zip_code: basicInfo.zipCode, address: basicInfo.address1, address_detail: basicInfo.address2, site_name: basicInfo.siteName, domain: basicInfo.domain, ceo_name: basicInfo.ceo, business_number: basicInfo.bizNum, mail_order_number: basicInfo.mailOrderNum, 
@@ -132,6 +141,11 @@ export default function AdminSiteSettings({ adminTheme }) {
                 banner_3_active: Boolean(banners.b3_active), banner_3_title: banners.b3_title || '', banner_3_desc: banners.b3_desc || '', banner_3_link: banners.b3_link || '',
                 banner_4_active: Boolean(banners.b4_active), banner_4_title: banners.b4_title || '', banner_4_desc: banners.b4_desc || '', banner_4_link: banners.b4_link || '',
                 banner_5_active: Boolean(banners.b5_active), banner_5_title: banners.b5_title || '', banner_5_desc: banners.b5_desc || '', banner_5_link: banners.b5_link || '',
+                
+                // 🚨 이벤트/혜택 설정 저장
+                signup_event_active: Boolean(eventSettings.signup_active),
+                signup_ticket_count: parseInt(eventSettings.signup_tickets) || 0,
+                
                 updated_at: new Date().toISOString()
             });
 
@@ -196,6 +210,8 @@ export default function AdminSiteSettings({ adminTheme }) {
                 <div className={`ios-segment-main-btn ${mainTab === 'policy' ? 'active' : ''}`} onClick={() => { setMainTab('policy'); setSubTab('terms'); }}><FileText size={14}/> 운영정책</div>
                 <div className={`ios-segment-main-btn ${mainTab === 'member' ? 'active' : ''}`} onClick={() => { setMainTab('member'); setSubTab('join'); }}><Users size={14}/> 회원정책</div>
                 <div className={`ios-segment-main-btn ${mainTab === 'marketing' ? 'active' : ''}`} onClick={() => { setMainTab('marketing'); setSubTab('banners'); }}><Megaphone size={14}/> 마케팅/배너</div>
+                {/* 🚨 이벤트/혜택 탭 추가 */}
+                <div className={`ios-segment-main-btn ${mainTab === 'event' ? 'active' : ''}`} onClick={() => { setMainTab('event'); setSubTab('signup'); }}><Gift size={14}/> 이벤트/혜택</div>
             </div>
 
             {mainTab === 'basic' && (
@@ -467,9 +483,48 @@ export default function AdminSiteSettings({ adminTheme }) {
                 </div>
             )}
 
+            {/* 🚨 [핵심] 신규 이벤트 탭 내용 */}
+            {mainTab === 'event' && (
+                <div className="fade-in">
+                    <div className="ios-segment-sub">
+                        <div className={`ios-segment-sub-btn ${subTab === 'signup' ? 'active' : ''}`} onClick={() => setSubTab('signup')}>신규 가입 혜택 설정</div>
+                    </div>
+
+                    {subTab === 'signup' && (
+                        <>
+                            <div className="ios-group-title">회원가입 자동 지급 이벤트</div>
+                            <div className="ios-list-group" style={{ border: '1.5px solid #BBF7D0' }}>
+                                <div style={{ background: '#F0FDF4', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #BBF7D0' }}>
+                                    <span style={{ fontWeight: '800', color: '#16A34A', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}><Gift size={16}/> 신규 가입 무료 열람권 자동 지급</span>
+                                    <div className={`ios-toggle ${eventSettings.signup_active ? 'active' : ''}`} onClick={() => setEventSettings({...eventSettings, signup_active: !eventSettings.signup_active})}><div className="ios-toggle-knob"></div></div>
+                                </div>
+                                <div className="ios-list-row">
+                                    <span className="ios-label">지급할 열람권 개수</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <input 
+                                            type="number" 
+                                            className="ios-input-clean" 
+                                            value={eventSettings.signup_tickets} 
+                                            onChange={e => setEventSettings({...eventSettings, signup_tickets: e.target.value})} 
+                                            style={{ width: '60px', textAlign: 'right', fontWeight: '800', fontSize: '16px', color: '#007AFF', backgroundColor: '#F0F9FF', padding: '4px 8px', borderRadius: '6px' }}
+                                            disabled={!eventSettings.signup_active}
+                                        />
+                                        <span style={{ fontSize: '14px', color: '#1C1C1E', fontWeight: '600' }}>장</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p style={{ fontSize: '12px', color: '#8E8E93', lineHeight: '1.5', padding: '0 8px' }}>
+                                * 활성화 시, 신규 회원이 가입을 완료하는 즉시 설정된 개수의 열람권이 자동으로 지급됩니다.<br/>
+                                * 해당 내역은 유저의 장부(마이페이지)에 '신규 가입 축하 혜택'으로 명시됩니다.
+                            </p>
+                        </>
+                    )}
+                </div>
+            )}
+
             <button onClick={handleSave} disabled={isSaving} className="ios-submit-btn">
                 {isSaving ? <Loader2 size={18} className="lucide-spin" /> : <Save size={18} />}
-                {isSaving ? "데이터 동기화 중..." : "변경사항 일괄 저장"}
+                {isSaving ? "설정 저장 중..." : "변경사항 일괄 저장"}
             </button>
         </div>
     );
