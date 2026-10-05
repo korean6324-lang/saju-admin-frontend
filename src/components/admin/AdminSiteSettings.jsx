@@ -46,11 +46,11 @@ export default function AdminSiteSettings({ adminTheme }) {
 
     const [approveMethod, setApproveMethod] = useState('auto');
 
-    // 🚨 4번, 5번 배너 상태 추가됨
+    // 🚨 5개 배너 연동 상태 완벽 설정
     const [banners, setBanners] = useState({
-        b1_active: true, b1_title: '화복당 멤버십 가입', b1_desc: '모든 사주 분석 무제한 열람', b1_link: '/membership',
-        b2_active: true, b2_title: '심층 AI 타로 상담', b2_desc: '고민에 대한 명쾌한 해답', b2_link: '/tarot',
-        b3_active: true, b3_title: '나만의 맞춤 부적', b3_desc: '부족한 기운을 채워주는 부적', b3_link: '',
+        b1_active: true, b1_title: '', b1_desc: '', b1_link: '',
+        b2_active: true, b2_title: '', b2_desc: '', b2_link: '',
+        b3_active: true, b3_title: '', b3_desc: '', b3_link: '',
         b4_active: false, b4_title: '', b4_desc: '', b4_link: '',
         b5_active: false, b5_title: '', b5_desc: '', b5_link: '',
     });
@@ -68,42 +68,21 @@ export default function AdminSiteSettings({ adminTheme }) {
                 
                 setBasicInfo(prev => ({
                     ...prev,
-                    companyName: data.company_name || prev.companyName,
-                    zipCode: data.zip_code || prev.zipCode,
-                    address1: data.address || prev.address1,
-                    address2: data.address_detail || prev.address2,
-                    siteName: data.site_name || prev.siteName,
-                    domain: data.domain || prev.domain,
-                    ceo: data.ceo_name || prev.ceo,
-                    bizNum: data.business_number || prev.bizNum,
-                    mailOrderNum: data.mail_order_number || prev.mailOrderNum,
-                    phone1: phones[0] || '1588', phone2: phones[1] || '4259', phone3: phones[2] || '',
-                    mobile1: mobiles[0] || '010', mobile2: mobiles[1] || '1234', mobile3: mobiles[2] || '5678',
-                    email: data.email || prev.email,
-                    siteTitle: data.site_title || prev.siteTitle, 
-                    faviconUrl: data.favicon_url || prev.faviconUrl,
-                    depositType: data.deposit_type || 'bank',
-                    bankName: data.bank_name || prev.bankName,
-                    accountNumber: data.account_number || prev.accountNumber,
-                    accountHolder: data.account_holder || prev.accountHolder,
-                    walletAddress: data.wallet_address || prev.walletAddress
+                    companyName: data.company_name || prev.companyName, zipCode: data.zip_code || prev.zipCode, address1: data.address || prev.address1, address2: data.address_detail || prev.address2, siteName: data.site_name || prev.siteName, domain: data.domain || prev.domain, ceo: data.ceo_name || prev.ceo, bizNum: data.business_number || prev.bizNum, mailOrderNum: data.mail_order_number || prev.mailOrderNum,
+                    phone1: phones[0] || '1588', phone2: phones[1] || '4259', phone3: phones[2] || '', mobile1: mobiles[0] || '010', mobile2: mobiles[1] || '1234', mobile3: mobiles[2] || '5678', email: data.email || prev.email, siteTitle: data.site_title || prev.siteTitle, faviconUrl: data.favicon_url || prev.faviconUrl, depositType: data.deposit_type || 'bank', bankName: data.bank_name || prev.bankName, accountNumber: data.account_number || prev.accountNumber, accountHolder: data.account_holder || prev.accountHolder, walletAddress: data.wallet_address || prev.walletAddress
                 }));
                 
                 setPolicies(prev => ({
-                    ...prev,
-                    termsContent: data.terms_of_service || prev.termsContent,
-                    privacyContent: data.privacy_policy || prev.privacyContent,
-                    emailRejectContent: data.email_reject_policy || prev.emailRejectContent,
-                    operationContent: data.operation_policy || prev.operationContent, 
+                    ...prev, termsContent: data.terms_of_service || prev.termsContent, privacyContent: data.privacy_policy || prev.privacyContent, emailRejectContent: data.email_reject_policy || prev.emailRejectContent, operationContent: data.operation_policy || prev.operationContent, 
                 }));
 
-                // 🚨 DB에서 4번, 5번 배너 정보도 로드
+                // DB에서 불러온 배너 데이터 세팅
                 setBanners({
                     b1_active: data.banner_1_active ?? true, b1_title: data.banner_1_title || '화복당 멤버십 가입', b1_desc: data.banner_1_desc || '모든 사주 분석 무제한 열람', b1_link: data.banner_1_link || '/membership',
                     b2_active: data.banner_2_active ?? true, b2_title: data.banner_2_title || '심층 AI 타로 상담', b2_desc: data.banner_2_desc || '고민에 대한 명쾌한 해답', b2_link: data.banner_2_link || '/tarot',
                     b3_active: data.banner_3_active ?? true, b3_title: data.banner_3_title || '나만의 맞춤 부적', b3_desc: data.banner_3_desc || '부족한 기운을 채워주는 부적', b3_link: data.banner_3_link || '',
-                    b4_active: data.banner_4_active ?? false, b4_title: data.banner_4_title || '', b4_desc: data.banner_4_desc || '', b4_link: data.banner_4_link || '',
-                    b5_active: data.banner_5_active ?? false, b5_title: data.banner_5_title || '', b5_desc: data.banner_5_desc || '', b5_link: data.banner_5_link || '',
+                    b4_active: data.banner_4_active ?? false, b4_title: data.banner_4_title || '오늘의 운세 확인', b4_desc: data.banner_4_desc || '매일 업데이트되는 운세', b4_link: data.banner_4_link || '/unse',
+                    b5_active: data.banner_5_active ?? false, b5_title: data.banner_5_title || '1:1 심층 상담', b5_desc: data.banner_5_desc || '전문가와 함께하는 인생 설계', b5_link: data.banner_5_link || '/support',
                 });
             }
         } catch (error) { console.error("초기 설정 로드 실패:", error); }
@@ -111,12 +90,7 @@ export default function AdminSiteSettings({ adminTheme }) {
 
     const handleBasicChange = (e) => setBasicInfo({ ...basicInfo, [e.target.name]: e.target.value });
     const handlePolicyChange = (e) => setPolicies({ ...policies, [e.target.name]: e.target.value });
-    const handleFieldToggle = (id, key) => {
-        setJoinFields(fields => fields.map(f => {
-            if (f.id === id && !f.fixed) return { ...f, [key]: !f[key] };
-            return f;
-        }));
-    };
+    const handleFieldToggle = (id, key) => { setJoinFields(fields => fields.map(f => { if (f.id === id && !f.fixed) return { ...f, [key]: !f[key] }; return f; })); };
 
     const handleFaviconUpload = async (e) => {
         const file = e.target.files[0];
@@ -145,43 +119,28 @@ export default function AdminSiteSettings({ adminTheme }) {
             const main_phone = `${basicInfo.phone1}-${basicInfo.phone2}-${basicInfo.phone3}`;
             const mobile_phone = `${basicInfo.mobile1}-${basicInfo.mobile2}-${basicInfo.mobile3}`;
 
+            // 🚨 null 값 방지를 위해 fallback 추가 처리
             const { error } = await supabase.from('site_settings').upsert({
                 id: 1, 
-                company_name: basicInfo.companyName,
-                zip_code: basicInfo.zipCode,
-                address: basicInfo.address1,
-                address_detail: basicInfo.address2,
-                site_name: basicInfo.siteName,
-                domain: basicInfo.domain,
-                ceo_name: basicInfo.ceo,
-                business_number: basicInfo.bizNum,
-                mail_order_number: basicInfo.mailOrderNum, 
-                main_phone: main_phone,
-                mobile_phone: mobile_phone,
-                email: basicInfo.email,
-                site_title: basicInfo.siteTitle, 
-                favicon_url: basicInfo.faviconUrl,
-                deposit_type: basicInfo.depositType,
-                bank_name: basicInfo.bankName,
-                account_number: basicInfo.accountNumber,
-                account_holder: basicInfo.accountHolder,
-                wallet_address: basicInfo.walletAddress,
-                terms_of_service: policies.termsContent,
-                privacy_policy: policies.privacyContent,
-                email_reject_policy: policies.emailRejectContent, 
-                operation_policy: policies.operationContent, 
-                // 🚨 확장된 5개 배너 정보 모두 저장
-                banner_1_active: banners.b1_active, banner_1_title: banners.b1_title, banner_1_desc: banners.b1_desc, banner_1_link: banners.b1_link,
-                banner_2_active: banners.b2_active, banner_2_title: banners.b2_title, banner_2_desc: banners.b2_desc, banner_2_link: banners.b2_link,
-                banner_3_active: banners.b3_active, banner_3_title: banners.b3_title, banner_3_desc: banners.b3_desc, banner_3_link: banners.b3_link,
-                banner_4_active: banners.b4_active, banner_4_title: banners.b4_title, banner_4_desc: banners.b4_desc, banner_4_link: banners.b4_link,
-                banner_5_active: banners.b5_active, banner_5_title: banners.b5_title, banner_5_desc: banners.b5_desc, banner_5_link: banners.b5_link,
-                updated_at: new Date()
+                company_name: basicInfo.companyName, zip_code: basicInfo.zipCode, address: basicInfo.address1, address_detail: basicInfo.address2, site_name: basicInfo.siteName, domain: basicInfo.domain, ceo_name: basicInfo.ceo, business_number: basicInfo.bizNum, mail_order_number: basicInfo.mailOrderNum, 
+                main_phone: main_phone, mobile_phone: mobile_phone, email: basicInfo.email, site_title: basicInfo.siteTitle, favicon_url: basicInfo.faviconUrl,
+                deposit_type: basicInfo.depositType, bank_name: basicInfo.bankName, account_number: basicInfo.accountNumber, account_holder: basicInfo.accountHolder, wallet_address: basicInfo.walletAddress,
+                terms_of_service: policies.termsContent, privacy_policy: policies.privacyContent, email_reject_policy: policies.emailRejectContent, operation_policy: policies.operationContent, 
+                
+                banner_1_active: Boolean(banners.b1_active), banner_1_title: banners.b1_title || '', banner_1_desc: banners.b1_desc || '', banner_1_link: banners.b1_link || '',
+                banner_2_active: Boolean(banners.b2_active), banner_2_title: banners.b2_title || '', banner_2_desc: banners.b2_desc || '', banner_2_link: banners.b2_link || '',
+                banner_3_active: Boolean(banners.b3_active), banner_3_title: banners.b3_title || '', banner_3_desc: banners.b3_desc || '', banner_3_link: banners.b3_link || '',
+                banner_4_active: Boolean(banners.b4_active), banner_4_title: banners.b4_title || '', banner_4_desc: banners.b4_desc || '', banner_4_link: banners.b4_link || '',
+                banner_5_active: Boolean(banners.b5_active), banner_5_title: banners.b5_title || '', banner_5_desc: banners.b5_desc || '', banner_5_link: banners.b5_link || '',
+                updated_at: new Date().toISOString()
             });
 
             if (error) throw error;
-            alert("✅ 설정이 성공적으로 저장되었습니다.");
-        } catch (e) { alert("❌ 저장 중 오류가 발생했습니다."); } 
+            alert("✅ 설정 및 배너 정보가 성공적으로 연동 저장되었습니다.");
+        } catch (e) { 
+            console.error("Supabase 저장 에러 상세:", e);
+            alert(`❌ 저장 중 오류가 발생했습니다.\n(SQL DB에 배너 컬럼이 생성되었는지 확인해주세요.)`); 
+        } 
         finally { setIsSaving(false); }
     };
 
@@ -207,7 +166,7 @@ export default function AdminSiteSettings({ adminTheme }) {
                 .ios-input-clean::placeholder { color: #C7C7CC; font-weight: 400; }
                 .ios-select-clean { border: none; outline: none; background: transparent; text-align: right; direction: rtl; font-size: 13px; color: #007AFF; font-weight: 500; -webkit-appearance: none; appearance: none; font-family: inherit; cursor: pointer; padding: 0 4px; }
                 .ios-btn-micro { border: none; background: #F2F2F7; color: #007AFF; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
-                .ios-btn-micro.active { transform: scale(0.95); opacity: 0.8; }
+                .ios-btn-micro:active { transform: scale(0.95); opacity: 0.8; }
                 .ios-btn-micro.danger { color: #FF3B30; background: #FFE5E5; }
                 .ios-btn-micro.outline { background: transparent; border: 1px solid #E5E5EA; color: #1C1C1E; }
                 .ios-submit-btn { width: 100%; background-color: #007AFF; color: #FFFFFF; font-size: 16px; font-weight: 700; padding: 16px; border-radius: 14px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.2s, opacity 0.2s; box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2); margin-top: 16px; }
@@ -250,47 +209,17 @@ export default function AdminSiteSettings({ adminTheme }) {
                         <>
                             <div className="ios-group-title">기업 기본 정보</div>
                             <div className="ios-list-group">
-                                <div className="ios-list-row">
-                                    <span className="ios-label">회사명</span>
-                                    <div className="ios-value-wrap">
-                                        <input type="text" name="companyName" value={basicInfo.companyName} onChange={handleBasicChange} className="ios-input-clean" />
-                                    </div>
-                                </div>
-                                <div className="ios-list-row" style={{ alignItems: 'flex-start', padding: '16px' }}>
-                                    <span className="ios-label" style={{ marginTop: '4px' }}>사업장 주소</span>
-                                    <div className="ios-value-wrap" style={{ flexDirection: 'column', alignItems: 'flex-end' }}>
-                                        <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'flex-end' }}>
-                                            <input type="text" name="zipCode" value={basicInfo.zipCode} onChange={handleBasicChange} className="ios-input-clean" style={{ width: '80px', flex: 'none' }} placeholder="우편번호" />
-                                            <button className="ios-btn-micro outline"><Search size={12}/> 우편번호</button>
-                                        </div>
-                                        <input type="text" name="address1" value={basicInfo.address1} onChange={handleBasicChange} className="ios-input-clean" style={{ maxWidth: '100%' }} placeholder="기본주소" />
-                                        <input type="text" name="address2" value={basicInfo.address2} onChange={handleBasicChange} className="ios-input-clean" style={{ maxWidth: '100%' }} placeholder="상세주소" />
-                                    </div>
-                                </div>
-                                <div className="ios-list-row">
-                                    <span className="ios-label">대표자명</span>
-                                    <input type="text" name="ceo" value={basicInfo.ceo} onChange={handleBasicChange} className="ios-input-clean" />
-                                </div>
-                                <div className="ios-list-row">
-                                    <span className="ios-label">사업자 등록번호</span>
-                                    <input type="text" name="bizNum" value={basicInfo.bizNum} onChange={handleBasicChange} className="ios-input-clean" />
-                                </div>
-                                <div className="ios-list-row">
-                                    <span className="ios-label">통신판매업 번호</span>
-                                    <input type="text" name="mailOrderNum" value={basicInfo.mailOrderNum} onChange={handleBasicChange} className="ios-input-clean" placeholder="제 0000-지역-0000호" />
-                                </div>
+                                <div className="ios-list-row"><span className="ios-label">회사명</span><div className="ios-value-wrap"><input type="text" name="companyName" value={basicInfo.companyName} onChange={handleBasicChange} className="ios-input-clean" /></div></div>
+                                <div className="ios-list-row" style={{ alignItems: 'flex-start', padding: '16px' }}><span className="ios-label" style={{ marginTop: '4px' }}>사업장 주소</span><div className="ios-value-wrap" style={{ flexDirection: 'column', alignItems: 'flex-end' }}><div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'flex-end' }}><input type="text" name="zipCode" value={basicInfo.zipCode} onChange={handleBasicChange} className="ios-input-clean" style={{ width: '80px', flex: 'none' }} placeholder="우편번호" /><button className="ios-btn-micro outline"><Search size={12}/> 우편번호</button></div><input type="text" name="address1" value={basicInfo.address1} onChange={handleBasicChange} className="ios-input-clean" style={{ maxWidth: '100%' }} placeholder="기본주소" /><input type="text" name="address2" value={basicInfo.address2} onChange={handleBasicChange} className="ios-input-clean" style={{ maxWidth: '100%' }} placeholder="상세주소" /></div></div>
+                                <div className="ios-list-row"><span className="ios-label">대표자명</span><input type="text" name="ceo" value={basicInfo.ceo} onChange={handleBasicChange} className="ios-input-clean" /></div>
+                                <div className="ios-list-row"><span className="ios-label">사업자 등록번호</span><input type="text" name="bizNum" value={basicInfo.bizNum} onChange={handleBasicChange} className="ios-input-clean" /></div>
+                                <div className="ios-list-row"><span className="ios-label">통신판매업 번호</span><input type="text" name="mailOrderNum" value={basicInfo.mailOrderNum} onChange={handleBasicChange} className="ios-input-clean" placeholder="제 0000-지역-0000호" /></div>
                             </div>
 
                             <div className="ios-group-title">연락망 및 도메인</div>
                             <div className="ios-list-group">
-                                <div className="ios-list-row">
-                                    <span className="ios-label">사이트명</span>
-                                    <input type="text" name="siteName" value={basicInfo.siteName} onChange={handleBasicChange} className="ios-input-clean" />
-                                </div>
-                                <div className="ios-list-row">
-                                    <span className="ios-label">대표 도메인</span>
-                                    <input type="text" name="domain" value={basicInfo.domain} onChange={handleBasicChange} className="ios-input-clean" />
-                                </div>
+                                <div className="ios-list-row"><span className="ios-label">사이트명</span><input type="text" name="siteName" value={basicInfo.siteName} onChange={handleBasicChange} className="ios-input-clean" /></div>
+                                <div className="ios-list-row"><span className="ios-label">대표 도메인</span><input type="text" name="domain" value={basicInfo.domain} onChange={handleBasicChange} className="ios-input-clean" /></div>
                                 <div className="ios-list-row">
                                     <span className="ios-label">대표전화</span>
                                     <div className="ios-value-wrap">
@@ -311,10 +240,7 @@ export default function AdminSiteSettings({ adminTheme }) {
                                         <input type="text" name="mobile3" value={basicInfo.mobile3} onChange={handleBasicChange} className="ios-input-clean" style={{width:'50px', flex:'none'}} />
                                     </div>
                                 </div>
-                                <div className="ios-list-row">
-                                    <span className="ios-label">사이트 이메일</span>
-                                    <input type="email" name="email" value={basicInfo.email} onChange={handleBasicChange} className="ios-input-clean" />
-                                </div>
+                                <div className="ios-list-row"><span className="ios-label">사이트 이메일</span><input type="email" name="email" value={basicInfo.email} onChange={handleBasicChange} className="ios-input-clean" /></div>
                             </div>
 
                             <div className="ios-group-title">무통장 / 전자지갑 입금 설정</div>
@@ -333,31 +259,15 @@ export default function AdminSiteSettings({ adminTheme }) {
 
                                 {basicInfo.depositType === 'bank' ? (
                                     <>
-                                        <div className="ios-list-row">
-                                            <span className="ios-label">은행명</span>
-                                            <input type="text" name="bankName" value={basicInfo.bankName} onChange={handleBasicChange} className="ios-input-clean" placeholder="예: 국민은행" />
-                                        </div>
-                                        <div className="ios-list-row">
-                                            <span className="ios-label">계좌번호</span>
-                                            <input type="text" name="accountNumber" value={basicInfo.accountNumber} onChange={handleBasicChange} className="ios-input-clean" placeholder="예: 896-88-01674" />
-                                        </div>
-                                        <div className="ios-list-row">
-                                            <span className="ios-label">예금주</span>
-                                            <input type="text" name="accountHolder" value={basicInfo.accountHolder} onChange={handleBasicChange} className="ios-input-clean" placeholder="예: (주)에프엠솔루션" />
-                                        </div>
+                                        <div className="ios-list-row"><span className="ios-label">은행명</span><input type="text" name="bankName" value={basicInfo.bankName} onChange={handleBasicChange} className="ios-input-clean" placeholder="예: 국민은행" /></div>
+                                        <div className="ios-list-row"><span className="ios-label">계좌번호</span><input type="text" name="accountNumber" value={basicInfo.accountNumber} onChange={handleBasicChange} className="ios-input-clean" placeholder="예: 896-88-01674" /></div>
+                                        <div className="ios-list-row"><span className="ios-label">예금주</span><input type="text" name="accountHolder" value={basicInfo.accountHolder} onChange={handleBasicChange} className="ios-input-clean" placeholder="예: (주)에프엠솔루션" /></div>
                                     </>
                                 ) : (
                                     <div className="ios-list-row" style={{ alignItems: 'flex-start', padding: '16px' }}>
                                         <span className="ios-label" style={{ marginTop: '4px' }}>전자지갑 주소</span>
                                         <div className="ios-value-wrap">
-                                            <textarea 
-                                                name="walletAddress" 
-                                                value={basicInfo.walletAddress} 
-                                                onChange={handleBasicChange} 
-                                                className="ios-input-clean" 
-                                                style={{ maxWidth: '100%', width: '100%', height: '80px', textAlign: 'left', background: '#F9F9FB', padding: '12px', borderRadius: '8px', border: '0.5px solid #C6C6C8', resize: 'none' }} 
-                                                placeholder="예: 0x1234567890abcdef..." 
-                                            />
+                                            <textarea name="walletAddress" value={basicInfo.walletAddress} onChange={handleBasicChange} className="ios-input-clean" style={{ maxWidth: '100%', width: '100%', height: '80px', textAlign: 'left', background: '#F9F9FB', padding: '12px', borderRadius: '8px', border: '0.5px solid #C6C6C8', resize: 'none' }} placeholder="예: 0x1234567890abcdef..." />
                                         </div>
                                     </div>
                                 )}
@@ -367,12 +277,7 @@ export default function AdminSiteSettings({ adminTheme }) {
 
                     {subTab === 'favicon' && (
                         <div className="ios-list-group">
-                            <div className="ios-list-row">
-                                <span className="ios-label">브라우저 탭 타이틀</span>
-                                <div className="ios-value-wrap">
-                                    <input type="text" name="siteTitle" value={basicInfo.siteTitle} onChange={handleBasicChange} className="ios-input-clean" style={{ maxWidth: '100%' }} />
-                                </div>
-                            </div>
+                            <div className="ios-list-row"><span className="ios-label">브라우저 탭 타이틀</span><div className="ios-value-wrap"><input type="text" name="siteTitle" value={basicInfo.siteTitle} onChange={handleBasicChange} className="ios-input-clean" style={{ maxWidth: '100%' }} /></div></div>
                             <div className="ios-list-row" style={{ minHeight: '60px' }}>
                                 <span className="ios-label">파비콘 (Favicon)</span>
                                 <div className="ios-value-wrap">
@@ -383,10 +288,7 @@ export default function AdminSiteSettings({ adminTheme }) {
                                         </div>
                                     )}
                                     <input type="file" id="favicon-upload" accept=".ico,.png,.jpg" style={{ display: 'none' }} onChange={handleFaviconUpload} />
-                                    <label htmlFor="favicon-upload" className="ios-btn-micro outline">
-                                        {isUploadingFavicon ? <Loader2 size={12} className="lucide-spin" /> : <Upload size={12} />}
-                                        {isUploadingFavicon ? '업로드 중' : '이미지 선택'}
-                                    </label>
+                                    <label htmlFor="favicon-upload" className="ios-btn-micro outline">{isUploadingFavicon ? <Loader2 size={12} className="lucide-spin" /> : <Upload size={12} />}{isUploadingFavicon ? '업로드 중' : '이미지 선택'}</label>
                                 </div>
                             </div>
                             <div style={{ padding: '12px 16px', backgroundColor: '#F9F9FB', fontSize: '11px', color: '#8E8E93', borderTop: '0.5px solid #E5E5EA' }}>
@@ -397,7 +299,6 @@ export default function AdminSiteSettings({ adminTheme }) {
                 </div>
             )}
 
-            {/* 🚨 확장된 마케팅/배너 탭 내용 */}
             {mainTab === 'marketing' && (
                 <div className="fade-in">
                     <div className="ios-segment-sub">
@@ -408,40 +309,40 @@ export default function AdminSiteSettings({ adminTheme }) {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                             <div style={{ fontSize: '12px', color: '#8E8E93', marginBottom: '-10px' }}>* 배너 스위치를 끄면 유저 화면에서 숨겨집니다. 레이아웃 크기는 고정되어 있습니다.</div>
                             
-                            {/* Banner 1: PREMIUM */}
+                            {/* Banner 1 */}
                             <div className="ios-list-group" style={{ border: '1.5px solid #FDE68A', marginBottom: 0 }}>
                                 <div style={{ background: '#FFF9F0', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #FDE68A' }}>
-                                    <span style={{ fontWeight: '800', color: '#D97706', fontSize: '13px' }}>[배너 1] PREMIUM 영역</span>
+                                    <span style={{ fontWeight: '800', color: '#D97706', fontSize: '13px' }}>[배너 1] PREMIUM 영역 (골드)</span>
                                     <div className={`ios-toggle ${banners.b1_active ? 'active' : ''}`} onClick={() => setBanners({...banners, b1_active: !banners.b1_active})}><div className="ios-toggle-knob"></div></div>
                                 </div>
                                 <div className="ios-list-row"><span className="ios-label">배너 타이틀</span><input type="text" className="ios-input-clean" value={banners.b1_title} onChange={e => setBanners({...banners, b1_title: e.target.value})} placeholder="예: 화복당 멤버십 가입"/></div>
                                 <div className="ios-list-row"><span className="ios-label">서브 설명</span><input type="text" className="ios-input-clean" value={banners.b1_desc} onChange={e => setBanners({...banners, b1_desc: e.target.value})} placeholder="예: 모든 사주 분석 무제한 열람"/></div>
-                                <div className="ios-list-row"><span className="ios-label">클릭 시 이동 링크</span><input type="text" className="ios-input-clean" value={banners.b1_link} onChange={e => setBanners({...banners, b1_link: e.target.value})} placeholder="예: /membership (내부) 또는 http... (외부)"/></div>
+                                <div className="ios-list-row"><span className="ios-label">이동 링크 (URL)</span><input type="text" className="ios-input-clean" value={banners.b1_link} onChange={e => setBanners({...banners, b1_link: e.target.value})} placeholder="/membership"/></div>
                             </div>
 
-                            {/* Banner 2: NEW */}
+                            {/* Banner 2 */}
                             <div className="ios-list-group" style={{ border: '1.5px solid #E5E5EA', marginBottom: 0 }}>
                                 <div style={{ background: '#F4F4F9', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E5E5EA' }}>
-                                    <span style={{ fontWeight: '800', color: '#5E5CE6', fontSize: '13px' }}>[배너 2] NEW 영역</span>
+                                    <span style={{ fontWeight: '800', color: '#5E5CE6', fontSize: '13px' }}>[배너 2] NEW 영역 (퍼플)</span>
                                     <div className={`ios-toggle ${banners.b2_active ? 'active' : ''}`} onClick={() => setBanners({...banners, b2_active: !banners.b2_active})}><div className="ios-toggle-knob"></div></div>
                                 </div>
                                 <div className="ios-list-row"><span className="ios-label">배너 타이틀</span><input type="text" className="ios-input-clean" value={banners.b2_title} onChange={e => setBanners({...banners, b2_title: e.target.value})} placeholder="예: 심층 AI 타로 상담"/></div>
                                 <div className="ios-list-row"><span className="ios-label">서브 설명</span><input type="text" className="ios-input-clean" value={banners.b2_desc} onChange={e => setBanners({...banners, b2_desc: e.target.value})} placeholder="예: 고민에 대한 명쾌한 해답"/></div>
-                                <div className="ios-list-row"><span className="ios-label">클릭 시 이동 링크</span><input type="text" className="ios-input-clean" value={banners.b2_link} onChange={e => setBanners({...banners, b2_link: e.target.value})} placeholder="예: /tarot"/></div>
+                                <div className="ios-list-row"><span className="ios-label">이동 링크 (URL)</span><input type="text" className="ios-input-clean" value={banners.b2_link} onChange={e => setBanners({...banners, b2_link: e.target.value})} placeholder="/tarot"/></div>
                             </div>
 
-                            {/* Banner 3: EVENT */}
+                            {/* Banner 3 */}
                             <div className="ios-list-group" style={{ border: '1.5px solid #FFD1D1', marginBottom: 0 }}>
                                 <div style={{ background: '#FFF0F0', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #FFD1D1' }}>
-                                    <span style={{ fontWeight: '800', color: '#FF3B30', fontSize: '13px' }}>[배너 3] EVENT 영역</span>
+                                    <span style={{ fontWeight: '800', color: '#FF3B30', fontSize: '13px' }}>[배너 3] EVENT 영역 (레드)</span>
                                     <div className={`ios-toggle ${banners.b3_active ? 'active' : ''}`} onClick={() => setBanners({...banners, b3_active: !banners.b3_active})}><div className="ios-toggle-knob"></div></div>
                                 </div>
                                 <div className="ios-list-row"><span className="ios-label">배너 타이틀</span><input type="text" className="ios-input-clean" value={banners.b3_title} onChange={e => setBanners({...banners, b3_title: e.target.value})} placeholder="예: 나만의 맞춤 부적"/></div>
                                 <div className="ios-list-row"><span className="ios-label">서브 설명</span><input type="text" className="ios-input-clean" value={banners.b3_desc} onChange={e => setBanners({...banners, b3_desc: e.target.value})} placeholder="예: 부족한 기운을 채워주는 부적"/></div>
-                                <div className="ios-list-row"><span className="ios-label">클릭 시 이동 링크</span><input type="text" className="ios-input-clean" value={banners.b3_link} onChange={e => setBanners({...banners, b3_link: e.target.value})} placeholder=""/></div>
+                                <div className="ios-list-row"><span className="ios-label">이동 링크 (URL)</span><input type="text" className="ios-input-clean" value={banners.b3_link} onChange={e => setBanners({...banners, b3_link: e.target.value})} placeholder=""/></div>
                             </div>
 
-                            {/* 🚨 Banner 4: RECOMMEND */}
+                            {/* Banner 4 */}
                             <div className="ios-list-group" style={{ border: '1.5px solid #BBF7D0', marginBottom: 0 }}>
                                 <div style={{ background: '#F0FDF4', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #BBF7D0' }}>
                                     <span style={{ fontWeight: '800', color: '#16A34A', fontSize: '13px' }}>[배너 4] RECOMMEND 영역 (그린)</span>
@@ -452,7 +353,7 @@ export default function AdminSiteSettings({ adminTheme }) {
                                 <div className="ios-list-row"><span className="ios-label">이동 링크 (URL)</span><input type="text" className="ios-input-clean" value={banners.b4_link} onChange={e => setBanners({...banners, b4_link: e.target.value})} placeholder="/unse"/></div>
                             </div>
 
-                            {/* 🚨 Banner 5: SPECIAL */}
+                            {/* Banner 5 */}
                             <div className="ios-list-group" style={{ border: '1.5px solid #BFDBFE', marginBottom: 0 }}>
                                 <div style={{ background: '#EFF6FF', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #BFDBFE' }}>
                                     <span style={{ fontWeight: '800', color: '#2563EB', fontSize: '13px' }}>[배너 5] SPECIAL 영역 (블루)</span>
