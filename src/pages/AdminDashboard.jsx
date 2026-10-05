@@ -5,7 +5,7 @@ import { supabase } from '../api/supabaseClient';
 import { 
     Map, MonitorPlay, Image as ImageIcon, Users, BarChart3, 
     Bell, Wallet, LogOut, Settings, ChevronRight, UserPlus, Sliders,
-    Search, Layers, Megaphone, ShieldBan // 🚨 ShieldBan 아이콘 추가
+    Search, Layers, Megaphone, ShieldBan
 } from 'lucide-react'; 
 
 import AdminOverview from '../components/admin/AdminOverview';
@@ -23,9 +23,7 @@ import AdminAccount from '../components/admin/AdminAccount';
 import AdminUserManage from '../components/admin/AdminUserManage'; 
 import AdminSiteSettings from '../components/admin/AdminSiteSettings'; 
 import AdminUserDetail from '../components/admin/AdminUserDetail'; 
-
-// 🚨 생성하신 차단 IP 관리 페이지 임포트
-import AdminIpManagement from './AdminIpManagement'; 
+import AdminIpManagement from './AdminIpManagement'; // 🚨 차단 IP 관리 페이지
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
@@ -93,7 +91,7 @@ export default function AdminDashboard() {
             { id: 'overview', icon: BarChart3, label: '대시보드 통계' },
             { id: 'user_manage', icon: UserPlus, label: '사용자관리' },
             { id: 'member_manage', icon: Users, label: '회원 및 권한 관리' },
-            // 🚨 서비스 관리 탭에 차단 IP 관리 메뉴 추가
+            // 🚨 서비스 관리 탭에 차단 IP 관리 메뉴 추가 완료
             { id: 'ip_management', icon: ShieldBan, label: '전체 차단 IP 관리' } 
         ]},
         { category: '정산관리', hideCategoryTitle: true, items: [
@@ -172,7 +170,6 @@ export default function AdminDashboard() {
             <style dangerouslySetInnerHTML={{ __html: `
                 .ios-sidebar-scroll::-webkit-scrollbar { display: none; }
                 
-                /* 밝고 경쾌한 메뉴 스타일 */
                 .ios-menu-item {
                     padding: 12px 14px; margin: 4px 16px; border-radius: 12px;
                     display: flex; align-items: center; justify-content: space-between;
@@ -182,13 +179,9 @@ export default function AdminDashboard() {
                 }
                 .ios-menu-item:hover { background-color: #F8FAFC; color: #0F172A; }
                 .ios-menu-item:active { transform: scale(0.98); }
-                .ios-menu-item.active {
-                    background-color: #EFF6FF; color: #2563EB; font-weight: 700;
-                }
+                .ios-menu-item.active { background-color: #EFF6FF; color: #2563EB; font-weight: 700; }
                 
-                .ios-sub-container {
-                    overflow: hidden; animation: slideDown 0.25s cubic-bezier(0.2, 0.85, 0.32, 1.2) forwards;
-                }
+                .ios-sub-container { overflow: hidden; animation: slideDown 0.25s cubic-bezier(0.2, 0.85, 0.32, 1.2) forwards; }
                 @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
                 
                 .ios-sub-item {
@@ -198,9 +191,7 @@ export default function AdminDashboard() {
                 }
                 .ios-sub-item:hover { color: #334155; background-color: #F8FAFC; }
                 .ios-sub-item:active { transform: scale(0.98); }
-                .ios-sub-item.active {
-                    color: #2563EB; font-weight: 700; background-color: transparent;
-                }
+                .ios-sub-item.active { color: #2563EB; font-weight: 700; background-color: transparent; }
                 .ios-sub-item.active::before {
                     content: ''; position: absolute; left: 24px; top: 50%; transform: translateY(-50%);
                     width: 6px; height: 6px; border-radius: 50%; background-color: #3B82F6;
@@ -320,7 +311,7 @@ export default function AdminDashboard() {
                         {activeTab === 'member_manage' && <AdminPartners adminTheme={adminTheme} defaultTab="users" onGoToDetail={goToUserDetail} />}
                         {activeTab === 'user_detail' && <AdminUserDetail adminTheme={adminTheme} userId={selectedUserId} onGoBack={goBackToUsers} />}
                         
-                        {/* 🚨 전체 차단 IP 관리 페이지 렌더링 연결 */}
+                        {/* 🚨 전체 차단 IP 관리 페이지 렌더링 연결 완료 */}
                         {activeTab === 'ip_management' && <AdminIpManagement />}
                         
                         {/* 정산관리 하위 */}
