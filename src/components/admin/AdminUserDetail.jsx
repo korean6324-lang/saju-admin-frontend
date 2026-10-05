@@ -1,7 +1,7 @@
 // src/components/admin/AdminUserDetail.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
-import { ArrowLeft, Save, ShieldAlert, Coins, Ticket, Key, Trash2, Ban, History, UserCheck, MonitorSmartphone, RefreshCw } from 'lucide-react'; // 🚨 RefreshCw 아이콘 추가
+import { ArrowLeft, Save, ShieldAlert, Coins, Ticket, Key, Trash2, Ban, History, UserCheck, MonitorSmartphone, RefreshCw } from 'lucide-react';
 
 export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const [user, setUser] = useState(null);
@@ -14,16 +14,11 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
         role: 'user', membership_tier: 'free', is_blocked: false, memo: ''
     });
 
-    // 2. 비밀번호 변경 폼
     const [newPassword, setNewPassword] = useState('');
+    const [assetForm, setAssetForm] = useState({ point: 0, game_money: 0, ticket: 0, reason: '' });
 
-    // 3. 자산 지급/차감 폼
-    const [assetForm, setAssetForm] = useState({
-        point: 0, game_money: 0, ticket: 0, reason: ''
-    });
-
-    // 🚨 접속 로그만 단독으로 다시 불러오는 함수 (새로고침용)
-    const fetchAccessLogs = async () => {
+    // 🚨 접속 로그만 단독으로 다시 불러오는 함수 (팝업 피드백 추가)
+    const fetchAccessLogs = async (isManual = false) => {
         try {
             const { data: logs, error } = await supabase
                 .from('access_logs')
@@ -34,10 +29,18 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
             
             if (error) {
                 console.error("로그 조회 에러 상세:", error);
-                // 에러 발생 시 원인을 파악할 수 있도록 경고창 띄움
                 alert(`접속 로그를 불러오지 못했습니다.\n원인: ${error.message}`);
             } else {
                 setAccessLogs(logs || []);
+                
+                // 사용자가 직접 '새로고침' 버튼을 눌렀을 때만 팝업 알림
+                if (isManual) {
+                    if (logs && logs.length > 0) {
+                        alert(`✅ 최신 접속 로그 ${logs.length}건을 성공적으로 불러왔습니다.`);
+                    } else {
+                        alert(`ℹ️ DB를 확인했지만 아직 수집된 로그가 0건입니다.\n\n[해결 방법]\n1. 유저 화면(두 번째 탭, 화복당)으로 이동합니다.\n2. 키보드 F5(새로고침)를 한 번 누릅니다.\n3. 다시 여기로 와서 이 버튼을 눌러보세요!`);
+                    }
+                }
             }
         } catch (err) {
             console.error("네트워크 에러:", err);
@@ -61,8 +64,8 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                 });
             }
             
-            // 접속 IP 이력 호출
-            await fetchAccessLogs();
+            // 접속 IP 이력 호출 (초기 로드는 팝업 띄우지 않음)
+            await fetchAccessLogs(false);
 
         } catch (error) { 
             console.error("로딩 에러:", error); 
@@ -253,9 +256,9 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                             <h3 style={{ fontSize: '15px', color: adminTheme.textBright, display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontWeight: '700' }}>
                                 <MonitorSmartphone size={18}/> 최근 접속 IP 내역 (보안 로그)
                             </h3>
-                            {/* 🚨 실시간 새로고침 버튼 추가 */}
+                            {/* 🚨 isManual = true 로 호출하도록 수정 */}
                             <button 
-                                onClick={fetchAccessLogs} 
+                                onClick={() => fetchAccessLogs(true)} 
                                 style={{ background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#007AFF', cursor: 'pointer', fontWeight: '600' }}
                             >
                                 <RefreshCw size={14} /> 새로고침
