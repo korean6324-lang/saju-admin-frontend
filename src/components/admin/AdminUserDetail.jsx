@@ -53,6 +53,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const handleSaveInfo = async () => {
         if (!window.confirm("회원 기본 정보 및 권한을 수정하시겠습니까?")) return;
         try {
+            // 로그인 아이디는 수정창이 없으므로 기존 데이터를 그대로 전송하여 보존
             const { error } = await supabase.rpc('admin_update_user_full', {
                 p_user_id: userId, p_login_id: infoForm.login_id, p_exchange_password: infoForm.exchange_password,
                 p_phone: infoForm.phone, p_role: infoForm.role, p_membership_tier: infoForm.membership_tier,
@@ -75,7 +76,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
         } catch (error) { alert("❌ 비밀번호 변경 실패: " + error.message); }
     };
 
-    const handleAdjustAssets = async (type) => { // type: 'add' | 'deduct'
+    const handleAdjustAssets = async (type) => { 
         const pt = parseInt(assetForm.point) || 0;
         const gm = parseInt(assetForm.game_money) || 0;
         const tk = parseInt(assetForm.ticket) || 0;
@@ -95,8 +96,8 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
             if (error) throw error;
 
             // 관리자 자산 변동 장부 기록 (옵션)
-            await supabase.from('asset_logs').insert([{
-                user_id: userId, asset_type: 'admin_adjust', trade_type: type, change_amount: pt * multiplier, description: `[관리자 직권] ${assetForm.reason}`
+            await supabase.from('coin_history').insert([{
+                user_id: userId, asset_type: 'point', trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', amount: pt * multiplier, description: `[관리자 직권] ${assetForm.reason}`
             }]);
 
             alert(`✅ 성공적으로 ${actionText}되었습니다.`);
@@ -114,14 +115,13 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
             const { error } = await supabase.rpc('admin_delete_user', { p_user_id: userId });
             if (error) throw error;
             alert("🗑️ 계정이 영구 삭제되었습니다.");
-            onGoBack(); // 목록으로 돌아가기
+            onGoBack(); 
         } catch (error) { alert("❌ 삭제 실패: " + error.message); }
     };
 
     if (isLoading) return <div style={{ padding: '40px', color: adminTheme.textMuted }}>데이터를 불러오는 중...</div>;
     if (!user) return <div style={{ padding: '40px', color: '#DC2626' }}>회원 정보를 찾을 수 없습니다.</div>;
 
-    // 공통 인풋 스타일
     const inputStyle = { width: '100%', padding: '10px 14px', borderRadius: '8px', border: `1px solid ${adminTheme.border}`, background: '#F9F9FB', color: '#1C1C1E', fontSize: '13px', outline: 'none' };
     const labelStyle = { display: 'block', fontSize: '12px', fontWeight: '600', color: adminTheme.textMuted, marginBottom: '6px' };
     const cardStyle = { background: adminTheme.panelBg, borderRadius: '16px', border: `1px solid ${adminTheme.border}`, padding: '24px', boxShadow: adminTheme.shadow };
@@ -134,10 +134,16 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
                 <div>
+                    {/* 🚨 수정됨: 이름이 없으면 아이디(login_id) 노출, 일반가입 아이디도 없으면 이메일 노출 */}
                     <h2 style={{ fontSize: '24px', fontWeight: '800', color: adminTheme.textBright, margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>
-                        {user.name || '이름 없음'} <span style={{ fontSize: '16px', color: adminTheme.textMuted, fontWeight: '500' }}>({user.email})</span>
+                        {user.name || user.login_id || user.email} 
+                        <span style={{ fontSize: '15px', color: adminTheme.textMuted, fontWeight: '500', marginLeft: '8px' }}>
+                            ({user.login_id ? `ID: ${user.login_id}` : `이메일 가입`})
+                        </span>
                     </h2>
-                    <div style={{ fontSize: '13px', color: adminTheme.textMuted }}>가입일: {new Date(user.created_at).toLocaleString()} | 고유코드: {user.id.substring(0,8)}...</div>
+                    <div style={{ fontSize: '13px', color: adminTheme.textMuted }}>
+                        가입일: {new Date(user.created_at).toLocaleString()} | 이메일: {user.email} | 고유코드: {user.id.substring(0,8)}...
+                    </div>
                 </div>
                 <div style={{ display: 'flex', gap: '16px', textAlign: 'right' }}>
                     <div><div style={{ fontSize: '11px', color: adminTheme.textMuted }}>보유 포인트</div><div style={{ fontSize: '18px', fontWeight: '800', color: '#D97706' }}>{(user.point_balance || 0).toLocaleString()} P</div></div>
@@ -154,7 +160,16 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                         <UserCheck size={18}/> 기본 정보 및 권한 제어
                     </h3>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                        <div><label style={labelStyle}>로그인 ID (수정)</label><input type="text" value={infoForm.login_id} onChange={e=>setInfoForm({...infoForm, login_id: e.target.value})} style={inputStyle} /></div>
+                        
+                        {/* 🚨 기존 로그인 ID 수정칸 제거 -> 비밀번호 강제 변경 기능으로 교체 */}
+                        <div>
+                            <label style={labelStyle}>로그인 비밀번호 (강제 변경)</label>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                                <input type="text" value={newPassword} onChange={e=>setNewPassword(e.target.value)} style={{ ...inputStyle, flex: 1, padding: '10px' }} placeholder="새 비밀번호 입력" />
+                                <button onClick={handleChangePassword} style={{ background: '#7C3AED', color: '#FFF', border: 'none', padding: '0 14px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '12px' }}>변경</button>
+                            </div>
+                        </div>
+
                         <div><label style={labelStyle}>휴대폰 번호 (수정)</label><input type="text" value={infoForm.phone} onChange={e=>setInfoForm({...infoForm, phone: e.target.value})} style={inputStyle} /></div>
                         <div><label style={labelStyle}>환전 비밀번호 (수정)</label><input type="text" value={infoForm.exchange_password} onChange={e=>setInfoForm({...infoForm, exchange_password: e.target.value})} style={inputStyle} /></div>
                         <div>
@@ -188,10 +203,8 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     <button onClick={handleSaveInfo} style={{ width: '100%', background: '#1C1C1E', color: '#FFF', border: 'none', padding: '14px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>정보 및 권한 저장</button>
                 </div>
 
-                {/* 2. 자산 지급/차감 및 비밀번호 변경 */}
+                {/* 2. 자산 지급/차감 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    
-                    {/* 자산 관리 */}
                     <div style={cardStyle}>
                         <h3 style={{ fontSize: '15px', color: '#D97706', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px', fontWeight: '700' }}>
                             <Coins size={18}/> 자산 지급 및 차감
@@ -208,17 +221,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                         <div style={{ display: 'flex', gap: '12px' }}>
                             <button onClick={() => handleAdjustAssets('add')} style={{ flex: 1, background: '#16A34A', color: '#FFF', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>+ 지급하기</button>
                             <button onClick={() => handleAdjustAssets('deduct')} style={{ flex: 1, background: '#DC2626', color: '#FFF', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>- 차감하기</button>
-                        </div>
-                    </div>
-
-                    {/* 로그인 비밀번호 강제 변경 */}
-                    <div style={cardStyle}>
-                        <h3 style={{ fontSize: '15px', color: '#7C3AED', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px', fontWeight: '700' }}>
-                            <Key size={18}/> 로그인 비밀번호 강제 재설정
-                        </h3>
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <input type="text" value={newPassword} onChange={e=>setNewPassword(e.target.value)} style={{ ...inputStyle, flex: 1 }} placeholder="새로운 6자리 이상 비밀번호 입력" />
-                            <button onClick={handleChangePassword} style={{ background: '#7C3AED', color: '#FFF', border: 'none', padding: '0 20px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}>비밀번호 변경</button>
                         </div>
                     </div>
                 </div>
