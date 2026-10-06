@@ -145,7 +145,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
 
     useEffect(() => { loadUserData(); }, [userId]);
 
-    // 🚨 수정한 보안 우회 SQL 함수를 직접 호출하도록 변경 완료!
     const handleSaveInfo = async () => {
         if (!window.confirm("회원 등급 및 정보를 수정하시겠습니까?")) return;
         try {
@@ -153,13 +152,12 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
             if (infoForm.membership_tier === 'partner') newRole = 'partner';
             if (infoForm.membership_tier === 'admin') newRole = 'admin';
 
-            // 권한을 포함한 모든 데이터를 완벽하게 강제 저장합니다.
             const { error: rpcError } = await supabase.rpc('admin_update_user_full_info', {
                 p_user_id: userId, 
                 p_login_id: infoForm.login_id, 
                 p_exchange_password: infoForm.exchange_password,
                 p_phone: infoForm.phone, 
-                p_role: newRole, // 완벽하게 파트너 권한 부여됨
+                p_role: newRole, 
                 p_membership_tier: infoForm.membership_tier,
                 p_is_blocked: infoForm.is_blocked, 
                 p_memo: infoForm.memo,
@@ -244,9 +242,9 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     if (isLoading) return <div style={{ padding: '40px', color: adminTheme.textMuted }}>데이터를 불러오는 중...</div>;
     if (!user) return <div style={{ padding: '40px', color: '#DC2626' }}>회원 정보를 찾을 수 없습니다.</div>;
 
-    const inputStyle = { width: '100%', padding: '10px 14px', borderRadius: '8px', border: `1px solid ${adminTheme.border}`, background: '#F9F9FB', color: '#1C1C1E', fontSize: '13px', outline: 'none' };
+    const inputStyle = { width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid ' + adminTheme.border, background: '#F9F9FB', color: '#1C1C1E', fontSize: '13px', outline: 'none' };
     const labelStyle = { display: 'block', fontSize: '12px', fontWeight: '600', color: adminTheme.textMuted, marginBottom: '6px' };
-    const cardStyle = { background: adminTheme.panelBg, borderRadius: '16px', border: `1px solid ${adminTheme.border}`, padding: '24px', boxShadow: adminTheme.shadow };
+    const cardStyle = { background: adminTheme.panelBg, borderRadius: '16px', border: '1px solid ' + adminTheme.border, padding: '24px', boxShadow: adminTheme.shadow };
 
     return (
         <div className="fade-in" style={{ padding: '0', maxWidth: '1200px', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif' }}>
@@ -301,7 +299,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                             >
                                 <option value="free">무료 회원 (Free)</option>
                                 <option value="basic">베이직 회원 (Basic)</option>
-                                <option value="premium">프리미会员 (Premium)</option>
+                                <option value="premium">프리미엄 회원 (Premium)</option>
                                 <option value="partner">비즈니스 파트너 (Partner)</option>
                                 <option value="admin">최고 관리자 (Admin)</option>
                             </select>
@@ -319,7 +317,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                         </div>
                     </div>
 
-                    <div style={{ gridColumn: '1 / -1', marginTop: '16px', paddingTop: '16px', borderTop: `1px dashed ${adminTheme.border}`, marginBottom: '16px' }}>
+                    <div style={{ gridColumn: '1 / -1', marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed ' + adminTheme.border, marginBottom: '16px' }}>
                         <h4 style={{ fontSize: '13px', color: '#D97706', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <Coins size={14} /> 유저가 등록한 환전(수령) 계좌 및 지갑
                         </h4>
@@ -372,14 +370,14 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                         </h3>
                         <button onClick={() => fetchCoinLogs(1, true)} style={{ background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#007AFF', cursor: 'pointer', fontWeight: '600' }}><RefreshCw size={14} /> 새로고침</button>
                     </div>
-                    <div style={{ borderRadius: '8px', border: `1px solid ${adminTheme.border}`, overflow: 'hidden' }}>
+                    <div style={{ borderRadius: '8px', border: '1px solid ' + adminTheme.border, overflow: 'hidden' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                             <thead style={{ background: '#F8FAFC' }}>
                                 <tr>
-                                    <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>일시</th>
-                                    <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>자산 구분</th>
-                                    <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>사유 및 내역</th>
-                                    <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600', textAlign: 'right' }}>변동 금액</th>
+                                    <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600' }}>일시</th>
+                                    <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600' }}>자산 구분</th>
+                                    <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600' }}>사유 및 내역</th>
+                                    <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600', textAlign: 'right' }}>변동 금액</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -392,12 +390,12 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                                     
                                     return (
                                         <tr key={log.id}>
-                                            <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}` }}>{new Date(log.created_at).toLocaleString()}</td>
-                                            <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, fontWeight: '600', color: log.asset_type === 'point' ? '#D97706' : '#7C3AED' }}>
+                                            <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border }}>{new Date(log.created_at).toLocaleString()}</td>
+                                            <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, fontWeight: '600', color: log.asset_type === 'point' ? '#D97706' : '#7C3AED' }}>
                                                 {log.asset_type === 'point' ? '포인트' : log.asset_type === 'game_money' ? '게임머니' : '열람권'}
                                             </td>
-                                            <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: '#1C1C1E', fontWeight: '500' }}>{log.description}</td>
-                                            <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, fontWeight: '700', color: isPlus ? '#16A34A' : '#DC2626', textAlign: 'right' }}>
+                                            <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: '#1C1C1E', fontWeight: '500' }}>{log.description}</td>
+                                            <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, fontWeight: '700', color: isPlus ? '#16A34A' : '#DC2626', textAlign: 'right' }}>
                                                 {isPlus ? '+' : ''}{amount.toLocaleString()} {unit}
                                             </td>
                                         </tr>
@@ -430,14 +428,14 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                             </button>
                         </div>
                         
-                        <div style={{ borderRadius: '8px', border: `1px solid ${adminTheme.border}`, overflow: 'hidden' }}>
+                        <div style={{ borderRadius: '8px', border: '1px solid ' + adminTheme.border, overflow: 'hidden' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                                 <thead style={{ background: '#F8FAFC' }}>
                                     <tr>
-                                        <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>접속 일시</th>
-                                        <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>접속 IP</th>
-                                        <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>차단 관리</th>
-                                        <th style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontWeight: '600' }}>환경 (브라우저/OS)</th>
+                                        <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600' }}>접속 일시</th>
+                                        <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600' }}>접속 IP</th>
+                                        <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600' }}>차단 관리</th>
+                                        <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600' }}>환경 (브라우저/OS)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -447,11 +445,11 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                                         const isBlocked = blockedIps.has(log.ip_address);
                                         return (
                                             <tr key={log.id} style={{ background: isBlocked ? '#FEF2F2' : 'transparent' }}>
-                                                <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}` }}>{new Date(log.created_at).toLocaleString()}</td>
-                                                <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, fontWeight: '700', color: isBlocked ? '#DC2626' : '#007AFF' }}>
+                                                <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border }}>{new Date(log.created_at).toLocaleString()}</td>
+                                                <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, fontWeight: '700', color: isBlocked ? '#DC2626' : '#007AFF' }}>
                                                     {log.ip_address}
                                                 </td>
-                                                <td style={{ padding: '8px 16px', borderBottom: `1px solid ${adminTheme.border}` }}>
+                                                <td style={{ padding: '8px 16px', borderBottom: '1px solid ' + adminTheme.border }}>
                                                     <button 
                                                         onClick={() => toggleIpBlock(log.ip_address)} 
                                                         style={{ 
@@ -462,7 +460,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                                                         {isBlocked ? <><ShieldCheck size={12}/> 차단 해제</> : <><ShieldBan size={12}/> IP 차단</>}
                                                     </button>
                                                 </td>
-                                                <td style={{ padding: '10px 16px', borderBottom: `1px solid ${adminTheme.border}`, color: adminTheme.textMuted, fontSize: '11px' }}>{log.user_agent}</td>
+                                                <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontSize: '11px' }}>{log.user_agent}</td>
                                             </tr>
                                         )
                                     })}
