@@ -1,7 +1,7 @@
 // src/components/admin/AdminUserDetail.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
-import { ArrowLeft, Save, ShieldAlert, Coins, Ticket, Key, Trash2, Ban, History, UserCheck, MonitorSmartphone, RefreshCw, ChevronLeft, ChevronRight, ShieldBan, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Save, ShieldAlert, Ticket, Key, Trash2, Ban, History, UserCheck, MonitorSmartphone, RefreshCw, ChevronLeft, ChevronRight, ShieldBan, ShieldCheck } from 'lucide-react';
 
 export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const [user, setUser] = useState(null);
@@ -18,13 +18,12 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     const [coinTotalPages, setCoinTotalPages] = useState(1);
 
     const [infoForm, setInfoForm] = useState({
-        login_id: '', exchange_password: '', phone: '',
-        role: 'user', membership_tier: 'free', is_blocked: false, memo: '',
-        bank_name: '', bank_account_number: '', bank_account_holder: '', crypto_wallet_address: ''
+        login_id: '', phone: '',
+        role: 'user', membership_tier: 'free', is_blocked: false, memo: ''
     });
 
     const [newPassword, setNewPassword] = useState('');
-    const [assetForm, setAssetForm] = useState({ point: 0, game_money: 0, ticket: 0, reason: '' });
+    const [assetForm, setAssetForm] = useState({ ticket: 0, reason: '' });
 
     const fetchAccessLogs = async (page = 1, isManual = false) => {
         try {
@@ -126,13 +125,9 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                 if (profile.role === 'admin') mappedTier = 'admin';
 
                 setInfoForm({
-                    login_id: profile.login_id || '', exchange_password: profile.exchange_password || '',
-                    phone: profile.phone || '', role: profile.role || 'user', 
-                    membership_tier: mappedTier, 
-                    is_blocked: profile.is_blocked || false,
-                    memo: profile.memo || '',
-                    bank_name: profile.bank_name || '', bank_account_number: profile.bank_account_number || '',
-                    bank_account_holder: profile.bank_account_holder || '', crypto_wallet_address: profile.crypto_wallet_address || ''
+                    login_id: profile.login_id || '', phone: profile.phone || '', 
+                    role: profile.role || 'user', membership_tier: mappedTier, 
+                    is_blocked: profile.is_blocked || false, memo: profile.memo || ''
                 });
             }
             await fetchAccessLogs(1, false);
@@ -154,17 +149,13 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
 
             const { error: rpcError } = await supabase.rpc('admin_update_user_full_info', {
                 p_user_id: userId, 
-                p_login_id: infoForm.login_id, 
-                p_exchange_password: infoForm.exchange_password,
+                // ✨ 이 부분이 수정되었습니다. (빈칸일 경우 null로 전송하여 Unique 에러 방지)
+                p_login_id: infoForm.login_id.trim() === '' ? null : infoForm.login_id, 
                 p_phone: infoForm.phone, 
                 p_role: newRole, 
                 p_membership_tier: infoForm.membership_tier,
                 p_is_blocked: infoForm.is_blocked, 
-                p_memo: infoForm.memo,
-                p_bank_name: infoForm.bank_name,
-                p_bank_account_number: infoForm.bank_account_number,
-                p_bank_account_holder: infoForm.bank_account_holder,
-                p_crypto_wallet_address: infoForm.crypto_wallet_address
+                p_memo: infoForm.memo
             });
             
             if (rpcError) throw rpcError;
@@ -189,28 +180,24 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     };
 
     const handleAdjustAssets = async (type) => { 
-        const pt = parseInt(assetForm.point) || 0;
-        const gm = parseInt(assetForm.game_money) || 0;
         const tk = parseInt(assetForm.ticket) || 0;
 
-        if (pt === 0 && gm === 0 && tk === 0) return alert("변경할 자산 금액/수량을 입력해주세요.");
+        if (tk === 0) return alert("변경할 수량을 입력해주세요.");
         if (!assetForm.reason.trim()) return alert("지급/차감 사유를 입력해주세요 (장부 기록용).");
 
         const multiplier = type === 'add' ? 1 : -1;
         const actionText = type === 'add' ? '지급' : '차감';
 
-        if (!window.confirm(`포인트: ${pt * multiplier}, 게임머니: ${gm * multiplier}, 열람권: ${tk * multiplier}\n해당 자산을 ${actionText}하시겠습니까?`)) return;
+        if (!window.confirm(`열람권: ${tk * multiplier}장\n해당 자산을 ${actionText}하시겠습니까?`)) return;
 
         try {
             const { error } = await supabase.rpc('admin_adjust_user_assets', {
-                p_user_id: userId, p_point_change: pt * multiplier, p_game_money_change: gm * multiplier, p_ticket_change: tk * multiplier
+                p_user_id: userId, p_ticket_change: tk * multiplier
             });
             if (error) throw error;
 
             const logsToInsert = [];
             
-            if (pt !== 0) logsToInsert.push({ user_id: userId, asset_type: 'point', trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', amount: pt * multiplier, description: `[관리자 직권] ${assetForm.reason}` });
-            if (gm !== 0) logsToInsert.push({ user_id: userId, asset_type: 'game_money', trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', amount: gm * multiplier, description: `[관리자 직권] ${assetForm.reason}` });
             if (tk !== 0) logsToInsert.push({ user_id: userId, asset_type: 'ticket', trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', amount: tk * multiplier, description: `[관리자 직권] ${assetForm.reason}` });
 
             if (logsToInsert.length > 0) {
@@ -219,7 +206,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
             }
 
             alert(`✅ 성공적으로 ${actionText}되었습니다.`);
-            setAssetForm({ point: 0, game_money: 0, ticket: 0, reason: '' });
+            setAssetForm({ ticket: 0, reason: '' });
             loadUserData(); 
         } catch (error) { 
             alert(`❌ 자산 ${actionText} 실패: ` + error.message); 
@@ -257,7 +244,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     <h2 style={{ fontSize: '24px', fontWeight: '800', color: adminTheme.textBright, margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>
                         {user.name || user.login_id || user.email} 
                         <span style={{ fontSize: '15px', color: adminTheme.textMuted, fontWeight: '500', marginLeft: '8px' }}>
-                            ({user.login_id ? `ID: ${user.login_id}` : `이메일 가입`})
+                            {user.login_id ? `(ID: ${user.login_id})` : "(이메일 가입)"}
                         </span>
                     </h2>
                     <div style={{ fontSize: '13px', color: adminTheme.textMuted }}>
@@ -265,15 +252,12 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '16px', textAlign: 'right' }}>
-                    <div><div style={{ fontSize: '11px', color: adminTheme.textMuted }}>보유 포인트</div><div style={{ fontSize: '18px', fontWeight: '800', color: '#D97706' }}>{(user.point_balance || 0).toLocaleString()} P</div></div>
-                    <div><div style={{ fontSize: '11px', color: adminTheme.textMuted }}>보유 게임머니</div><div style={{ fontSize: '18px', fontWeight: '800', color: '#7C3AED' }}>{(user.game_money_balance || 0).toLocaleString()} G</div></div>
                     <div><div style={{ fontSize: '11px', color: adminTheme.textMuted }}>보유 열람권</div><div style={{ fontSize: '18px', fontWeight: '800', color: '#007AFF' }}>{user.ticket_count || 0} 장</div></div>
                 </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
                 
-                {/* 1. 기본 정보 및 계정 권한 */}
                 <div style={cardStyle}>
                     <h3 style={{ fontSize: '15px', color: adminTheme.primary, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px', fontWeight: '700' }}>
                         <UserCheck size={18}/> 기본 정보 관리
@@ -288,7 +272,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                             </div>
                         </div>
                         <div><label style={labelStyle}>휴대폰 번호 (수정)</label><input type="text" value={infoForm.phone} onChange={e=>setInfoForm({...infoForm, phone: e.target.value})} style={inputStyle} /></div>
-                        <div><label style={labelStyle}>환전 비밀번호 (수정)</label><input type="text" value={infoForm.exchange_password} onChange={e=>setInfoForm({...infoForm, exchange_password: e.target.value})} style={inputStyle} /></div>
                         
                         <div style={{ gridColumn: 'span 1' }}>
                             <label style={labelStyle}>회원 등급 변경 (4등급 체계)</label>
@@ -310,29 +293,14 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
 
                         <div>
                             <label style={labelStyle}>접속 차단 여부</label>
-                            <select value={infoForm.is_blocked} onChange={e=>setInfoForm({...infoForm, is_blocked: e.target.value === 'true'})} style={{ ...inputStyle, color: infoForm.is_blocked ? '#DC2626' : '#16A34A', fontWeight: '700', cursor: 'pointer' }}>
+                            <select value={infoForm.is_blocked.toString()} onChange={e=>setInfoForm({...infoForm, is_blocked: e.target.value === 'true'})} style={{ ...inputStyle, color: infoForm.is_blocked ? '#DC2626' : '#16A34A', fontWeight: '700', cursor: 'pointer' }}>
                                 <option value="false">정상 이용 (활성)</option>
                                 <option value="true">계정 차단 (정지)</option>
                             </select>
                         </div>
                     </div>
 
-                    <div style={{ gridColumn: '1 / -1', marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed ' + adminTheme.border, marginBottom: '16px' }}>
-                        <h4 style={{ fontSize: '13px', color: '#D97706', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Coins size={14} /> 유저가 등록한 환전(수령) 계좌 및 지갑
-                        </h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                            <div><label style={labelStyle}>은행명</label><input type="text" value={infoForm.bank_name} onChange={e=>setInfoForm({...infoForm, bank_name: e.target.value})} style={inputStyle} placeholder="예: 국민은행" /></div>
-                            <div><label style={labelStyle}>계좌번호</label><input type="text" value={infoForm.bank_account_number} onChange={e=>setInfoForm({...infoForm, bank_account_number: e.target.value})} style={inputStyle} placeholder="계좌번호 (- 포함)" /></div>
-                            <div><label style={labelStyle}>예금주</label><input type="text" value={infoForm.bank_account_holder} onChange={e=>setInfoForm({...infoForm, bank_account_holder: e.target.value})} style={inputStyle} placeholder="예금주" /></div>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>전자지갑 주소 (USDT 등)</label>
-                            <input type="text" value={infoForm.crypto_wallet_address} onChange={e=>setInfoForm({...infoForm, crypto_wallet_address: e.target.value})} style={inputStyle} placeholder="전자지갑 주소" />
-                        </div>
-                    </div>
-
-                    <div style={{ marginBottom: '20px' }}>
+                    <div style={{ marginBottom: '20px', marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed ' + adminTheme.border }}>
                         <label style={labelStyle}>관리자 메모 (고객은 볼 수 없습니다)</label>
                         <textarea value={infoForm.memo} onChange={e=>setInfoForm({...infoForm, memo: e.target.value})} style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' }} placeholder="특이사항 메모..." />
                     </div>
@@ -340,16 +308,14 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     <button onClick={handleSaveInfo} style={{ width: '100%', background: '#1C1C1E', color: '#FFF', border: 'none', padding: '14px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>정보 저장하기</button>
                 </div>
 
-                {/* 2. 자산 지급/차감 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <div style={cardStyle}>
-                        <h3 style={{ fontSize: '15px', color: '#D97706', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px', fontWeight: '700' }}>
-                            <Coins size={18}/> 자산 지급 및 차감
+                        <h3 style={{ fontSize: '15px', color: '#007AFF', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px', fontWeight: '700' }}>
+                            <Ticket size={18}/> 열람권 지급 및 차감
                         </h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                            <div><label style={labelStyle}>포인트 (P)</label><input type="number" value={assetForm.point} onChange={e=>setAssetForm({...assetForm, point: e.target.value})} style={inputStyle} /></div>
-                            <div><label style={labelStyle}>게임머니 (G)</label><input type="number" value={assetForm.game_money} onChange={e=>setAssetForm({...assetForm, game_money: e.target.value})} style={inputStyle} /></div>
-                            <div><label style={labelStyle}>열람권 (장)</label><input type="number" value={assetForm.ticket} onChange={e=>setAssetForm({...assetForm, ticket: e.target.value})} style={inputStyle} /></div>
+                        <div style={{ marginBottom: '16px' }}>
+                            <label style={labelStyle}>열람권 (장)</label>
+                            <input type="number" value={assetForm.ticket} onChange={e=>setAssetForm({...assetForm, ticket: e.target.value})} style={inputStyle} placeholder="수량 입력" />
                         </div>
                         <div style={{ marginBottom: '16px' }}>
                             <label style={labelStyle}>지급/차감 사유 (필수)</label>
@@ -362,7 +328,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     </div>
                 </div>
 
-                {/* 3. 자산 변동 내역 (장부) */}
                 <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                         <h3 style={{ fontSize: '15px', color: '#007AFF', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontWeight: '700' }}>
@@ -377,7 +342,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                                     <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600' }}>일시</th>
                                     <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600' }}>자산 구분</th>
                                     <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600' }}>사유 및 내역</th>
-                                    <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600', textAlign: 'right' }}>변동 금액</th>
+                                    <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600', textAlign: 'right' }}>변동 수량</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -386,13 +351,13 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                                 ) : coinLogs.map(log => {
                                     const amount = log.amount || log.change_amount || 0;
                                     const isPlus = amount > 0;
-                                    const unit = log.asset_type === 'point' ? 'P' : (log.asset_type === 'game_money' ? 'G' : '장');
+                                    const unit = '장';
                                     
                                     return (
                                         <tr key={log.id}>
                                             <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border }}>{new Date(log.created_at).toLocaleString()}</td>
-                                            <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, fontWeight: '600', color: log.asset_type === 'point' ? '#D97706' : '#7C3AED' }}>
-                                                {log.asset_type === 'point' ? '포인트' : log.asset_type === 'game_money' ? '게임머니' : '열람권'}
+                                            <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, fontWeight: '600', color: '#007AFF' }}>
+                                                {log.asset_type === 'ticket' ? '열람권' : log.asset_type}
                                             </td>
                                             <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: '#1C1C1E', fontWeight: '500' }}>{log.description}</td>
                                             <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, fontWeight: '700', color: isPlus ? '#16A34A' : '#DC2626', textAlign: 'right' }}>
@@ -413,7 +378,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     )}
                 </div>
 
-                {/* 4. 접속 IP 보안 로그 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', gridColumn: '1 / -1' }}>
                     <div style={cardStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -457,7 +421,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                                                             background: isBlocked ? '#DC2626' : '#E2E8F0', color: isBlocked ? '#FFF' : '#475569' 
                                                         }}
                                                     >
-                                                        {isBlocked ? <><ShieldCheck size={12}/> 차단 해제</> : <><ShieldBan size={12}/> IP 차단</>}
+                                                        {isBlocked ? <span><ShieldCheck size={12} style={{ verticalAlign: 'middle' }}/> 차단 해제</span> : <span><ShieldBan size={12} style={{ verticalAlign: 'middle' }}/> IP 차단</span>}
                                                     </button>
                                                 </td>
                                                 <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontSize: '11px' }}>{log.user_agent}</td>

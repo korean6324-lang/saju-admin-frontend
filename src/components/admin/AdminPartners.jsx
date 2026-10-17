@@ -4,8 +4,6 @@ import { supabase } from '../../api/supabaseClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 
-// 🚨 상세 페이지로 확장됨에 따라 기존 모달(UserDetailModal) 임포트는 제거합니다.
-
 export default function AdminPartners({ adminTheme, onGoToDetail }) {
     const queryClient = useQueryClient();
 
@@ -30,7 +28,6 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
         queryFn: async () => {
             let query = supabase.from('profiles').select('*', { count: 'exact' });
 
-            // 🚨 검색 로직 개선: 이메일/ID 검색 시 양쪽 컬럼을 동시에 조회
             if (debouncedSearch) {
                 if (searchType === 'email') {
                     query = query.or(`email.ilike.%${debouncedSearch}%,login_id.ilike.%${debouncedSearch}%`);
@@ -107,7 +104,7 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
 
             <div>
                 <h2 className="ios-title">회원 및 권한 관리</h2>
-                <p className="ios-desc">플랫폼에 가입한 모든 회원을 검색하고 자산 및 권한을 관리합니다.</p>
+                <p className="ios-desc">플랫폼에 가입한 모든 회원을 검색하고 권한을 관리합니다.</p>
             </div>
 
             <div className="ios-toolbar">
@@ -137,27 +134,24 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
                     <thead>
                         <tr>
                             <th className="ios-th" onClick={() => handleSort('id')}>NO</th>
-                            {/* 🚨 컬럼 제목 수정 */}
                             <th className="ios-th" onClick={() => handleSort('email')}>계정 (ID/이메일) {getSortIcon('email')}</th>
                             <th className="ios-th" onClick={() => handleSort('role')}>등급 {getSortIcon('role')}</th>
-                            <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('point_balance')}>포인트 {getSortIcon('point_balance')}</th>
-                            <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('game_money_balance')}>게임머니 {getSortIcon('game_money_balance')}</th>
                             <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('ticket_count')}>열람쿠폰 {getSortIcon('ticket_count')}</th>
                             <th className="ios-th" onClick={() => handleSort('created_at')}>가입일 {getSortIcon('created_at')}</th>
                             <th className="ios-th" style={{ textAlign: 'right', paddingRight: '16px' }}>관리</th>
                         </tr>
                     </thead>
                     <tbody>
+                        {/* 🚨 주석 위치 수정 완료! JSX 문법 에러 해결 */}
                         {isLoadingUsers ? (
-                            <tr><td colSpan="8" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>로딩 중...</td></tr>
+                            <tr><td colSpan="6" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>로딩 중...</td></tr>
                         ) : (!usersList.length) ? (
-                            <tr><td colSpan="8" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>회원이 없습니다.</td></tr>
+                            <tr><td colSpan="6" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>회원이 없습니다.</td></tr>
                         ) : (
                             usersList.map((u, idx) => (
                                 <tr key={u.id} className={`ios-tr ${u.is_blocked ? 'blocked' : ''}`}>
                                     <td className="ios-td" style={{ color: '#8E8E93', fontSize: '12px' }}>{pageSize * (page - 1) + idx + 1}</td>
                                     <td className="ios-td">
-                                        {/* 🚨 아이디가 있으면 아이디 노출, 없으면 SNS 이메일 노출 */}
                                         <div style={{ fontWeight: '600', color: u.is_blocked ? '#FF3B30' : '#1C1C1E' }}>
                                             {u.login_id || u.email}
                                         </div>
@@ -166,13 +160,10 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
                                         </div>
                                     </td>
                                     <td className="ios-td">{getTierBadge(u.role, u.membership_tier)}</td>
-                                    <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#D97706' }}>{(u.point_balance || 0).toLocaleString()} P</td>
-                                    <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#7C3AED' }}>{(u.game_money_balance || 0).toLocaleString()} G</td>
                                     <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#007AFF' }}>{u.ticket_count || 0} 장</td>
                                     <td className="ios-td" style={{ fontSize: '12px', color: '#8E8E93' }}>{new Date(u.created_at).toLocaleDateString()}</td>
                                     <td className="ios-td" style={{ textAlign: 'right', paddingRight: '16px' }}>
-                                        {/* 🚨 모달 띄우기 대신, 대시보드의 상세 페이지 함수(onGoToDetail)를 직접 호출하여 전환 */}
-                                        <button className="ios-btn-micro" onClick={() => onGoToDetail && onGoToDetail(u.id)}>상세/자산 관리</button>
+                                        <button className="ios-btn-micro" onClick={() => onGoToDetail && onGoToDetail(u.id)}>상세 관리</button>
                                     </td>
                                 </tr>
                             ))

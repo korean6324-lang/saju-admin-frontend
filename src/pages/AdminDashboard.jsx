@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
 import { 
     Map, MonitorPlay, Image as ImageIcon, Users, BarChart3, 
-    Bell, Wallet, LogOut, Settings, ChevronRight, UserPlus, Sliders,
+    Bell, LogOut, Settings, ChevronRight, UserPlus, Sliders,
     Search, Layers, Megaphone, ShieldBan
 } from 'lucide-react'; 
 
@@ -12,9 +12,8 @@ import AdminOverview from '../components/admin/AdminOverview';
 import AdminMyeongdang from '../components/admin/AdminMyeongdang';
 import AdminMyeongdangRequests from '../components/admin/AdminMyeongdangRequests';
 import AdminNotice from '../components/admin/AdminNotice';
-import AdminCash from '../components/admin/AdminCash'; 
-import AdminDeposit from '../components/admin/AdminDeposit'; 
-import AdminProfit from '../components/admin/AdminProfit'; 
+ 
+// 🚨 정산관리 관련 컴포넌트(AdminDeposit, AdminProfit) 임포트 제거 완료
 import AdminMedia from '../components/admin/AdminMedia';
 import AdminBanner from '../components/admin/AdminBanner';
 import AdminInquiry from '../components/admin/AdminInquiry'; 
@@ -23,7 +22,7 @@ import AdminAccount from '../components/admin/AdminAccount';
 import AdminUserManage from '../components/admin/AdminUserManage'; 
 import AdminSiteSettings from '../components/admin/AdminSiteSettings'; 
 import AdminUserDetail from '../components/admin/AdminUserDetail'; 
-import AdminIpManagement from './AdminIpManagement'; // 🚨 차단 IP 관리 페이지
+import AdminIpManagement from './AdminIpManagement'; // 차단 IP 관리 페이지
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
@@ -91,21 +90,9 @@ export default function AdminDashboard() {
             { id: 'overview', icon: BarChart3, label: '대시보드 통계' },
             { id: 'user_manage', icon: UserPlus, label: '사용자관리' },
             { id: 'member_manage', icon: Users, label: '회원 및 권한 관리' },
-            // 🚨 서비스 관리 탭에 차단 IP 관리 메뉴 추가 완료
             { id: 'ip_management', icon: ShieldBan, label: '전체 차단 IP 관리' } 
         ]},
-        { category: '정산관리', hideCategoryTitle: true, items: [
-            { 
-                id: 'settlement_manage', 
-                icon: Wallet, 
-                label: '정산관리', 
-                subItems: [
-                    { id: 'cash', label: '1. 환전(출금) 정산' }, 
-                    { id: 'deposit', label: '2. 충전(입금) 승인 관리' },
-                    { id: 'profit', label: '3. 수익금 (통계) 관리' } 
-                ]
-            }
-        ]},
+        // 🚨 '정산관리' 메뉴 전체 삭제 완료
         { category: '콘텐츠 관리', hideCategoryTitle: true, items: [
             { 
                 id: 'content_manage', 
@@ -311,13 +298,10 @@ export default function AdminDashboard() {
                         {activeTab === 'member_manage' && <AdminPartners adminTheme={adminTheme} defaultTab="users" onGoToDetail={goToUserDetail} />}
                         {activeTab === 'user_detail' && <AdminUserDetail adminTheme={adminTheme} userId={selectedUserId} onGoBack={goBackToUsers} />}
                         
-                        {/* 🚨 전체 차단 IP 관리 페이지 렌더링 연결 완료 */}
+                        {/* 전체 차단 IP 관리 페이지 */}
                         {activeTab === 'ip_management' && <AdminIpManagement />}
                         
-                        {/* 정산관리 하위 */}
-                        {activeTab === 'cash' && <AdminCash adminTheme={adminTheme} />} 
-                        {activeTab === 'deposit' && <AdminDeposit adminTheme={adminTheme} />} 
-                        {activeTab === 'profit' && <AdminProfit adminTheme={adminTheme} />} 
+                        {/* 🚨 정산관리 렌더링 호출(AdminDeposit, AdminProfit) 완전 삭제 완료 */}
 
                         {/* 콘텐츠 관리 하위 */}
                         {activeTab === 'myeongdang' && <AdminMyeongdang adminTheme={adminTheme} />}
