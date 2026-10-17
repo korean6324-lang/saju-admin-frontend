@@ -24,15 +24,21 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
 
     // 회원 데이터 페칭
     const { data: usersData, isLoading: isLoadingUsers } = useQuery({
-        queryKey: ['adminUsersList', page, pageSize, debouncedSearch, quickRole, sortConfig],
+        // 🚨 searchType도 쿼리 키에 추가하여, 검색 기준 변경 시 즉시 재요청되도록 수정
+        queryKey: ['adminUsersList', page, pageSize, debouncedSearch, searchType, quickRole, sortConfig],
         queryFn: async () => {
             let query = supabase.from('profiles').select('*', { count: 'exact' });
 
             if (debouncedSearch) {
+                // 🚨 400 에러 방지: 큰따옴표 충돌 제거
+                const safeSearch = debouncedSearch.replace(/"/g, ''); 
+
                 if (searchType === 'email') {
-                    query = query.or(`email.ilike.%${debouncedSearch}%,login_id.ilike.%${debouncedSearch}%`);
+                    // 🚨 400 에러 방지: .or 구문 안의 검색어를 큰따옴표("")로 감싸서 공백/특수문자 파싱 에러 완벽 차단
+                    query = query.or(`email.ilike."%${safeSearch}%",login_id.ilike."%${safeSearch}%"`);
                 } else {
-                    query = query.or(`${searchType}.ilike.%${debouncedSearch}%`);
+                    // 🚨 단일 검색은 .or 대신 더 안전한 .ilike 직접 호출로 변경
+                    query = query.ilike(searchType, `%${safeSearch}%`);
                 }
             }
 
@@ -134,7 +140,8 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
                     <thead>
                         <tr>
                             <th className="ios-th" onClick={() => handleSort('id')}>NO</th>
-                            <th className="ios-th" onClick={() => handleSort('email')}>계정 (ID/이메일) {getSortIcon('email')}</th>
+                            {/* 🚨 400 에러 방지: 존재하지 않을 수 있는 email 대신 확실한 login_id로 정렬 타겟 변경 */}
+                            <th className="ios-th" onClick={() => handleSort('login_id')}>계정 (ID/이메일) {getSortIcon('login_id')}</th>
                             <th className="ios-th" onClick={() => handleSort('role')}>등급 {getSortIcon('role')}</th>
                             <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('ticket_count')}>열람쿠폰 {getSortIcon('ticket_count')}</th>
                             <th className="ios-th" onClick={() => handleSort('created_at')}>가입일 {getSortIcon('created_at')}</th>
@@ -142,7 +149,6 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {/* 🚨 주석 위치 수정 완료! JSX 문법 에러 해결 */}
                         {isLoadingUsers ? (
                             <tr><td colSpan="6" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>로딩 중...</td></tr>
                         ) : (!usersList.length) ? (

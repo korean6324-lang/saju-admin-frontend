@@ -23,7 +23,9 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     });
 
     const [newPassword, setNewPassword] = useState('');
-    const [assetForm, setAssetForm] = useState({ ticket: 0, reason: '' });
+    
+    // ✨ 자산 종류(type)를 선택할 수 있도록 폼 상태 확장
+    const [assetForm, setAssetForm] = useState({ type: 'ticket', amount: 0, reason: '' });
 
     const fetchAccessLogs = async (page = 1, isManual = false) => {
         try {
@@ -149,7 +151,6 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
 
             const { error: rpcError } = await supabase.rpc('admin_update_user_full_info', {
                 p_user_id: userId, 
-                // ✨ 이 부분이 수정되었습니다. (빈칸일 경우 null로 전송하여 Unique 에러 방지)
                 p_login_id: infoForm.login_id.trim() === '' ? null : infoForm.login_id, 
                 p_phone: infoForm.phone, 
                 p_role: newRole, 
@@ -180,33 +181,48 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
     };
 
     const handleAdjustAssets = async (type) => { 
-        const tk = parseInt(assetForm.ticket) || 0;
+        const amt = parseInt(assetForm.amount) || 0;
 
-        if (tk === 0) return alert("변경할 수량을 입력해주세요.");
+        if (amt === 0) return alert("변경할 수량을 입력해주세요.");
         if (!assetForm.reason.trim()) return alert("지급/차감 사유를 입력해주세요 (장부 기록용).");
 
         const multiplier = type === 'add' ? 1 : -1;
         const actionText = type === 'add' ? '지급' : '차감';
+        const finalAmount = amt * multiplier;
 
-        if (!window.confirm(`열람권: ${tk * multiplier}장\n해당 자산을 ${actionText}하시겠습니까?`)) return;
+        // 선택된 자산 종류에 따른 한글 표시명
+        const assetName = assetForm.type === 'ticket' ? '종합 열람권' : 
+                          assetForm.type === 'lotto' ? '로또 이용권' : '타로 이용권';
+
+        if (!window.confirm(`[${assetName}]\n수량: ${finalAmount}장\n해당 자산을 ${actionText}하시겠습니까?`)) return;
 
         try {
-            const { error } = await supabase.rpc('admin_adjust_user_assets', {
-                p_user_id: userId, p_ticket_change: tk * multiplier
+            // ✨ 새롭게 만든 특정 자산 지급/차감 함수 호출
+            const { error } = await supabase.rpc('admin_adjust_specific_asset', {
+                p_user_id: userId, 
+                p_asset_type: assetForm.type,
+                p_amount: finalAmount
             });
             if (error) throw error;
 
             const logsToInsert = [];
-            
-            if (tk !== 0) logsToInsert.push({ user_id: userId, asset_type: 'ticket', trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', amount: tk * multiplier, description: `[관리자 직권] ${assetForm.reason}` });
+            if (amt !== 0) {
+                logsToInsert.push({ 
+                    user_id: userId, 
+                    asset_type: assetForm.type, 
+                    trade_type: type === 'add' ? 'admin_grant' : 'admin_revoke', 
+                    amount: finalAmount, 
+                    description: `[관리자 직권] ${assetForm.reason}` 
+                });
+            }
 
             if (logsToInsert.length > 0) {
                 const { error: logError } = await supabase.from('coin_history').insert(logsToInsert);
                 if (logError) console.error("장부 상세 기록 에러:", logError);
             }
 
-            alert(`✅ 성공적으로 ${actionText}되었습니다.`);
-            setAssetForm({ ticket: 0, reason: '' });
+            alert(`✅ ${assetName} ${actionText}이(가) 완료되었습니다.`);
+            setAssetForm({ type: 'ticket', amount: 0, reason: '' });
             loadUserData(); 
         } catch (error) { 
             alert(`❌ 자산 ${actionText} 실패: ` + error.message); 
@@ -226,6 +242,14 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
         } catch (error) { alert("❌ 삭제 실패: " + error.message); }
     };
 
+    // 장부 리스트 표시용 이름 변환 함수
+    const getAssetNameKor = (type) => {
+        if (type === 'ticket') return '종합 열람권';
+        if (type === 'lotto') return '로또 이용권';
+        if (type === 'tarot') return '타로 이용권';
+        return type;
+    };
+
     if (isLoading) return <div style={{ padding: '40px', color: adminTheme.textMuted }}>데이터를 불러오는 중...</div>;
     if (!user) return <div style={{ padding: '40px', color: '#DC2626' }}>회원 정보를 찾을 수 없습니다.</div>;
 
@@ -239,7 +263,8 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                 <ArrowLeft size={16}/> 목록으로 돌아가기
             </button>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
+            {/* ✨ 상단 유저 요약 정보 (자산 3종 모두 표시) */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
                     <h2 style={{ fontSize: '24px', fontWeight: '800', color: adminTheme.textBright, margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>
                         {user.name || user.login_id || user.email} 
@@ -251,8 +276,12 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                         가입일: {new Date(user.created_at).toLocaleString()} | 이메일: {user.email} | 고유코드: {user.id.substring(0,8)}...
                     </div>
                 </div>
-                <div style={{ display: 'flex', gap: '16px', textAlign: 'right' }}>
-                    <div><div style={{ fontSize: '11px', color: adminTheme.textMuted }}>보유 열람권</div><div style={{ fontSize: '18px', fontWeight: '800', color: '#007AFF' }}>{user.ticket_count || 0} 장</div></div>
+                <div style={{ display: 'flex', gap: '20px', textAlign: 'right', background: '#FFFFFF', padding: '12px 20px', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
+                    <div><div style={{ fontSize: '11px', color: adminTheme.textMuted }}>종합 열람권</div><div style={{ fontSize: '18px', fontWeight: '800', color: '#10B981' }}>{user.ticket_count || 0} 장</div></div>
+                    <div style={{ width: '1px', background: '#E5E7EB' }}></div>
+                    <div><div style={{ fontSize: '11px', color: adminTheme.textMuted }}>로또 이용권</div><div style={{ fontSize: '18px', fontWeight: '800', color: '#2563EB' }}>{user.daily_lotto_tickets || 0} 장</div></div>
+                    <div style={{ width: '1px', background: '#E5E7EB' }}></div>
+                    <div><div style={{ fontSize: '11px', color: adminTheme.textMuted }}>타로 이용권</div><div style={{ fontSize: '18px', fontWeight: '800', color: '#9333EA' }}>{user.daily_tarot_tickets || 0} 장</div></div>
                 </div>
             </div>
 
@@ -311,11 +340,24 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <div style={cardStyle}>
                         <h3 style={{ fontSize: '15px', color: '#007AFF', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px', fontWeight: '700' }}>
-                            <Ticket size={18}/> 열람권 지급 및 차감
+                            <Ticket size={18}/> 쿠폰 및 열람권 지급/차감
                         </h3>
+                        {/* ✨ 자산 종류 선택 셀렉트 박스 추가 */}
                         <div style={{ marginBottom: '16px' }}>
-                            <label style={labelStyle}>열람권 (장)</label>
-                            <input type="number" value={assetForm.ticket} onChange={e=>setAssetForm({...assetForm, ticket: e.target.value})} style={inputStyle} placeholder="수량 입력" />
+                            <label style={labelStyle}>조정할 자산 종류 선택</label>
+                            <select 
+                                value={assetForm.type} 
+                                onChange={e=>setAssetForm({...assetForm, type: e.target.value})} 
+                                style={{ ...inputStyle, cursor: 'pointer', fontWeight: '600' }}
+                            >
+                                <option value="ticket">종합 열람권 (사주/궁합 등)</option>
+                                <option value="lotto">로또 무료 이용권</option>
+                                <option value="tarot">타로 무료 이용권</option>
+                            </select>
+                        </div>
+                        <div style={{ marginBottom: '16px' }}>
+                            <label style={labelStyle}>변경 수량 (장)</label>
+                            <input type="number" value={assetForm.amount} onChange={e=>setAssetForm({...assetForm, amount: e.target.value})} style={inputStyle} placeholder="수량 입력 (예: 5)" />
                         </div>
                         <div style={{ marginBottom: '16px' }}>
                             <label style={labelStyle}>지급/차감 사유 (필수)</label>
@@ -357,7 +399,8 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                                         <tr key={log.id}>
                                             <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border }}>{new Date(log.created_at).toLocaleString()}</td>
                                             <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, fontWeight: '600', color: '#007AFF' }}>
-                                                {log.asset_type === 'ticket' ? '열람권' : log.asset_type}
+                                                {/* ✨ 기록된 장부의 자산 이름도 한글로 깔끔하게 변환 */}
+                                                {getAssetNameKor(log.asset_type)}
                                             </td>
                                             <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: '#1C1C1E', fontWeight: '500' }}>{log.description}</td>
                                             <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, fontWeight: '700', color: isPlus ? '#16A34A' : '#DC2626', textAlign: 'right' }}>

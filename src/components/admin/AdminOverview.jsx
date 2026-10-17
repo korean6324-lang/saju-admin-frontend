@@ -20,20 +20,18 @@ export default function AdminOverview({ adminTheme }) {
                 supabase.from('profiles').select('id', { count: 'exact', head: true }).in('membership_tier', ['basic', 'premium']),
                 // 3. 승인된 파트너 수
                 supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'partner'),
-                // 4. 전체 유저의 열람권 보유량 조회를 위한 페칭
-                supabase.from('profiles').select('tarot_ticket_count, general_ticket_count')
+                // 4. 🚨 에러 해결: 과거의 분리된 티켓 대신 통합된 'ticket_count' 컬럼 요청
+                supabase.from('profiles').select('ticket_count')
             ]);
 
-            // 열람권 총합 계산
-            const totalTarot = ticketsReq.data?.reduce((acc, curr) => acc + (curr.tarot_ticket_count || 0), 0) || 0;
-            const totalGeneral = ticketsReq.data?.reduce((acc, curr) => acc + (curr.general_ticket_count || 0), 0) || 0;
+            // 🚨 통합 열람권 총합 계산
+            const totalTickets = ticketsReq.data?.reduce((acc, curr) => acc + (curr.ticket_count || 0), 0) || 0;
 
             return {
                 totalUsers: usersReq.count || 0,
                 vipUsers: vipReq.count || 0,
                 partners: partnersReq.count || 0,
-                totalTarotTickets: totalTarot,
-                totalGeneralTickets: totalGeneral
+                totalTickets: totalTickets
             };
         }
     });
@@ -141,27 +139,17 @@ export default function AdminOverview({ adminTheme }) {
                         </div>
                     </div>
 
-                    {/* 2. 열람권 발행 현황 패널 (캐시 대체) */}
+                    {/* 2. 열람권 발행 현황 패널 */}
                     <div className="ios-group-title">열람권 누적 발행 현황</div>
                     <div className="ios-list-group">
+                        {/* 🚨 에러 해결: 통합된 열람권 1개만 표시하도록 변경 */}
                         <div className="ios-list-row">
                             <div className="ios-label-wrap">
                                 <div className="ios-icon-box" style={{ background: '#AF52DE' }}><Sparkles size={18} /></div>
-                                <span className="ios-label">타로 열람권 잔여 총합</span>
+                                <span className="ios-label">통합 열람권 잔여 총합</span>
                             </div>
                             <div className="ios-value-wrap">
-                                <span className="ios-value-number" style={{ color: '#AF52DE' }}>{stats?.totalTarotTickets.toLocaleString()}</span>
-                                <span className="ios-value-unit">장</span>
-                            </div>
-                        </div>
-
-                        <div className="ios-list-row">
-                            <div className="ios-label-wrap">
-                                <div className="ios-icon-box" style={{ background: '#32ADE6' }}><ScrollText size={18} /></div>
-                                <span className="ios-label">종합 열람권 잔여 총합 <span style={{fontSize:'12px', color:'#8E8E93', fontWeight:'normal'}}>(사주/궁합 등)</span></span>
-                            </div>
-                            <div className="ios-value-wrap">
-                                <span className="ios-value-number" style={{ color: '#32ADE6' }}>{stats?.totalGeneralTickets.toLocaleString()}</span>
+                                <span className="ios-value-number" style={{ color: '#AF52DE' }}>{stats?.totalTickets.toLocaleString()}</span>
                                 <span className="ios-value-unit">장</span>
                             </div>
                         </div>

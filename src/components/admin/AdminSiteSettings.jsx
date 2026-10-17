@@ -1,6 +1,6 @@
 // src/components/admin/AdminSiteSettings.jsx
 import React, { useState, useEffect } from 'react';
-import { Save, Search, Check, Upload, Layout, FileText, Users, Loader2, Image as ImageIcon, Shield, Mail, Phone, Settings, X, Megaphone, Gift } from 'lucide-react';
+import { Save, Search, Check, Upload, Layout, FileText, Users, Loader2, Image as ImageIcon, Shield, Mail, Phone, Settings, X, Megaphone, Gift, Sparkles, Dices } from 'lucide-react';
 import { supabase } from '../../api/supabaseClient'; 
 
 export default function AdminSiteSettings({ adminTheme }) {
@@ -54,10 +54,14 @@ export default function AdminSiteSettings({ adminTheme }) {
         b5_active: false, b5_title: '', b5_desc: '', b5_link: '',
     });
 
-    // 🚨 이벤트/혜택 상태 추가
+    // 🚨 00시 지급 이벤트/혜택 상태 추가
     const [eventSettings, setEventSettings] = useState({
         signup_active: true,
-        signup_tickets: 3
+        signup_tickets: 3,
+        daily_lotto_active: true,
+        daily_lotto_tickets: 3,
+        daily_tarot_active: true,
+        daily_tarot_tickets: 1
     });
 
     useEffect(() => {
@@ -89,10 +93,14 @@ export default function AdminSiteSettings({ adminTheme }) {
                     b5_active: data.banner_5_active ?? false, b5_title: data.banner_5_title || '1:1 심층 상담', b5_desc: data.banner_5_desc || '전문가와 함께하는 인생 설계', b5_link: data.banner_5_link || '/support',
                 });
 
-                // 🚨 DB에서 불러온 이벤트/혜택 데이터 세팅
+                // 🚨 DB에서 일일/가입 혜택 세팅
                 setEventSettings({
                     signup_active: data.signup_event_active ?? true,
-                    signup_tickets: data.signup_ticket_count ?? 3
+                    signup_tickets: data.signup_ticket_count ?? 3,
+                    daily_lotto_active: data.daily_lotto_active ?? true,
+                    daily_lotto_tickets: data.daily_lotto_tickets ?? 3,
+                    daily_tarot_active: data.daily_tarot_active ?? true,
+                    daily_tarot_tickets: data.daily_tarot_tickets ?? 1
                 });
             }
         } catch (error) { console.error("초기 설정 로드 실패:", error); }
@@ -142,9 +150,13 @@ export default function AdminSiteSettings({ adminTheme }) {
                 banner_4_active: Boolean(banners.b4_active), banner_4_title: banners.b4_title || '', banner_4_desc: banners.b4_desc || '', banner_4_link: banners.b4_link || '',
                 banner_5_active: Boolean(banners.b5_active), banner_5_title: banners.b5_title || '', banner_5_desc: banners.b5_desc || '', banner_5_link: banners.b5_link || '',
                 
-                // 🚨 이벤트/혜택 설정 저장
+                // 🚨 00시 일일 이벤트/혜택 설정 저장
                 signup_event_active: Boolean(eventSettings.signup_active),
                 signup_ticket_count: parseInt(eventSettings.signup_tickets) || 0,
+                daily_lotto_active: Boolean(eventSettings.daily_lotto_active),
+                daily_lotto_tickets: parseInt(eventSettings.daily_lotto_tickets) || 0,
+                daily_tarot_active: Boolean(eventSettings.daily_tarot_active),
+                daily_tarot_tickets: parseInt(eventSettings.daily_tarot_tickets) || 0,
                 
                 updated_at: new Date().toISOString()
             });
@@ -153,7 +165,7 @@ export default function AdminSiteSettings({ adminTheme }) {
             alert("✅ 설정 및 배너 정보가 성공적으로 연동 저장되었습니다.");
         } catch (e) { 
             console.error("Supabase 저장 에러 상세:", e);
-            alert(`❌ 저장 중 오류가 발생했습니다.\n(SQL DB에 배너 컬럼이 생성되었는지 확인해주세요.)`); 
+            alert(`❌ 저장 중 오류가 발생했습니다.\n(SQL DB에 배너/이벤트 컬럼이 생성되었는지 확인해주세요.)`); 
         } 
         finally { setIsSaving(false); }
     };
@@ -181,11 +193,8 @@ export default function AdminSiteSettings({ adminTheme }) {
                 .ios-select-clean { border: none; outline: none; background: transparent; text-align: right; direction: rtl; font-size: 13px; color: #007AFF; font-weight: 500; -webkit-appearance: none; appearance: none; font-family: inherit; cursor: pointer; padding: 0 4px; }
                 .ios-btn-micro { border: none; background: #F2F2F7; color: #007AFF; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
                 .ios-btn-micro:active { transform: scale(0.95); opacity: 0.8; }
-                .ios-btn-micro.danger { color: #FF3B30; background: #FFE5E5; }
-                .ios-btn-micro.outline { background: transparent; border: 1px solid #E5E5EA; color: #1C1C1E; }
                 .ios-submit-btn { width: 100%; background-color: #007AFF; color: #FFFFFF; font-size: 16px; font-weight: 700; padding: 16px; border-radius: 14px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.2s, opacity 0.2s; box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2); margin-top: 16px; }
                 .ios-submit-btn:active:not(:disabled) { transform: scale(0.98); opacity: 0.9; }
-                .ios-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
                 .ios-textarea-box { width: 100%; border: 1px solid #E5E5EA; border-radius: 10px; overflow: hidden; background: #F9F9FB; }
                 .ios-textarea { width: 100%; height: 300px; padding: 16px; border: none; outline: none; background: transparent; font-size: 13px; line-height: 1.6; color: #1C1C1E; resize: vertical; box-sizing: border-box; font-family: inherit; }
                 .ios-toggle { width: 42px; height: 24px; background-color: #E9E9EA; border-radius: 24px; position: relative; cursor: pointer; transition: 0.3s ease; flex-shrink: 0; }
@@ -195,7 +204,6 @@ export default function AdminSiteSettings({ adminTheme }) {
                 .ios-table { width: 100%; border-collapse: collapse; }
                 .ios-th { background-color: #F9F9FB; padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 700; color: #8E8E93; border-bottom: 0.5px solid #E5E5EA; }
                 .ios-td { padding: 12px 16px; border-bottom: 0.5px solid #E5E5EA; font-size: 13px; color: #1C1C1E; font-weight: 500; vertical-align: middle; }
-                .ios-tr:last-child .ios-td { border-bottom: none; }
                 .lucide-spin { animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
             `}} />
@@ -210,8 +218,7 @@ export default function AdminSiteSettings({ adminTheme }) {
                 <div className={`ios-segment-main-btn ${mainTab === 'policy' ? 'active' : ''}`} onClick={() => { setMainTab('policy'); setSubTab('terms'); }}><FileText size={14}/> 운영정책</div>
                 <div className={`ios-segment-main-btn ${mainTab === 'member' ? 'active' : ''}`} onClick={() => { setMainTab('member'); setSubTab('join'); }}><Users size={14}/> 회원정책</div>
                 <div className={`ios-segment-main-btn ${mainTab === 'marketing' ? 'active' : ''}`} onClick={() => { setMainTab('marketing'); setSubTab('banners'); }}><Megaphone size={14}/> 마케팅/배너</div>
-                {/* 🚨 이벤트/혜택 탭 추가 */}
-                <div className={`ios-segment-main-btn ${mainTab === 'event' ? 'active' : ''}`} onClick={() => { setMainTab('event'); setSubTab('signup'); }}><Gift size={14}/> 이벤트/혜택</div>
+                <div className={`ios-segment-main-btn ${mainTab === 'event' ? 'active' : ''}`} onClick={() => { setMainTab('event'); setSubTab('benefits'); }}><Gift size={14}/> 이벤트/혜택</div>
             </div>
 
             {mainTab === 'basic' && (
@@ -307,9 +314,6 @@ export default function AdminSiteSettings({ adminTheme }) {
                                     <label htmlFor="favicon-upload" className="ios-btn-micro outline">{isUploadingFavicon ? <Loader2 size={12} className="lucide-spin" /> : <Upload size={12} />}{isUploadingFavicon ? '업로드 중' : '이미지 선택'}</label>
                                 </div>
                             </div>
-                            <div style={{ padding: '12px 16px', backgroundColor: '#F9F9FB', fontSize: '11px', color: '#8E8E93', borderTop: '0.5px solid #E5E5EA' }}>
-                                * 파비콘은 브라우저 탭에 표시되는 아이콘입니다. (권장: 16x16px 정사각형 이미지)
-                            </div>
                         </div>
                     )}
                 </div>
@@ -325,7 +329,6 @@ export default function AdminSiteSettings({ adminTheme }) {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                             <div style={{ fontSize: '12px', color: '#8E8E93', marginBottom: '-10px' }}>* 배너 스위치를 끄면 유저 화면에서 숨겨집니다. 레이아웃 크기는 고정되어 있습니다.</div>
                             
-                            {/* Banner 1 */}
                             <div className="ios-list-group" style={{ border: '1.5px solid #FDE68A', marginBottom: 0 }}>
                                 <div style={{ background: '#FFF9F0', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #FDE68A' }}>
                                     <span style={{ fontWeight: '800', color: '#D97706', fontSize: '13px' }}>[배너 1] PREMIUM 영역 (골드)</span>
@@ -336,7 +339,6 @@ export default function AdminSiteSettings({ adminTheme }) {
                                 <div className="ios-list-row"><span className="ios-label">이동 링크 (URL)</span><input type="text" className="ios-input-clean" value={banners.b1_link} onChange={e => setBanners({...banners, b1_link: e.target.value})} placeholder="/membership"/></div>
                             </div>
 
-                            {/* Banner 2 */}
                             <div className="ios-list-group" style={{ border: '1.5px solid #E5E5EA', marginBottom: 0 }}>
                                 <div style={{ background: '#F4F4F9', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E5E5EA' }}>
                                     <span style={{ fontWeight: '800', color: '#5E5CE6', fontSize: '13px' }}>[배너 2] NEW 영역 (퍼플)</span>
@@ -347,7 +349,6 @@ export default function AdminSiteSettings({ adminTheme }) {
                                 <div className="ios-list-row"><span className="ios-label">이동 링크 (URL)</span><input type="text" className="ios-input-clean" value={banners.b2_link} onChange={e => setBanners({...banners, b2_link: e.target.value})} placeholder="/tarot"/></div>
                             </div>
 
-                            {/* Banner 3 */}
                             <div className="ios-list-group" style={{ border: '1.5px solid #FFD1D1', marginBottom: 0 }}>
                                 <div style={{ background: '#FFF0F0', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #FFD1D1' }}>
                                     <span style={{ fontWeight: '800', color: '#FF3B30', fontSize: '13px' }}>[배너 3] EVENT 영역 (레드)</span>
@@ -358,7 +359,6 @@ export default function AdminSiteSettings({ adminTheme }) {
                                 <div className="ios-list-row"><span className="ios-label">이동 링크 (URL)</span><input type="text" className="ios-input-clean" value={banners.b3_link} onChange={e => setBanners({...banners, b3_link: e.target.value})} placeholder=""/></div>
                             </div>
 
-                            {/* Banner 4 */}
                             <div className="ios-list-group" style={{ border: '1.5px solid #BBF7D0', marginBottom: 0 }}>
                                 <div style={{ background: '#F0FDF4', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #BBF7D0' }}>
                                     <span style={{ fontWeight: '800', color: '#16A34A', fontSize: '13px' }}>[배너 4] RECOMMEND 영역 (그린)</span>
@@ -369,7 +369,6 @@ export default function AdminSiteSettings({ adminTheme }) {
                                 <div className="ios-list-row"><span className="ios-label">이동 링크 (URL)</span><input type="text" className="ios-input-clean" value={banners.b4_link} onChange={e => setBanners({...banners, b4_link: e.target.value})} placeholder="/unse"/></div>
                             </div>
 
-                            {/* Banner 5 */}
                             <div className="ios-list-group" style={{ border: '1.5px solid #BFDBFE', marginBottom: 0 }}>
                                 <div style={{ background: '#EFF6FF', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #BFDBFE' }}>
                                     <span style={{ fontWeight: '800', color: '#2563EB', fontSize: '13px' }}>[배너 5] SPECIAL 영역 (블루)</span>
@@ -395,26 +394,6 @@ export default function AdminSiteSettings({ adminTheme }) {
 
                     <div className="ios-group-title">정책 내용 편집</div>
                     <div className="ios-list-group" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'flex-end' }}>
-                            <span style={{ fontSize: '12px', fontWeight: '600', color: '#8E8E93' }}>시행 적용일</span>
-                            <select className="ios-select-clean"><option>2026년</option></select>
-                            <select className="ios-select-clean"><option>01월</option></select>
-                            <select className="ios-select-clean"><option>01일</option></select>
-                        </div>
-                        
-                        {subTab === 'privacy' && (
-                            <div style={{ display: 'flex', gap: '12px', background: '#F9F9FB', padding: '12px', borderRadius: '10px', border: '0.5px solid #E5E5EA' }}>
-                                <div style={{ flex: 1 }}>
-                                    <span style={{ fontSize: '11px', color: '#8E8E93', fontWeight: '600', display: 'block', marginBottom: '4px' }}>관리책임자 정보</span>
-                                    <input type="text" className="ios-input-clean" style={{ textAlign: 'left', color: '#1C1C1E', width: '100%', background: '#FFF', padding: '6px', borderRadius: '6px', border: '0.5px solid #C6C6C8' }} value={`${policies.privacyManager} (${policies.privacyManagerPos})`} readOnly />
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                    <span style={{ fontSize: '11px', color: '#8E8E93', fontWeight: '600', display: 'block', marginBottom: '4px' }}>책임자 이메일</span>
-                                    <input type="text" className="ios-input-clean" style={{ textAlign: 'left', color: '#1C1C1E', width: '100%', background: '#FFF', padding: '6px', borderRadius: '6px', border: '0.5px solid #C6C6C8' }} value={policies.privacyManagerEmail} readOnly />
-                                </div>
-                            </div>
-                        )}
-
                         <div className="ios-textarea-box">
                             <textarea 
                                 className="ios-textarea"
@@ -483,39 +462,64 @@ export default function AdminSiteSettings({ adminTheme }) {
                 </div>
             )}
 
-            {/* 🚨 [핵심] 신규 이벤트 탭 내용 */}
+            {/* 🚨 [핵심] 일일/가입 혜택 이벤트 탭 내용 */}
             {mainTab === 'event' && (
                 <div className="fade-in">
                     <div className="ios-segment-sub">
-                        <div className={`ios-segment-sub-btn ${subTab === 'signup' ? 'active' : ''}`} onClick={() => setSubTab('signup')}>신규 가입 혜택 설정</div>
+                        <div className={`ios-segment-sub-btn ${subTab === 'benefits' ? 'active' : ''}`} onClick={() => setSubTab('benefits')}>신규 및 일일 혜택 설정</div>
                     </div>
 
-                    {subTab === 'signup' && (
+                    {subTab === 'benefits' && (
                         <>
-                            <div className="ios-group-title">회원가입 자동 지급 이벤트</div>
-                            <div className="ios-list-group" style={{ border: '1.5px solid #BBF7D0' }}>
+                            {/* 1. 신규 가입 이벤트 */}
+                            <div className="ios-group-title">회원가입 기본 혜택</div>
+                            <div className="ios-list-group" style={{ border: '1px solid #BBF7D0', marginBottom: '24px' }}>
                                 <div style={{ background: '#F0FDF4', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #BBF7D0' }}>
-                                    <span style={{ fontWeight: '800', color: '#16A34A', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}><Gift size={16}/> 신규 가입 무료 열람권 자동 지급</span>
+                                    <span style={{ fontWeight: '800', color: '#16A34A', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}><Gift size={16}/> 신규 가입 열람권 (통합권)</span>
                                     <div className={`ios-toggle ${eventSettings.signup_active ? 'active' : ''}`} onClick={() => setEventSettings({...eventSettings, signup_active: !eventSettings.signup_active})}><div className="ios-toggle-knob"></div></div>
                                 </div>
                                 <div className="ios-list-row">
-                                    <span className="ios-label">지급할 열람권 개수</span>
+                                    <span className="ios-label" style={{ color: '#4B5563' }}>가입 시 자동 지급 수량</span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <input 
-                                            type="number" 
-                                            className="ios-input-clean" 
-                                            value={eventSettings.signup_tickets} 
-                                            onChange={e => setEventSettings({...eventSettings, signup_tickets: e.target.value})} 
-                                            style={{ width: '60px', textAlign: 'right', fontWeight: '800', fontSize: '16px', color: '#007AFF', backgroundColor: '#F0F9FF', padding: '4px 8px', borderRadius: '6px' }}
-                                            disabled={!eventSettings.signup_active}
-                                        />
-                                        <span style={{ fontSize: '14px', color: '#1C1C1E', fontWeight: '600' }}>장</span>
+                                        <input type="number" className="ios-input-clean" value={eventSettings.signup_tickets} onChange={e => setEventSettings({...eventSettings, signup_tickets: e.target.value})} style={{ width: '60px', textAlign: 'right', fontWeight: '700', fontSize: '15px', color: '#16A34A', backgroundColor: '#F0FDF4', padding: '4px 8px', borderRadius: '6px' }} disabled={!eventSettings.signup_active} />
+                                        <span style={{ fontSize: '13px', color: '#1C1C1E', fontWeight: '600' }}>장</span>
                                     </div>
                                 </div>
                             </div>
+
+                            {/* 2. 매일 00시 로또/타로 리셋 이벤트 */}
+                            <div className="ios-group-title">일일 접속 혜택 (매일 00시 리셋)</div>
+                            <div className="ios-list-group" style={{ border: '1px solid #BFDBFE' }}>
+                                {/* 로또 */}
+                                <div style={{ background: '#EFF6FF', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #BFDBFE' }}>
+                                    <span style={{ fontWeight: '800', color: '#2563EB', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}><Dices size={16}/> 매일 무료 로또 이용권 지급</span>
+                                    <div className={`ios-toggle ${eventSettings.daily_lotto_active ? 'active' : ''}`} onClick={() => setEventSettings({...eventSettings, daily_lotto_active: !eventSettings.daily_lotto_active})}><div className="ios-toggle-knob"></div></div>
+                                </div>
+                                <div className="ios-list-row" style={{ borderBottom: '1px solid #E5E5EA' }}>
+                                    <span className="ios-label" style={{ color: '#4B5563' }}>매일(00시) 지급 수량</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <input type="number" className="ios-input-clean" value={eventSettings.daily_lotto_tickets} onChange={e => setEventSettings({...eventSettings, daily_lotto_tickets: e.target.value})} style={{ width: '60px', textAlign: 'right', fontWeight: '700', fontSize: '15px', color: '#2563EB', backgroundColor: '#EFF6FF', padding: '4px 8px', borderRadius: '6px' }} disabled={!eventSettings.daily_lotto_active} />
+                                        <span style={{ fontSize: '13px', color: '#1C1C1E', fontWeight: '600' }}>장</span>
+                                    </div>
+                                </div>
+
+                                {/* 타로 */}
+                                <div style={{ background: '#FAF5FF', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E9D5FF' }}>
+                                    <span style={{ fontWeight: '800', color: '#9333EA', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16}/> 매일 무료 타로 이용권 지급</span>
+                                    <div className={`ios-toggle ${eventSettings.daily_tarot_active ? 'active' : ''}`} onClick={() => setEventSettings({...eventSettings, daily_tarot_active: !eventSettings.daily_tarot_active})}><div className="ios-toggle-knob"></div></div>
+                                </div>
+                                <div className="ios-list-row">
+                                    <span className="ios-label" style={{ color: '#4B5563' }}>매일(00시) 지급 수량</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <input type="number" className="ios-input-clean" value={eventSettings.daily_tarot_tickets} onChange={e => setEventSettings({...eventSettings, daily_tarot_tickets: e.target.value})} style={{ width: '60px', textAlign: 'right', fontWeight: '700', fontSize: '15px', color: '#9333EA', backgroundColor: '#FAF5FF', padding: '4px 8px', borderRadius: '6px' }} disabled={!eventSettings.daily_tarot_active} />
+                                        <span style={{ fontSize: '13px', color: '#1C1C1E', fontWeight: '600' }}>장</span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <p style={{ fontSize: '12px', color: '#8E8E93', lineHeight: '1.5', padding: '0 8px' }}>
-                                * 활성화 시, 신규 회원이 가입을 완료하는 즉시 설정된 개수의 열람권이 자동으로 지급됩니다.<br/>
-                                * 해당 내역은 유저의 장부(마이페이지)에 '신규 가입 축하 혜택'으로 명시됩니다.
+                                * 일일 접속 혜택(로또/타로)은 매일 자정(00시 00분)을 기준으로 리셋됩니다.<br/>
+                                * 사용하지 않은 어제의 티켓은 모두 소멸되며, 누적되지 않고 설정된 개수만큼 새로 덮어씌워집니다.
                             </p>
                         </>
                     )}
