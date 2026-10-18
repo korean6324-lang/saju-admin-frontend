@@ -13,16 +13,17 @@ import AdminMyeongdang from '../components/admin/AdminMyeongdang';
 import AdminMyeongdangRequests from '../components/admin/AdminMyeongdangRequests';
 import AdminNotice from '../components/admin/AdminNotice';
  
-// 🚨 정산관리 관련 컴포넌트(AdminDeposit, AdminProfit) 임포트 제거 완료
 import AdminMedia from '../components/admin/AdminMedia';
 import AdminBanner from '../components/admin/AdminBanner';
+// 🚨 새로 만든 글로벌 팝업 관리 컴포넌트 임포트
+import AdminPopups from '../components/admin/AdminPopups';
 import AdminInquiry from '../components/admin/AdminInquiry'; 
 import AdminPartners from '../components/admin/AdminPartners';
 import AdminAccount from '../components/admin/AdminAccount'; 
 import AdminUserManage from '../components/admin/AdminUserManage'; 
 import AdminSiteSettings from '../components/admin/AdminSiteSettings'; 
 import AdminUserDetail from '../components/admin/AdminUserDetail'; 
-import AdminIpManagement from './AdminIpManagement'; // 차단 IP 관리 페이지
+import AdminIpManagement from './AdminIpManagement'; 
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
@@ -92,7 +93,6 @@ export default function AdminDashboard() {
             { id: 'member_manage', icon: Users, label: '회원 및 권한 관리' },
             { id: 'ip_management', icon: ShieldBan, label: '전체 차단 IP 관리' } 
         ]},
-        // 🚨 '정산관리' 메뉴 전체 삭제 완료
         { category: '콘텐츠 관리', hideCategoryTitle: true, items: [
             { 
                 id: 'content_manage', 
@@ -113,7 +113,9 @@ export default function AdminDashboard() {
                 subItems: [
                     { id: 'notice', label: '1. 공지사항 및 알림톡' },
                     { id: 'banner', label: '2. 메인 배너 스케줄링' },
-                    { id: 'inquiry', label: '3. 1:1 고객 문의 관리' } 
+                    // 🚨 팝업 관리 메뉴 추가 및 문의 관리 번호 변경
+                    { id: 'popup', label: '3. 글로벌 팝업 관리' },
+                    { id: 'inquiry', label: '4. 1:1 고객 문의 관리' } 
                 ]
             }
         ]},
@@ -298,10 +300,7 @@ export default function AdminDashboard() {
                         {activeTab === 'member_manage' && <AdminPartners adminTheme={adminTheme} defaultTab="users" onGoToDetail={goToUserDetail} />}
                         {activeTab === 'user_detail' && <AdminUserDetail adminTheme={adminTheme} userId={selectedUserId} onGoBack={goBackToUsers} />}
                         
-                        {/* 전체 차단 IP 관리 페이지 */}
                         {activeTab === 'ip_management' && <AdminIpManagement />}
-                        
-                        {/* 🚨 정산관리 렌더링 호출(AdminDeposit, AdminProfit) 완전 삭제 완료 */}
 
                         {/* 콘텐츠 관리 하위 */}
                         {activeTab === 'myeongdang' && <AdminMyeongdang adminTheme={adminTheme} />}
@@ -311,6 +310,8 @@ export default function AdminDashboard() {
                         {/* 운영/마케팅 관리 하위 */}
                         {activeTab === 'notice' && <AdminNotice adminTheme={adminTheme} />}
                         {activeTab === 'banner' && <AdminBanner adminTheme={adminTheme} />}
+                        {/* 🚨 팝업 컴포넌트 렌더링 추가 */}
+                        {activeTab === 'popup' && <AdminPopups adminTheme={adminTheme} />}
                         {activeTab === 'inquiry' && <AdminInquiry adminTheme={adminTheme} />} 
 
                         {/* 환경설정 하위 */}

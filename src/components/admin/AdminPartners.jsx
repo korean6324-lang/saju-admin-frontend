@@ -24,20 +24,19 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
 
     // 회원 데이터 페칭
     const { data: usersData, isLoading: isLoadingUsers } = useQuery({
-        // 🚨 searchType도 쿼리 키에 추가하여, 검색 기준 변경 시 즉시 재요청되도록 수정
         queryKey: ['adminUsersList', page, pageSize, debouncedSearch, searchType, quickRole, sortConfig],
         queryFn: async () => {
             let query = supabase.from('profiles').select('*', { count: 'exact' });
 
             if (debouncedSearch) {
-                // 🚨 400 에러 방지: 큰따옴표 충돌 제거
                 const safeSearch = debouncedSearch.replace(/"/g, ''); 
 
                 if (searchType === 'email') {
-                    // 🚨 400 에러 방지: .or 구문 안의 검색어를 큰따옴표("")로 감싸서 공백/특수문자 파싱 에러 완벽 차단
                     query = query.or(`email.ilike."%${safeSearch}%",login_id.ilike."%${safeSearch}%"`);
+                } else if (searchType === 'phone') {
+                    // 🚨 연락처 검색 지원 (phone 컬럼 기준)
+                    query = query.ilike('phone', `%${safeSearch}%`);
                 } else {
-                    // 🚨 단일 검색은 .or 대신 더 안전한 .ilike 직접 호출로 변경
                     query = query.ilike(searchType, `%${safeSearch}%`);
                 }
             }
@@ -127,6 +126,8 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
                         <select className="ios-select" value={searchType} onChange={e=>setSearchType(e.target.value)} style={{ borderRight: '0.5px solid #C6C6C8', paddingRight: '6px', marginRight: '6px' }}>
                             <option value="email">계정(ID/이메일)</option>
                             <option value="name">이름</option>
+                            {/* 🚨 검색 타입에 연락처 추가 */}
+                            <option value="phone">연락처</option>
                         </select>
                         <input type="text" className="ios-search-input" placeholder="검색어 입력..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
                         <Search size={14} color="#8E8E93" />
@@ -140,8 +141,9 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
                     <thead>
                         <tr>
                             <th className="ios-th" onClick={() => handleSort('id')}>NO</th>
-                            {/* 🚨 400 에러 방지: 존재하지 않을 수 있는 email 대신 확실한 login_id로 정렬 타겟 변경 */}
                             <th className="ios-th" onClick={() => handleSort('login_id')}>계정 (ID/이메일) {getSortIcon('login_id')}</th>
+                            {/* 🚨 이름 / 연락처를 하나의 컬럼으로 묶어서 헤더 추가 */}
+                            <th className="ios-th" onClick={() => handleSort('name')}>이름 / 연락처 {getSortIcon('name')}</th>
                             <th className="ios-th" onClick={() => handleSort('role')}>등급 {getSortIcon('role')}</th>
                             <th className="ios-th" style={{ textAlign: 'right' }} onClick={() => handleSort('ticket_count')}>열람쿠폰 {getSortIcon('ticket_count')}</th>
                             <th className="ios-th" onClick={() => handleSort('created_at')}>가입일 {getSortIcon('created_at')}</th>
@@ -150,21 +152,33 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
                     </thead>
                     <tbody>
                         {isLoadingUsers ? (
-                            <tr><td colSpan="6" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>로딩 중...</td></tr>
+                            <tr><td colSpan="7" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>로딩 중...</td></tr>
                         ) : (!usersList.length) ? (
-                            <tr><td colSpan="6" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>회원이 없습니다.</td></tr>
+                            <tr><td colSpan="7" className="ios-td" style={{ textAlign: 'center', padding: '40px' }}>회원이 없습니다.</td></tr>
                         ) : (
                             usersList.map((u, idx) => (
                                 <tr key={u.id} className={`ios-tr ${u.is_blocked ? 'blocked' : ''}`}>
                                     <td className="ios-td" style={{ color: '#8E8E93', fontSize: '12px' }}>{pageSize * (page - 1) + idx + 1}</td>
+                                    
                                     <td className="ios-td">
                                         <div style={{ fontWeight: '600', color: u.is_blocked ? '#FF3B30' : '#1C1C1E' }}>
                                             {u.login_id || u.email}
                                         </div>
                                         <div style={{ fontSize: '11px', color: '#8E8E93' }}>
-                                            {u.name || '-'} {u.login_id && u.email ? `(${u.email})` : ''}
+                                            {u.login_id && u.email ? u.email : ''}
                                         </div>
                                     </td>
+                                    
+                                    {/* 🚨 이름과 연락처를 하나의 셀 안에 두 줄로 분리하여 가독성 향상 */}
+                                    <td className="ios-td">
+                                        <div style={{ fontWeight: '600', color: '#1C1C1E' }}>
+                                            {u.name || '-'}
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: '#8E8E93' }}>
+                                            {u.phone || u.phone_number || '번호 없음'}
+                                        </div>
+                                    </td>
+
                                     <td className="ios-td">{getTierBadge(u.role, u.membership_tier)}</td>
                                     <td className="ios-td" style={{ textAlign: 'right', fontWeight: '700', color: '#007AFF' }}>{u.ticket_count || 0} 장</td>
                                     <td className="ios-td" style={{ fontSize: '12px', color: '#8E8E93' }}>{new Date(u.created_at).toLocaleDateString()}</td>
