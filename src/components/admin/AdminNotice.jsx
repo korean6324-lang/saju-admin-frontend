@@ -8,13 +8,11 @@ export default function AdminNotice({ session }) {
     const queryClient = useQueryClient();
 
     // ==========================================================
-    // 1. 발송 라우팅 및 폼 상태 (확장성 고려)
+    // 1. 발송 라우팅 및 폼 상태
     // ==========================================================
-    // msgType: 'notice'(공지사항) | 'alert'(알림톡/푸시) | 'message'(쪽지)
     const [msgType, setMsgType] = useState('notice'); 
-    // targetType: 'all'(전체) | 'role'(특정 등급) | 'individual'(개별)
     const [targetType, setTargetType] = useState('all'); 
-    const [targetRole, setTargetRole] = useState('user'); // 'user', 'partner', 'vip'
+    const [targetRole, setTargetRole] = useState('user');
 
     const [noticeTitle, setNoticeTitle] = useState('');
     const [noticeContent, setNoticeContent] = useState('');
@@ -22,7 +20,6 @@ export default function AdminNotice({ session }) {
     const [noticeFontFamily, setNoticeFontFamily] = useState('inherit');
     const [isSaving, setIsSaving] = useState(false);
 
-    // 검색 및 타겟 유저 상태 (개별 발송용)
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const [searchedUsers, setSearchedUsers] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -31,7 +28,7 @@ export default function AdminNotice({ session }) {
     const [selectedUserEmail, setSelectedUserEmail] = useState('');
 
     // ==========================================================
-    // 2. 데이터 페칭 (공지사항 목록)
+    // 2. 데이터 페칭 (공지사항 목록 & 개별 쪽지 목록)
     // ==========================================================
     const { data: globalNotices = [], isLoading: isLoadingNotices } = useQuery({
         queryKey: ['globalNotices'],
@@ -40,6 +37,20 @@ export default function AdminNotice({ session }) {
                 .from('global_notices')
                 .select('*')
                 .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data || [];
+        }
+    });
+
+    // 🚨 개별 쪽지(user_messages) 발송 내역 조회
+    const { data: userMessages = [], isLoading: isLoadingMessages } = useQuery({
+        queryKey: ['userMessagesAdmin'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('user_messages')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(100);
             if (error) throw error;
             return data || [];
         }
@@ -69,14 +80,13 @@ export default function AdminNotice({ session }) {
     }, [userSearchTerm]);
 
     // ==========================================================
-    // 4. 중앙 제어 발송 처리기 (Gateway)
+    // 4. 중앙 제어 발송 처리기
     // ==========================================================
     const handleSend = async () => {
         if (!noticeTitle || !noticeContent) return alert("제목과 내용을 모두 입력해주세요.");
         setIsSaving(true);
         
         try {
-            // [A] 전체 공지사항 등록 파이프라인
             if (msgType === 'notice') {
                 const { error } = await supabase.from('global_notices').insert([{
                     title: noticeTitle,
@@ -90,8 +100,6 @@ export default function AdminNotice({ session }) {
                 alert("✅ 전체 공지사항이 사이트에 게시되었습니다.");
                 queryClient.invalidateQueries(['globalNotices']);
             } 
-            
-            // [B] 알림 및 쪽지 발송 파이프라인 (확장성 설계)
             else {
                 if (targetType === 'individual') {
                     if (!selectedUserId) return alert("발송할 특정 회원을 검색하여 선택해주세요.");
@@ -105,10 +113,12 @@ export default function AdminNotice({ session }) {
                     }]);
                     if (error) throw error;
                     alert(`✅ [${selectedUserEmail}] 님에게 개별 발송이 완료되었습니다.`);
+                    
+                    // 🚨 발송 완료 후 쪽지 내역 즉시 갱신 (테이블에 바로 표시됨)
+                    queryClient.invalidateQueries(['userMessagesAdmin']);
                 } 
                 else if (targetType === 'role' || targetType === 'all') {
-                    // 🚨 단체 알림톡 발송은 대용량 트랜잭션이므로 향후 Edge Function 연결 시 이 곳에서 처리
-                    alert(`🚀 [시스템 메시지]\n'${targetType === 'all' ? '전체' : targetRole}' 대상 대량 단체 발송 모듈(API) 연동이 준비된 상태입니다.\n(다음 마일스톤에서 대용량 큐 처리 백엔드 연결 예정)`);
+                    alert(`🚀 [시스템 메시지]\n'${targetType === 'all' ? '전체' : targetRole}' 대상 대량 단체 발송 모듈 연동이 준비된 상태입니다.`);
                 }
             }
             
@@ -130,6 +140,17 @@ export default function AdminNotice({ session }) {
         if (!error) queryClient.invalidateQueries(['globalNotices']);
     };
 
+    // 🚨 개별 쪽지 삭제 기능
+    const handleDeleteMessage = async (id) => {
+        if (!window.confirm("해당 개별 쪽지를 삭제하시겠습니까?\n삭제 시 유저의 화면에서도 즉시 사라집니다.")) return;
+        const { error } = await supabase.from('user_messages').delete().eq('id', id);
+        if (!error) {
+            queryClient.invalidateQueries(['userMessagesAdmin']);
+        } else {
+            alert(`❌ 삭제 중 오류가 발생했습니다: ${error.message}`);
+        }
+    };
+
     return (
         <div className="ios-wrap fade-in">
             <style dangerouslySetInnerHTML={{ __html: `
@@ -142,7 +163,6 @@ export default function AdminNotice({ session }) {
                 .ios-title { font-size: 24px; font-weight: 800; color: #1C1C1E; margin: 0 0 6px 0; letter-spacing: -0.5px; }
                 .ios-desc { font-size: 13px; color: #8E8E93; margin: 0 0 24px 0; font-weight: 500; }
 
-                /* Segment Controls */
                 .ios-segment {
                     display: inline-flex; background-color: #E5E5EA; border-radius: 8px; padding: 2px; margin-bottom: 24px;
                 }
@@ -155,7 +175,6 @@ export default function AdminNotice({ session }) {
                 .ios-segment-btn.active.alert { color: #FF9500; }
                 .ios-segment-btn.active.message { color: #34C759; }
 
-                /* iOS Inset Grouped 리스트 스타일 */
                 .ios-group-title {
                     font-size: 12px; font-weight: 600; color: #8E8E93; text-transform: uppercase;
                     margin: 0 0 6px 16px; letter-spacing: -0.2px;
@@ -170,7 +189,6 @@ export default function AdminNotice({ session }) {
                 }
                 .ios-list-row:last-child { border-bottom: none; }
 
-                /* 폼 요소 */
                 .ios-label { font-size: 13px; font-weight: 600; color: #1C1C1E; flex-shrink: 0; width: 120px; }
                 .ios-value-wrap { display: flex; align-items: center; justify-content: flex-end; flex: 1; min-width: 0; gap: 8px; flex-wrap: wrap; }
                 
@@ -185,7 +203,6 @@ export default function AdminNotice({ session }) {
                     font-size: 13px; color: #007AFF; font-weight: 600; -webkit-appearance: none; appearance: none; font-family: inherit; cursor: pointer; padding: 0 4px;
                 }
 
-                /* 검색 드롭다운 */
                 .ios-search-dropdown {
                     position: absolute; top: 100%; right: 0; width: 280px; max-height: 200px; overflow-y: auto;
                     background-color: #FFFFFF; border: 0.5px solid #C6C6C8; border-radius: 12px; z-index: 10;
@@ -196,7 +213,6 @@ export default function AdminNotice({ session }) {
                 }
                 .ios-search-item:hover { background-color: #F2F2F7; }
 
-                /* 버튼 */
                 .ios-btn-micro {
                     border: none; background: #F2F2F7; color: #007AFF; font-size: 12px; font-weight: 700;
                     padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
@@ -213,7 +229,6 @@ export default function AdminNotice({ session }) {
                 .ios-submit-btn:active:not(:disabled) { transform: scale(0.98); opacity: 0.9; }
                 .ios-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 
-                /* 테이블 스타일 */
                 .ios-table-wrap {
                     background-color: #FFFFFF; border-radius: 12px; overflow: hidden;
                     border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
@@ -233,7 +248,6 @@ export default function AdminNotice({ session }) {
                 <p className="ios-desc">공지사항을 등록하거나, 특정 유저 및 그룹에게 앱 알림/쪽지를 발송합니다.</p>
             </div>
 
-            {/* 발송 유형 선택 (Segment) */}
             <div className="ios-segment">
                 <div className={`ios-segment-btn ${msgType === 'notice' ? 'active notice' : ''}`} onClick={() => { setMsgType('notice'); setTargetType('all'); }}>
                     <Megaphone size={14}/> 사이트 전체 공지
@@ -249,7 +263,6 @@ export default function AdminNotice({ session }) {
             <div className="ios-group-title">메시지 설정 및 내용 작성</div>
             <div className="ios-list-group">
                 
-                {/* 수신 타겟 설정 (공지사항이 아닐 때만 노출) */}
                 {msgType !== 'notice' && (
                     <div className="ios-list-row" style={{ backgroundColor: '#F9F9FB' }}>
                         <span className="ios-label">수신 그룹 설정</span>
@@ -270,7 +283,6 @@ export default function AdminNotice({ session }) {
                     </div>
                 )}
 
-                {/* 개별 유저 검색창 (개별선택일 때만 노출) */}
                 {msgType !== 'notice' && targetType === 'individual' && (
                     <div className="ios-list-row" style={{ position: 'relative' }}>
                         <span className="ios-label">대상 유저 검색</span>
@@ -316,7 +328,6 @@ export default function AdminNotice({ session }) {
                     </div>
                 )}
 
-                {/* 메인 폼 */}
                 <div className="ios-list-row">
                     <span className="ios-label">메시지 제목</span>
                     <input type="text" className="ios-input-clean" placeholder="제목을 입력하세요." value={noticeTitle} onChange={e=>setNoticeTitle(e.target.value)} />
@@ -357,14 +368,12 @@ export default function AdminNotice({ session }) {
                 {isSaving ? "데이터 발송 중..." : (msgType === 'notice' ? "전체 공지사항 게시하기" : "대상에게 알림/쪽지 발송하기")}
             </button>
 
-
             {/* 3. 공지사항 데이터 테이블 */}
             <div className="ios-group-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>게시 중인 전체 공지사항 ({globalNotices.length})</span>
-                <span style={{ fontSize: '11px', textTransform: 'none', fontWeight: '500' }}>※ 개별 발송된 쪽지 내역은 유저 상세 관리에서 확인하세요.</span>
             </div>
 
-            <div className="ios-table-wrap">
+            <div className="ios-table-wrap" style={{ marginBottom: '32px' }}>
                 <table className="ios-table">
                     <thead>
                         <tr>
@@ -397,6 +406,59 @@ export default function AdminNotice({ session }) {
                                     </td>
                                     <td className="ios-td" style={{ textAlign: 'right', paddingRight: '16px' }}>
                                         <button className="ios-btn-micro danger" onClick={() => handleDeleteNotice(notice.id)}>
+                                            <Trash2 size={12}/> 삭제
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* 🚨 4. 발송된 개별 쪽지 내역 테이블 */}
+            <div className="ios-group-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>발송된 개별 쪽지 내역 ({userMessages.length})</span>
+                <span style={{ fontSize: '11px', textTransform: 'none', fontWeight: '500' }}>※ 최근 100건만 표시됩니다.</span>
+            </div>
+
+            <div className="ios-table-wrap">
+                <table className="ios-table">
+                    <thead>
+                        <tr>
+                            <th className="ios-th">일시</th>
+                            <th className="ios-th">대상 유저 (ID)</th>
+                            <th className="ios-th">쪽지 제목</th>
+                            <th className="ios-th" style={{ textAlign: 'center' }}>상태</th>
+                            <th className="ios-th" style={{ textAlign: 'right', paddingRight: '16px' }}>관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {isLoadingMessages ? (
+                            <tr><td colSpan="5" className="ios-td" style={{ textAlign: 'center', padding: '40px', color: '#8E8E93' }}>데이터 로딩 중...</td></tr>
+                        ) : userMessages.length === 0 ? (
+                            <tr><td colSpan="5" className="ios-td" style={{ textAlign: 'center', padding: '40px', color: '#8E8E93' }}>발송된 개별 쪽지가 없습니다.</td></tr>
+                        ) : (
+                            userMessages.map((msg) => (
+                                <tr key={msg.id} className="ios-tr">
+                                    <td className="ios-td" style={{ color: '#8E8E93', fontSize: '11px' }}>
+                                        {new Date(msg.created_at).toLocaleDateString()}
+                                    </td>
+                                    <td className="ios-td" style={{ color: '#007AFF', fontSize: '12px' }}>
+                                        {msg.user_id.substring(0, 8)}...
+                                    </td>
+                                    <td className="ios-td" style={{ fontWeight: '700', color: '#1C1C1E' }}>
+                                        {msg.title}
+                                    </td>
+                                    <td className="ios-td" style={{ textAlign: 'center' }}>
+                                        {msg.is_read ? (
+                                            <span style={{ background: '#F2F2F7', color: '#8E8E93', padding: '3px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: '700' }}>읽음</span>
+                                        ) : (
+                                            <span style={{ background: '#FFE5E5', color: '#FF3B30', padding: '3px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: '700' }}>안읽음</span>
+                                        )}
+                                    </td>
+                                    <td className="ios-td" style={{ textAlign: 'right', paddingRight: '16px' }}>
+                                        <button className="ios-btn-micro danger" onClick={() => handleDeleteMessage(msg.id)}>
                                             <Trash2 size={12}/> 삭제
                                         </button>
                                     </td>
