@@ -82,13 +82,14 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
                 .ios-title { font-size: 24px; font-weight: 800; color: #1C1C1E; margin: 0 0 6px 0; letter-spacing: -0.5px; }
                 .ios-desc { font-size: 13px; color: #8E8E93; margin: 0 0 24px 0; font-weight: 500; }
                 .ios-toolbar { display: flex; justify-content: space-between; align-items: center; background: #FFFFFF; border-radius: 12px; padding: 10px 16px; margin-bottom: 16px; border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+                .ios-toolbar-inner { display: flex; gap: 8px; align-items: center; flex: 1; }
                 .ios-search-box { display: flex; align-items: center; background: #F2F2F7; border-radius: 8px; padding: 4px 10px; flex: 1; max-width: 320px; }
                 .ios-search-input { border: none; background: transparent; outline: none; font-size: 13px; padding: 4px; width: 100%; color: #1C1C1E; font-weight: 500; }
                 .ios-select { border: none; background: transparent; outline: none; font-size: 13px; color: #1C1C1E; font-weight: 600; padding: 4px; }
-                .ios-table-wrap { background-color: #FFFFFF; border-radius: 12px; overflow: hidden; border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
-                .ios-table { width: 100%; border-collapse: collapse; }
-                .ios-th { background-color: #F9F9FB; padding: 12px 10px; text-align: left; font-size: 11px; font-weight: 700; color: #8E8E93; border-bottom: 0.5px solid #E5E5EA; text-transform: uppercase; letter-spacing: -0.2px; cursor: pointer; }
-                .ios-td { padding: 12px 10px; border-bottom: 0.5px solid #E5E5EA; font-size: 13px; color: #1C1C1E; font-weight: 500; vertical-align: middle; }
+                .ios-table-wrap { background-color: #FFFFFF; border-radius: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 0.5px solid #E5E5EA; box-shadow: 0 1px 3px rgba(0,0,0,0.02); width: 100%; }
+                .ios-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+                .ios-th { background-color: #F9F9FB; padding: 12px 10px; text-align: left; font-size: 11px; font-weight: 700; color: #8E8E93; border-bottom: 0.5px solid #E5E5EA; text-transform: uppercase; letter-spacing: -0.2px; cursor: pointer; white-space: nowrap; }
+                .ios-td { padding: 12px 10px; border-bottom: 0.5px solid #E5E5EA; font-size: 13px; color: #1C1C1E; font-weight: 500; vertical-align: middle; white-space: nowrap; }
                 .ios-tr:last-child .ios-td { border-bottom: none; }
                 .ios-tr:hover { background-color: #F9F9FB; }
                 .ios-tr.blocked { background-color: #FFF0F0; }
@@ -102,6 +103,13 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
                 .ios-btn-micro:active { transform: scale(0.95); opacity: 0.8; }
                 .ios-btn-micro.outline { background: transparent; border: 1px solid #E5E5EA; color: #1C1C1E; }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+                @media (max-width: 768px) {
+                    .ios-title { font-size: 20px; }
+                    .ios-toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px; }
+                    .ios-toolbar-inner { flex-direction: column; align-items: stretch; width: 100%; gap: 8px; }
+                    .ios-search-box { max-width: 100% !important; width: 100%; }
+                }
             `}} />
 
             <div>
@@ -110,7 +118,7 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
             </div>
 
             <div className="ios-toolbar">
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div className="ios-toolbar-inner">
                     <select className="ios-select" style={{ background: '#F2F2F7', borderRadius: '8px', padding: '6px 10px' }} value={quickRole} onChange={(e) => { setQuickRole(e.target.value); setPage(1); }}>
                         <option value="all">전체 등급</option>
                         <option value="user">일반 회원</option>

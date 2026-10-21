@@ -87,6 +87,15 @@ export default function AdminOverview({ adminTheme }) {
                 .ios-empty-state { padding: 40px 20px; text-align: center; color: #8E8E93; font-size: 14px; font-weight: 600; }
                 .lucide-spin { animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+                @media (max-width: 768px) {
+                    .ios-title { font-size: 22px; }
+                    .ios-desc { margin-bottom: 20px; }
+                    .ios-list-row { padding: 12px 14px; }
+                    .ios-label { font-size: 14px; }
+                    .ios-value-number { font-size: 16px; }
+                    .ios-info-box { padding: 16px 14px; }
+                }
             `}} />
 
             <div>

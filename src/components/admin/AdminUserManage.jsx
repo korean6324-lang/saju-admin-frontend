@@ -208,6 +208,10 @@ export default function AdminUserManage({ adminTheme }) {
                 
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                @media (max-width: 768px) {
+                    .ios-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+                    .ios-search-box { width: 100% !important; }
+                }
             `}} />
 
             {/* 1. 관리자 리스트 화면 */}
@@ -231,8 +235,8 @@ export default function AdminUserManage({ adminTheme }) {
                         </div>
                     </div>
 
-                    <div className="ios-list-group">
-                        <table className="ios-table">
+                    <div className="ios-list-group" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                        <table className="ios-table" style={{ minWidth: '550px' }}>
                             <thead>
                                 <tr>
                                     <th className="ios-th">번호</th>
@@ -377,8 +381,8 @@ export default function AdminUserManage({ adminTheme }) {
                             <button className="ios-modal-close" onClick={() => setIsHistoryModalOpen(false)}><X size={14}/></button>
                         </div>
 
-                        <div style={{ padding: '0', overflowY: 'auto', flex: 1, backgroundColor: '#FFFFFF' }}>
-                            <table className="ios-table" style={{ borderTop: 'none' }}>
+                        <div style={{ padding: '0', overflowY: 'auto', overflowX: 'auto', WebkitOverflowScrolling: 'touch', flex: 1, backgroundColor: '#FFFFFF' }}>
+                            <table className="ios-table" style={{ borderTop: 'none', minWidth: '420px' }}>
                                 <thead>
                                     <tr>
                                         <th className="ios-th">일시</th>

@@ -5,7 +5,7 @@ import { supabase } from '../api/supabaseClient';
 import { 
     Map, MonitorPlay, Image as ImageIcon, Users, BarChart3, 
     Bell, LogOut, Settings, ChevronRight, UserPlus, Sliders,
-    Search, Layers, Megaphone, ShieldBan
+    Search, Layers, Megaphone, ShieldBan, Menu, X
 } from 'lucide-react'; 
 
 import AdminOverview from '../components/admin/AdminOverview';
@@ -15,7 +15,7 @@ import AdminNotice from '../components/admin/AdminNotice';
  
 import AdminMedia from '../components/admin/AdminMedia';
 import AdminBanner from '../components/admin/AdminBanner';
-// 🚨 새로 만든 글로벌 팝업 관리 컴포넌트 임포트
+// 🚨 글로벌 팝업 관리 컴포넌트 임포트
 import AdminPopups from '../components/admin/AdminPopups';
 import AdminInquiry from '../components/admin/AdminInquiry'; 
 import AdminPartners from '../components/admin/AdminPartners';
@@ -31,6 +31,7 @@ export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
     const [isChecking, setIsChecking] = useState(true);
     const [openMenus, setOpenMenus] = useState({});
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     
     const [selectedUserId, setSelectedUserId] = useState(null);
 
@@ -41,11 +42,13 @@ export default function AdminDashboard() {
     const goToUserDetail = (userId) => {
         setSelectedUserId(userId);
         setActiveTab('user_detail'); 
+        setIsMobileMenuOpen(false);
     };
 
     const goBackToUsers = () => {
         setSelectedUserId(null);
         setActiveTab('member_manage'); 
+        setIsMobileMenuOpen(false);
     };
 
     const adminTheme = {
@@ -113,7 +116,6 @@ export default function AdminDashboard() {
                 subItems: [
                     { id: 'notice', label: '1. 공지사항 및 알림톡' },
                     { id: 'banner', label: '2. 메인 배너 스케줄링' },
-                    // 🚨 팝업 관리 메뉴 추가 및 문의 관리 번호 변경
                     { id: 'popup', label: '3. 글로벌 팝업 관리' },
                     { id: 'inquiry', label: '4. 1:1 고객 문의 관리' } 
                 ]
@@ -154,7 +156,7 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: adminTheme.bg, color: adminTheme.text, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif' }}>
+        <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: adminTheme.bg, color: adminTheme.text, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif', position: 'relative' }}>
             
             <style dangerouslySetInnerHTML={{ __html: `
                 .ios-sidebar-scroll::-webkit-scrollbar { display: none; }
@@ -188,7 +190,7 @@ export default function AdminDashboard() {
                 }
 
                 .ios-glass-header {
-                    background-color: rgba(255, 255, 255, 0.85);
+                    background-color: rgba(255, 255, 255, 0.92);
                     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
                     border-bottom: 1px solid #E2E8F0;
                 }
@@ -205,18 +207,109 @@ export default function AdminDashboard() {
 
                 .lucide-spin { animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+                /* 📱 프론트엔드 스타일 능동형 모바일 반응형 규격 */
+                .ios-sidebar-backdrop { display: none; }
+                .mobile-header-bar { display: none; }
+                .mobile-close-btn { display: none; }
+
+                @media (max-width: 900px) {
+                    .ios-sidebar {
+                        position: fixed !important;
+                        left: -290px !important;
+                        top: 0 !important;
+                        bottom: 0 !important;
+                        width: 280px !important;
+                        z-index: 10001 !important;
+                        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                        box-shadow: 10px 0 30px rgba(15, 23, 42, 0.18) !important;
+                    }
+                    .ios-sidebar.open {
+                        left: 0 !important;
+                    }
+                    .ios-sidebar-backdrop {
+                        display: none;
+                        position: fixed !important;
+                        inset: 0 !important;
+                        background: rgba(15, 23, 42, 0.5) !important;
+                        z-index: 10000 !important;
+                        opacity: 0;
+                        transition: opacity 0.3s ease;
+                    }
+                    .ios-sidebar-backdrop.open {
+                        display: block !important;
+                        opacity: 1 !important;
+                    }
+                    .mobile-close-btn {
+                        display: flex !important;
+                        align-items: center;
+                        justify-content: center;
+                        background: #F1F5F9;
+                        border: none;
+                        border-radius: 8px;
+                        padding: 6px;
+                        cursor: pointer;
+                        color: #475569;
+                    }
+                    .mobile-close-btn:active {
+                        transform: scale(0.92);
+                    }
+                    .ios-main-column {
+                        width: 100% !important;
+                        min-width: 0 !important;
+                    }
+                    .desktop-breadcrumb {
+                        display: none !important;
+                    }
+                    .desktop-action-settings {
+                        display: none !important;
+                    }
+                    .mobile-header-bar {
+                        display: flex !important;
+                        align-items: center;
+                        gap: 10px;
+                    }
+                    .ios-glass-header {
+                        height: 56px !important;
+                        padding: 0 14px !important;
+                    }
+                    .ios-admin-main {
+                        padding: 16px 12px 60px 12px !important;
+                    }
+                    .desktop-logout-text {
+                        display: none !important;
+                    }
+                }
             `}} />
 
-            {/* 사이드바 */}
-            <aside style={{ width: '280px', flexShrink: 0, backgroundColor: adminTheme.sidebarBg, borderRight: `1px solid ${adminTheme.border}`, display: 'flex', flexDirection: 'column' }}>
+            {/* 모바일 사이드바 백드롭 오버레이 */}
+            <div 
+                className={`ios-sidebar-backdrop ${isMobileMenuOpen ? 'open' : ''}`}
+                onClick={() => setIsMobileMenuOpen(false)}
+            />
+
+            {/* 사이드바 (데스크톱 고정 & 모바일 슬라이드 드로어) */}
+            <aside 
+                className={`ios-sidebar ${isMobileMenuOpen ? 'open' : ''}`}
+                style={{ width: '280px', flexShrink: 0, backgroundColor: adminTheme.sidebarBg, borderRight: `1px solid ${adminTheme.border}`, display: 'flex', flexDirection: 'column' }}
+            >
                 
-                <div style={{ height: '72px', display: 'flex', alignItems: 'center', padding: '0 28px', flexShrink: 0, borderBottom: `1px solid ${adminTheme.border}` }}>
+                <div style={{ height: '72px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', flexShrink: 0, borderBottom: `1px solid ${adminTheme.border}` }}>
                     <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: adminTheme.textBright, letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', padding: '6px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Sliders size={18} color="#FFFFFF" strokeWidth={2.5} /> 
                         </div>
                         <span><span style={{ color: adminTheme.primary }}>FATE</span> MASTER</span>
                     </h1>
+
+                    {/* 모바일 전용 닫기 버튼 */}
+                    <button 
+                        className="mobile-close-btn"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        aria-label="메뉴 닫기"
+                    >
+                        <X size={18} />
+                    </button>
                 </div>
 
                 <div className="ios-sidebar-scroll" style={{ flex: 1, overflowY: 'auto', padding: '24px 0 40px 0' }}>
@@ -236,8 +329,12 @@ export default function AdminDashboard() {
                                         <div 
                                             className={`ios-menu-item ${isActive && !menu.subItems ? 'active' : ''}`}
                                             onClick={() => {
-                                                if (menu.subItems) toggleMenu(menu.id);
-                                                else setActiveTab(menu.id);
+                                                if (menu.subItems) {
+                                                    toggleMenu(menu.id);
+                                                } else {
+                                                    setActiveTab(menu.id);
+                                                    setIsMobileMenuOpen(false);
+                                                }
                                             }}
                                         >
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -255,7 +352,10 @@ export default function AdminDashboard() {
                                                     <div 
                                                         key={sub.id}
                                                         className={`ios-sub-item ${activeTab === sub.id ? 'active' : ''}`}
-                                                        onClick={() => setActiveTab(sub.id)}
+                                                        onClick={() => {
+                                                            setActiveTab(sub.id);
+                                                            setIsMobileMenuOpen(false);
+                                                        }}
                                                     >
                                                         {sub.label}
                                                     </div>
@@ -270,11 +370,26 @@ export default function AdminDashboard() {
                 </div>
             </aside>
 
-            {/* 메인 콘텐츠 영역 */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: 'calc(100% - 280px)' }}>
+            {/* 메인 콘텐츠 영역 (모바일 100% 꽉 참) */}
+            <div className="ios-main-column" style={{ flex: 1, display: 'flex', flexDirection: 'column', width: 'calc(100% - 280px)', minWidth: 0 }}>
                 <header className="ios-glass-header" style={{ height: '72px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 40px', flexShrink: 0, position: 'sticky', top: 0, zIndex: 100 }}>
                     
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', color: adminTheme.textMuted, fontWeight: '600' }}>
+                    {/* 모바일 햄버거 메뉴 및 로고 */}
+                    <div className="mobile-header-bar">
+                        <button 
+                            onClick={() => setIsMobileMenuOpen(true)}
+                            style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#1E293B' }}
+                            aria-label="메뉴 열기"
+                        >
+                            <Menu size={20} />
+                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '16px', fontWeight: '800', color: adminTheme.textBright }}>
+                            <span style={{ color: adminTheme.primary }}>FATE</span> MASTER
+                        </div>
+                    </div>
+
+                    {/* 데스크톱 브레드크럼 */}
+                    <div className="desktop-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', color: adminTheme.textMuted, fontWeight: '600' }}>
                         {breadcrumbText.split(' > ').map((text, idx, arr) => (
                             <React.Fragment key={idx}>
                                 {idx > 0 && <ChevronRight size={16} color="#CBD5E1" />}
@@ -283,17 +398,17 @@ export default function AdminDashboard() {
                         ))}
                     </div>
                     
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <button className="ios-action-btn">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button className="ios-action-btn desktop-action-settings">
                             <Settings size={16} /> 설정
                         </button>
                         <button onClick={async () => { await supabase.auth.signOut(); navigate('/'); }} className="ios-action-btn danger">
-                            <LogOut size={16} /> 안전하게 로그아웃
+                            <LogOut size={16} /> <span className="desktop-logout-text">안전하게 로그아웃</span>
                         </button>
                     </div>
                 </header>
 
-                <main style={{ flex: 1, overflowY: 'auto', padding: '40px' }}>
+                <main className="ios-admin-main" style={{ flex: 1, overflowY: 'auto', padding: '40px' }}>
                     <div style={{ width: '100%', maxWidth: '1600px', margin: '0 auto' }}>
                         {activeTab === 'overview' && <AdminOverview adminTheme={adminTheme} isDarkMode={false} />}
                         {activeTab === 'user_manage' && <AdminUserManage adminTheme={adminTheme} />}
@@ -310,7 +425,7 @@ export default function AdminDashboard() {
                         {/* 운영/마케팅 관리 하위 */}
                         {activeTab === 'notice' && <AdminNotice adminTheme={adminTheme} />}
                         {activeTab === 'banner' && <AdminBanner adminTheme={adminTheme} />}
-                        {/* 🚨 팝업 컴포넌트 렌더링 추가 */}
+                        {/* 팝업 컴포넌트 렌더링 */}
                         {activeTab === 'popup' && <AdminPopups adminTheme={adminTheme} />}
                         {activeTab === 'inquiry' && <AdminInquiry adminTheme={adminTheme} />} 
 

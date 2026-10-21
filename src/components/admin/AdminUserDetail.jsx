@@ -317,14 +317,14 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
                 
                 <div style={cardStyle}>
                     <h3 style={{ fontSize: '15px', color: adminTheme.primary, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px', fontWeight: '700' }}>
                         <UserCheck size={18}/> 기본 정보 관리
                     </h3>
                     
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px', marginBottom: '16px' }}>
                         <div>
                             <label style={labelStyle}>로그인 비밀번호 (강제 변경)</label>
                             <div style={{ display: 'flex', gap: '6px' }}>
@@ -407,8 +407,8 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                         </h3>
                         <button onClick={() => fetchCoinLogs(1, true)} style={{ background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#007AFF', cursor: 'pointer', fontWeight: '600' }}><RefreshCw size={14} /> 새로고침</button>
                     </div>
-                    <div style={{ borderRadius: '8px', border: '1px solid ' + adminTheme.border, overflow: 'hidden' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <div style={{ borderRadius: '8px', border: '1px solid ' + adminTheme.border, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px', minWidth: '520px' }}>
                             <thead style={{ background: '#F8FAFC' }}>
                                 <tr>
                                     <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600' }}>일시</th>
@@ -465,8 +465,8 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                             </button>
                         </div>
                         
-                        <div style={{ borderRadius: '8px', border: '1px solid ' + adminTheme.border, overflow: 'hidden' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                        <div style={{ borderRadius: '8px', border: '1px solid ' + adminTheme.border, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px', minWidth: '520px' }}>
                                 <thead style={{ background: '#F8FAFC' }}>
                                     <tr>
                                         <th style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, color: adminTheme.textMuted, fontWeight: '600' }}>접속 일시</th>
