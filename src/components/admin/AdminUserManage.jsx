@@ -395,13 +395,13 @@ export default function AdminUserManage({ adminTheme }) {
                                             const isPlus = tx.amount > 0;
                                             return (
                                                 <tr key={tx.id} className="ios-tr">
-                                                    <td className="ios-td" style={{ fontSize: '10px', color: '#8E8E93' }}>{new Date(tx.created_at).toLocaleString()}</td>
+                                                    <td className="ios-td" style={{ fontSize: '10px', color: '#8E8E93' }}>{tx.created_at ? new Date(tx.created_at).toLocaleString() : '-'}</td>
                                                     <td className="ios-td" style={{ fontSize: '11px', fontWeight: '700', color: isPlus ? '#34C759' : '#FF3B30' }}>
                                                         {tx.trade_type === 'sell' ? '수익' : tx.trade_type === 'charge' ? '충전' : tx.trade_type === 'buy' ? '차감' : '변동'}
                                                     </td>
                                                     <td className="ios-td" style={{ color: '#1C1C1E' }}>{tx.description}</td>
                                                     <td className="ios-td" style={{ textAlign: 'right', paddingRight: '16px', fontWeight: '700', color: isPlus ? '#34C759' : '#FF3B30' }}>
-                                                        {isPlus ? '+' : ''}{tx.amount.toLocaleString()} C
+                                                        {isPlus ? '+' : ''}{(tx.amount || 0).toLocaleString()} C
                                                     </td>
                                                 </tr>
                                             );

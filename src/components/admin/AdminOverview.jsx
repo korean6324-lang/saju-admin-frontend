@@ -30,6 +30,7 @@ export default function AdminOverview({ adminTheme }) {
             return {
                 totalUsers: usersReq.count || 0,
                 regularUsers: vipReq.count || 0,
+                vipUsers: vipReq.count || 0,
                 partners: partnersReq.count || 0,
                 totalTickets: totalTickets
             };
@@ -111,7 +112,7 @@ export default function AdminOverview({ adminTheme }) {
                                 <span className="ios-label">플랫폼 누적 가입자</span>
                             </div>
                             <div className="ios-value-wrap">
-                                <span className="ios-value-number">{stats?.totalUsers.toLocaleString()}</span>
+                                <span className="ios-value-number">{(stats?.totalUsers ?? 0).toLocaleString()}</span>
                                 <span className="ios-value-unit">명</span>
                             </div>
                         </div>
@@ -119,10 +120,10 @@ export default function AdminOverview({ adminTheme }) {
                         <div className="ios-list-row">
                             <div className="ios-label-wrap">
                                 <div className="ios-icon-box" style={{ background: '#FF9500' }}><Crown size={18} /></div>
-                                <span className="ios-label">VIP 및 구독 결제 유저</span>
+                                <span className="ios-label">일반 회원 (회원)</span>
                             </div>
                             <div className="ios-value-wrap">
-                                <span className="ios-value-number" style={{ color: '#FF9500' }}>{stats?.vipUsers.toLocaleString()}</span>
+                                <span className="ios-value-number" style={{ color: '#FF9500' }}>{(stats?.regularUsers ?? stats?.vipUsers ?? 0).toLocaleString()}</span>
                                 <span className="ios-value-unit">명</span>
                             </div>
                         </div>
@@ -133,7 +134,7 @@ export default function AdminOverview({ adminTheme }) {
                                 <span className="ios-label">승인된 스토어 파트너</span>
                             </div>
                             <div className="ios-value-wrap">
-                                <span className="ios-value-number" style={{ color: '#34C759' }}>{stats?.partners.toLocaleString()}</span>
+                                <span className="ios-value-number" style={{ color: '#34C759' }}>{(stats?.partners ?? 0).toLocaleString()}</span>
                                 <span className="ios-value-unit">명</span>
                             </div>
                         </div>
@@ -149,7 +150,7 @@ export default function AdminOverview({ adminTheme }) {
                                 <span className="ios-label">통합 열람권 잔여 총합</span>
                             </div>
                             <div className="ios-value-wrap">
-                                <span className="ios-value-number" style={{ color: '#AF52DE' }}>{stats?.totalTickets.toLocaleString()}</span>
+                                <span className="ios-value-number" style={{ color: '#AF52DE' }}>{(stats?.totalTickets ?? 0).toLocaleString()}</span>
                                 <span className="ios-value-unit">장</span>
                             </div>
                         </div>

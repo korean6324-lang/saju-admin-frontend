@@ -305,7 +305,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                         </span>
                     </h2>
                     <div style={{ fontSize: '13px', color: adminTheme.textMuted }}>
-                        가입일: {new Date(user.created_at).toLocaleString()} | 이메일: {user.email} | 고유코드: {user.id.substring(0,8)}...
+                        가입일: {user.created_at ? new Date(user.created_at).toLocaleString() : '-'} | 이메일: {user.email || '-'} | 고유코드: {user.id ? user.id.substring(0,8) : ''}...
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '20px', textAlign: 'right', background: '#FFFFFF', padding: '12px 20px', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
@@ -427,7 +427,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                                     
                                     return (
                                         <tr key={log.id}>
-                                            <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border }}>{new Date(log.created_at).toLocaleString()}</td>
+                                            <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border }}>{log.created_at ? new Date(log.created_at).toLocaleString() : '-'}</td>
                                             <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, fontWeight: '600', color: '#007AFF' }}>
                                                 {/* ✨ 기록된 장부의 자산 이름도 한글로 깔끔하게 변환 */}
                                                 {getAssetNameKor(log.asset_type)}
@@ -482,7 +482,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                                         const isBlocked = blockedIps.has(log.ip_address);
                                         return (
                                             <tr key={log.id} style={{ background: isBlocked ? '#FEF2F2' : 'transparent' }}>
-                                                <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border }}>{new Date(log.created_at).toLocaleString()}</td>
+                                                <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border }}>{log.created_at ? new Date(log.created_at).toLocaleString() : '-'}</td>
                                                 <td style={{ padding: '10px 16px', borderBottom: '1px solid ' + adminTheme.border, fontWeight: '700', color: isBlocked ? '#DC2626' : '#007AFF' }}>
                                                     {log.ip_address}
                                                 </td>
