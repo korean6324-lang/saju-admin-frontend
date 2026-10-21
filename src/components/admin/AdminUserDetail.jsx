@@ -1,6 +1,6 @@
 // src/components/admin/AdminUserDetail.jsx
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../api/supabaseClient';
+import { supabase, adminRpcClient } from '../../api/supabaseClient';
 import { ArrowLeft, Save, ShieldAlert, Ticket, Key, Trash2, Ban, History, UserCheck, MonitorSmartphone, RefreshCw, ChevronLeft, ChevronRight, ShieldBan, ShieldCheck } from 'lucide-react';
 
 export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
@@ -149,7 +149,8 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
             if (infoForm.membership_tier === 'partner') newRole = 'partner';
             if (infoForm.membership_tier === 'admin') newRole = 'admin';
 
-            const { error: rpcError } = await supabase.rpc('admin_update_user_full_info', {
+            // 🛡️ adminRpcClient(service_role)로 실행
+            const { error: rpcError } = await adminRpcClient.rpc('admin_update_user_full_info', {
                 p_user_id: userId, 
                 p_login_id: infoForm.login_id.trim() === '' ? null : infoForm.login_id, 
                 p_phone: infoForm.phone, 
@@ -159,7 +160,19 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                 p_memo: infoForm.memo
             });
             
-            if (rpcError) throw rpcError;
+            // RPC 미적용 환경 대비 직접 업데이트 폴백
+            if (rpcError) {
+                console.warn("admin_update_user_full_info RPC 실패, 직접 저장 시도:", rpcError);
+                const { error: updateErr } = await adminRpcClient.from('profiles').update({
+                    login_id: infoForm.login_id.trim() === '' ? null : infoForm.login_id,
+                    phone: infoForm.phone,
+                    role: newRole,
+                    membership_tier: infoForm.membership_tier,
+                    is_blocked: infoForm.is_blocked,
+                    memo: infoForm.memo
+                }).eq('id', userId);
+                if (updateErr) throw updateErr;
+            }
 
             alert("✅ 등급 및 정보가 완벽하게 저장되었습니다.");
             loadUserData();
@@ -173,7 +186,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
         if (newPassword.length < 6) return alert("비밀번호는 6자리 이상이어야 합니다.");
         if (!window.confirm("해당 회원의 로그인 비밀번호를 강제로 변경하시겠습니까?")) return;
         try {
-            const { error } = await supabase.rpc('admin_change_user_password', { p_user_id: userId, p_new_password: newPassword });
+            const { error } = await adminRpcClient.rpc('admin_change_user_password', { p_user_id: userId, p_new_password: newPassword });
             if (error) throw error;
             alert("✅ 비밀번호가 변경되었습니다.");
             setNewPassword('');
@@ -197,13 +210,32 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
         if (!window.confirm(`[${assetName}]\n수량: ${finalAmount}장\n해당 자산을 ${actionText}하시겠습니까?`)) return;
 
         try {
-            // ✨ 새롭게 만든 특정 자산 지급/차감 함수 호출
-            const { error } = await supabase.rpc('admin_adjust_specific_asset', {
+            // 🛡️ adminRpcClient(service_role)로 호출하여 authenticated 사용자 트리거 충돌 원천 방지
+            const { error: rpcError } = await adminRpcClient.rpc('admin_adjust_specific_asset', {
                 p_user_id: userId, 
                 p_asset_type: assetForm.type,
                 p_amount: finalAmount
             });
-            if (error) throw error;
+            
+            // RPC 미등록/에러 발생 시 service_role 클라이언트로 profiles 직접 안전 갱신 (Fallback)
+            if (rpcError) {
+                console.warn("RPC 오류, adminRpcClient 직권 직접 갱신 시도:", rpcError);
+                let colName = 'ticket_count';
+                if (assetForm.type === 'lotto') colName = 'daily_lotto_tickets';
+                if (assetForm.type === 'tarot') colName = 'daily_tarot_tickets';
+
+                const { data: currData, error: fetchErr } = await adminRpcClient.from('profiles').select(colName).eq('id', userId).single();
+                if (fetchErr) throw fetchErr;
+
+                const currQty = Number(currData?.[colName] || 0);
+                const nextQty = Math.max(0, currQty + finalAmount);
+
+                const updatePayload = {};
+                updatePayload[colName] = nextQty;
+
+                const { error: updateErr } = await adminRpcClient.from('profiles').update(updatePayload).eq('id', userId);
+                if (updateErr) throw updateErr;
+            }
 
             const logsToInsert = [];
             if (amt !== 0) {
@@ -217,7 +249,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
             }
 
             if (logsToInsert.length > 0) {
-                const { error: logError } = await supabase.from('coin_history').insert(logsToInsert);
+                const { error: logError } = await adminRpcClient.from('coin_history').insert(logsToInsert);
                 if (logError) console.error("장부 상세 기록 에러:", logError);
             }
 
@@ -235,7 +267,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
         if (confirmText !== '영구삭제') return alert("입력값이 일치하지 않아 취소되었습니다.");
 
         try {
-            const { error } = await supabase.rpc('admin_delete_user', { p_user_id: userId });
+            const { error } = await adminRpcClient.rpc('admin_delete_user', { p_user_id: userId });
             if (error) throw error;
             alert("🗑️ 계정이 영구 삭제되었습니다.");
             onGoBack(); 
@@ -303,20 +335,18 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                         <div><label style={labelStyle}>휴대폰 번호 (수정)</label><input type="text" value={infoForm.phone} onChange={e=>setInfoForm({...infoForm, phone: e.target.value})} style={inputStyle} /></div>
                         
                         <div style={{ gridColumn: 'span 1' }}>
-                            <label style={labelStyle}>회원 등급 변경 (4등급 체계)</label>
+                            <label style={labelStyle}>회원 등급 변경</label>
                             <select 
                                 value={infoForm.membership_tier} 
                                 onChange={e=>setInfoForm({...infoForm, membership_tier: e.target.value})} 
                                 style={{ ...inputStyle, cursor: 'pointer', fontWeight: '700', color: infoForm.membership_tier === 'partner' ? '#16A34A' : '#007AFF' }}
                             >
-                                <option value="free">무료 회원 (Free)</option>
-                                <option value="basic">베이직 회원 (Basic)</option>
-                                <option value="premium">프리미엄 회원 (Premium)</option>
-                                <option value="partner">비즈니스 파트너 (Partner)</option>
-                                <option value="admin">최고 관리자 (Admin)</option>
+                                <option value="free">일반 회원 (Member)</option>
+                                <option value="partner">공인 파트너 (상담사 자격 부여)</option>
+                                <option value="admin">최고 관리자 (Admin - 무제한)</option>
                             </select>
                             <span style={{ fontSize: '11px', color: '#8E8E93', display: 'block', marginTop: '4px', letterSpacing: '-0.3px' }}>
-                                * 파트너 등급 부여 시, 해당 유저의 마이페이지에 명당/미디어 관리 메뉴가 자동 활성화됩니다.
+                                * 파트너 승인 시 차후 개발될 상담사 자격이 부여됩니다. (열람권은 일반 회원과 동일하게 소모/구매 원칙)
                             </span>
                         </div>
 

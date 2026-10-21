@@ -16,8 +16,8 @@ export default function AdminOverview({ adminTheme }) {
             const [usersReq, vipReq, partnersReq, ticketsReq] = await Promise.all([
                 // 1. 전체 회원 수
                 supabase.from('profiles').select('id', { count: 'exact', head: true }),
-                // 2. VIP 결제 회원 수 (membership_tier가 basic 또는 premium인 유저)
-                supabase.from('profiles').select('id', { count: 'exact', head: true }).in('membership_tier', ['basic', 'premium']),
+                // 2. 일반 회원 수 (role이 user인 유저)
+                supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'user'),
                 // 3. 승인된 파트너 수
                 supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'partner'),
                 // 4. 🚨 에러 해결: 과거의 분리된 티켓 대신 통합된 'ticket_count' 컬럼 요청
@@ -29,7 +29,7 @@ export default function AdminOverview({ adminTheme }) {
 
             return {
                 totalUsers: usersReq.count || 0,
-                vipUsers: vipReq.count || 0,
+                regularUsers: vipReq.count || 0,
                 partners: partnersReq.count || 0,
                 totalTickets: totalTickets
             };

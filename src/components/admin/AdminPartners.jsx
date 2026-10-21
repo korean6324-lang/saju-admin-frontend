@@ -41,10 +41,9 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
                 }
             }
 
-            if (quickRole === 'free') query = query.eq('role', 'user').or('membership_tier.eq.free,membership_tier.is.null');
-            else if (quickRole === 'basic') query = query.eq('role', 'user').eq('membership_tier', 'basic');
-            else if (quickRole === 'premium') query = query.eq('role', 'user').eq('membership_tier', 'premium');
+            if (quickRole === 'user') query = query.eq('role', 'user');
             else if (quickRole === 'partner') query = query.eq('role', 'partner');
+            else if (quickRole === 'admin') query = query.eq('role', 'admin');
             else if (quickRole === 'blocked') query = query.eq('is_blocked', true);
 
             query = query.order(sortConfig.key, { ascending: sortConfig.direction === 'asc' });
@@ -59,9 +58,7 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
     const getTierBadge = (role, tier) => {
         if (role === 'admin') return <span className="ios-badge admin">ADMIN</span>;
         if (role === 'partner') return <span className="ios-badge partner">파트너</span>;
-        if (tier === 'premium') return <span className="ios-badge premium">VIP</span>;
-        if (tier === 'basic') return <span className="ios-badge basic">구독</span>;
-        return <span className="ios-badge free">무료</span>;
+        return <span className="ios-badge free">회원</span>;
     };
 
     const usersList = usersData?.users || [];
@@ -116,10 +113,9 @@ export default function AdminPartners({ adminTheme, onGoToDetail }) {
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <select className="ios-select" style={{ background: '#F2F2F7', borderRadius: '8px', padding: '6px 10px' }} value={quickRole} onChange={(e) => { setQuickRole(e.target.value); setPage(1); }}>
                         <option value="all">전체 등급</option>
-                        <option value="user">일반 무료</option>
-                        <option value="basic">베이직 구독</option>
-                        <option value="premium">VIP 구독</option>
-                        <option value="partner">파트너</option>
+                        <option value="user">일반 회원</option>
+                        <option value="partner">파트너 (상담사 자격)</option>
+                        <option value="admin">최고 관리자</option>
                         <option value="blocked">차단된 회원</option>
                     </select>
                     <div className="ios-search-box">
