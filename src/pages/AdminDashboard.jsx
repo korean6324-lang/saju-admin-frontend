@@ -1,11 +1,11 @@
 // src/pages/AdminDashboard.jsx
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect, useRef } from 'react'; 
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../api/supabaseClient';
+import { supabase, adminRpcClient } from '../api/supabaseClient';
 import { 
     Map, MonitorPlay, Image as ImageIcon, Users, BarChart3, 
     Bell, LogOut, Settings, ChevronRight, UserPlus, Sliders,
-    Search, Layers, Megaphone, ShieldBan, Menu, X
+    Search, Layers, Megaphone, ShieldBan, Menu, X, UserCheck, Volume2
 } from 'lucide-react'; 
 
 import AdminOverview from '../components/admin/AdminOverview';
@@ -24,6 +24,8 @@ import AdminUserManage from '../components/admin/AdminUserManage';
 import AdminSiteSettings from '../components/admin/AdminSiteSettings'; 
 import AdminUserDetail from '../components/admin/AdminUserDetail'; 
 import AdminIpManagement from './AdminIpManagement'; 
+import AdminCounselorApprovals from '../components/admin/AdminCounselorApprovals';
+import { playAdminNotificationSound, unlockAudioContext } from '../utils/adminAlertSound';
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
@@ -34,6 +36,8 @@ export default function AdminDashboard() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     
     const [selectedUserId, setSelectedUserId] = useState(null);
+    const [pendingCounselorCount, setPendingCounselorCount] = useState(0);
+    const [liveAdminToast, setLiveAdminToast] = useState('');
 
     const toggleMenu = (id) => {
         setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
@@ -83,6 +87,80 @@ export default function AdminDashboard() {
         verifyAdmin();
     }, [navigate]);
 
+    const prevPendingCountRef = useRef(null);
+
+    // 🔔 파트너 상담사 입점 신청 대기 건수 페칭 및 실시간 알림음(차임벨) 리스너
+    useEffect(() => {
+        const dbClient = adminRpcClient || supabase;
+
+        const checkPendingApplications = async (isInitial = false) => {
+            try {
+                const { count, error } = await dbClient
+                    .from('counselor_profiles')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('is_approved', false);
+
+                if (!error && count !== null) {
+                    setPendingCounselorCount(count);
+
+                    // 새로운 신청 건수가 증가했을 때 즉시 차임벨 사운드 및 토스트 팝업 실행!
+                    if (!isInitial && prevPendingCountRef.current !== null && count > prevPendingCountRef.current) {
+                        console.log(`🔔 [FATE MASTER] 신규 파트너 신청 감지 (대기건: ${prevPendingCountRef.current} -> ${count})`);
+                        playAdminNotificationSound();
+                        setLiveAdminToast(`🔔 [신규 파트너 신청] 새로운 상담사 입점 신청이 접수되었습니다! (대기: ${count}건)`);
+                        setTimeout(() => setLiveAdminToast(''), 8000);
+                    } else if (isInitial && count > 0) {
+                        // 미처리 대기 신청이 존재하는 경우 대시보드 진입 시 알림 토스트 출력
+                        setLiveAdminToast(`🔔 [미처리 승인 대기] 현재 검토 대기 중인 파트너 상담사 신청이 ${count}건 있습니다.`);
+                        setTimeout(() => setLiveAdminToast(''), 8000);
+                    }
+                    prevPendingCountRef.current = count;
+                }
+            } catch (err) {
+                console.warn("파트너 대기 건수 로드 실패:", err);
+            }
+        };
+
+        checkPendingApplications(true);
+
+        // 10초 주기 자동 폴링 (WebSocket 누락 방어 및 즉각 동기화)
+        const pollInterval = setInterval(() => {
+            checkPendingApplications(false);
+        }, 10000);
+
+        const channel = supabase
+            .channel('admin-global-counselor-alerts')
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'counselor_profiles' },
+                (payload) => {
+                    console.log('🔔 [FATE MASTER] 신규 파트너 상담사 신청 감지:', payload.new);
+                    // 1) 맑고 품격 있는 2단 차임벨 사운드 즉시 재생!
+                    playAdminNotificationSound();
+                    
+                    // 2) 실시간 안내 토스트 배너 출력
+                    setLiveAdminToast(`🔔 [신규 파트너 신청] '${payload.new?.nickname || '신청자'}' 님의 상담사 입점 신청이 접수되었습니다!`);
+                    setTimeout(() => setLiveAdminToast(''), 8000);
+
+                    // 3) 대기 건수 갱신
+                    checkPendingApplications(false);
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'counselor_profiles' },
+                () => {
+                    checkPendingApplications(false);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            clearInterval(pollInterval);
+            supabase.removeChannel(channel);
+        };
+    }, []);
+
     if (isChecking) return (
         <div style={{ minHeight: '100vh', background: adminTheme.bg, color: adminTheme.textBright, display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: '600' }}>
             <span className="lucide-spin" style={{ marginRight: '8px' }}><Settings size={20} color={adminTheme.primary}/></span> 어드민 시스템 접근 권한 확인 중...
@@ -92,6 +170,12 @@ export default function AdminDashboard() {
     const menuItems = [
         { category: '서비스 관리', hideCategoryTitle: false, items: [
             { id: 'overview', icon: BarChart3, label: '대시보드 통계' },
+            { 
+                id: 'counselor_approvals', 
+                icon: UserCheck, 
+                label: '파트너 상담사 승인 관리',
+                badge: pendingCounselorCount > 0 ? `대기 ${pendingCounselorCount}` : null 
+            },
             { id: 'user_manage', icon: UserPlus, label: '사용자관리' },
             { id: 'member_manage', icon: Users, label: '회원 및 권한 관리' },
             { id: 'ip_management', icon: ShieldBan, label: '전체 차단 IP 관리' } 
@@ -337,10 +421,21 @@ export default function AdminDashboard() {
                                                 }
                                             }}
                                         >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
                                                 <IconComponent size={20} color={isActive ? adminTheme.accent : adminTheme.textMuted} strokeWidth={isActive ? 2.5 : 2} />
-                                                {menu.label}
+                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{menu.label}</span>
                                             </div>
+                                            {menu.badge && (
+                                                <span style={{
+                                                    background: '#EF4444', color: '#FFFFFF',
+                                                    fontSize: '11px', fontWeight: '800',
+                                                    padding: '2px 8px', borderRadius: '999px',
+                                                    whiteSpace: 'nowrap', flexShrink: 0,
+                                                    marginRight: menu.subItems ? '6px' : '0'
+                                                }}>
+                                                    {menu.badge}
+                                                </span>
+                                            )}
                                             {menu.subItems && (
                                                 <ChevronRight size={18} style={{ transition: 'transform 0.3s cubic-bezier(0.2, 0.85, 0.32, 1.2)', transform: openMenus[menu.id] ? 'rotate(90deg)' : 'rotate(0deg)', color: '#CBD5E1' }} />
                                             )}
@@ -399,7 +494,55 @@ export default function AdminDashboard() {
                     </div>
                     
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <button className="ios-action-btn desktop-action-settings">
+                        {/* 🔔 파트너 신청 실시간 알림 버튼 */}
+                        <button 
+                            onClick={() => { setActiveTab('counselor_approvals'); setIsMobileMenuOpen(false); }}
+                            className="ios-action-btn"
+                            style={{
+                                position: 'relative',
+                                backgroundColor: pendingCounselorCount > 0 ? '#FEF2F2' : '#FFFFFF',
+                                borderColor: pendingCounselorCount > 0 ? '#FECACA' : '#E2E8F0',
+                                color: pendingCounselorCount > 0 ? '#DC2626' : '#475569'
+                            }}
+                            title="파트너 상담사 입점 신청 대기 확인"
+                        >
+                            <Bell size={16} />
+                            {pendingCounselorCount > 0 && (
+                                <span style={{
+                                    position: 'absolute', top: '-5px', right: '-5px',
+                                    backgroundColor: '#EF4444', color: '#FFFFFF',
+                                    fontSize: '10px', fontWeight: '900', padding: '1px 5px',
+                                    borderRadius: '999px', border: '1.5px solid #FFFFFF'
+                                }}>
+                                    {pendingCounselorCount}
+                                </span>
+                            )}
+                            <span className="desktop-logout-text">알림 {pendingCounselorCount > 0 ? `(${pendingCounselorCount})` : ''}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                await unlockAudioContext();
+                                await playAdminNotificationSound();
+                            }}
+                            className="ios-action-btn"
+                            title="신규 신청 실시간 딩동 알림음 테스트 (클릭 시 브라우저 사운드 즉시 활성화)"
+                            style={{
+                                color: '#4F46E5',
+                                backgroundColor: '#EEF2FF',
+                                borderColor: '#C7D2FE',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontWeight: '700'
+                            }}
+                        >
+                            <Volume2 size={16} />
+                            <span className="desktop-logout-text">알림음 테스트</span>
+                        </button>
+
+                        <button className="ios-action-btn desktop-action-settings" onClick={() => setActiveTab('site_settings')}>
                             <Settings size={16} /> 설정
                         </button>
                         <button onClick={async () => { await supabase.auth.signOut(); navigate('/'); }} className="ios-action-btn danger">
@@ -410,7 +553,29 @@ export default function AdminDashboard() {
 
                 <main className="ios-admin-main" style={{ flex: 1, overflowY: 'auto', padding: '40px' }}>
                     <div style={{ width: '100%', maxWidth: '1600px', margin: '0 auto' }}>
-                        {activeTab === 'overview' && <AdminOverview adminTheme={adminTheme} isDarkMode={false} />}
+                        {/* 실시간 알림 토스트 배너 */}
+                        {liveAdminToast && (
+                            <div
+                                onClick={() => { setActiveTab('counselor_approvals'); setLiveAdminToast(''); }}
+                                style={{
+                                    backgroundColor: '#FEF3C7', border: '1.5px solid #F59E0B', color: '#92400E',
+                                    padding: '14px 20px', borderRadius: '12px', marginBottom: '24px',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    cursor: 'pointer', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.15)',
+                                    fontWeight: '800', fontSize: '14px', transition: 'all 0.15s'
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span>{liveAdminToast}</span>
+                                </div>
+                                <div style={{ background: '#F59E0B', color: '#FFF', padding: '5px 12px', borderRadius: '6px', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                                    지금 확인하기 ▶
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'overview' && <AdminOverview adminTheme={adminTheme} isDarkMode={false} onNavigateTab={setActiveTab} />}
+                        {activeTab === 'counselor_approvals' && <AdminCounselorApprovals adminTheme={adminTheme} />}
                         {activeTab === 'user_manage' && <AdminUserManage adminTheme={adminTheme} />}
                         {activeTab === 'member_manage' && <AdminPartners adminTheme={adminTheme} defaultTab="users" onGoToDetail={goToUserDetail} />}
                         {activeTab === 'user_detail' && <AdminUserDetail adminTheme={adminTheme} userId={selectedUserId} onGoBack={goBackToUsers} />}

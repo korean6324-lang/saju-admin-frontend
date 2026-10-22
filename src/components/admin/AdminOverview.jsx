@@ -1,30 +1,35 @@
 // src/components/admin/AdminOverview.jsx
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../api/supabaseClient';
-import { Users, Crown, Store, Sparkles, ScrollText, Info } from 'lucide-react';
+import { supabase, adminRpcClient } from '../../api/supabaseClient';
+import { Users, Crown, Store, Sparkles, ScrollText, Info, Clock, ShieldCheck, ChevronRight } from 'lucide-react';
 
-export default function AdminOverview({ adminTheme }) {
+export default function AdminOverview({ adminTheme, onNavigateTab }) {
     
     // ==========================================================
-    // 1. 핵심 지표 병렬 페칭 (캐시 제거 & 열람권 현황 연동)
+    // 1. 핵심 지표 병렬 페칭 (캐시 제거 & 파트너 상담사 대기 현황 연동)
     // ==========================================================
     const { data: stats, isLoading } = useQuery({
         queryKey: ['adminDashboardStats'],
         queryFn: async () => {
+            const dbClient = adminRpcClient || supabase;
             // Promise.all을 통해 쿼리를 동시에 실행하여 속도 극대화
-            const [usersReq, vipReq, partnersReq, ticketsReq] = await Promise.all([
+            const [usersReq, vipReq, partnersReq, ticketsReq, pendingCounselorsReq, approvedCounselorsReq] = await Promise.all([
                 // 1. 전체 회원 수
-                supabase.from('profiles').select('id', { count: 'exact', head: true }),
+                dbClient.from('profiles').select('id', { count: 'exact', head: true }),
                 // 2. 일반 회원 수 (role이 user인 유저)
-                supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'user'),
+                dbClient.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'user'),
                 // 3. 승인된 파트너 수
-                supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'partner'),
-                // 4. 🚨 에러 해결: 과거의 분리된 티켓 대신 통합된 'ticket_count' 컬럼 요청
-                supabase.from('profiles').select('ticket_count')
+                dbClient.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'partner'),
+                // 4. 통합된 'ticket_count' 컬럼 요청
+                dbClient.from('profiles').select('ticket_count'),
+                // 5. 파트너 상담사 승인 대기 수 (is_approved = false)
+                dbClient.from('counselor_profiles').select('id', { count: 'exact', head: true }).eq('is_approved', false),
+                // 6. 파트너 상담사 승인 완료 수 (is_approved = true)
+                dbClient.from('counselor_profiles').select('id', { count: 'exact', head: true }).eq('is_approved', true)
             ]);
 
-            // 🚨 통합 열람권 총합 계산
+            // 통합 열람권 총합 계산
             const totalTickets = ticketsReq.data?.reduce((acc, curr) => acc + (curr.ticket_count || 0), 0) || 0;
 
             return {
@@ -32,7 +37,9 @@ export default function AdminOverview({ adminTheme }) {
                 regularUsers: vipReq.count || 0,
                 vipUsers: vipReq.count || 0,
                 partners: partnersReq.count || 0,
-                totalTickets: totalTickets
+                totalTickets: totalTickets,
+                pendingCounselors: pendingCounselorsReq.count || 0,
+                approvedCounselors: approvedCounselorsReq.count || 0
             };
         }
     });
@@ -103,6 +110,40 @@ export default function AdminOverview({ adminTheme }) {
                 <p className="ios-desc">플랫폼의 핵심 가입자 지표 및 열람권 발행 현황을 요약하여 보여줍니다.</p>
             </div>
 
+            {/* 🚨 파트너 상담사 입점 승인 대기 알림 배너 */}
+            {(stats?.pendingCounselors || 0) > 0 && (
+                <div
+                    onClick={() => onNavigateTab && onNavigateTab('counselor_approvals')}
+                    style={{
+                        backgroundColor: '#FFFBEB', border: '1.5px solid #F59E0B',
+                        borderRadius: '14px', padding: '16px 20px', marginBottom: '24px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        cursor: 'pointer', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.12)',
+                        transition: 'transform 0.15s, box-shadow 0.15s'
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{ background: '#F59E0B', color: '#FFF', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Clock size={22} />
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '16px', fontWeight: '800', color: '#92400E', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>🔔 파트너 상담사 입점 신청 {stats.pendingCounselors}건 대기 중</span>
+                                <span style={{ background: '#EF4444', color: '#FFFFFF', fontSize: '11px', fontWeight: '900', padding: '2px 8px', borderRadius: '999px' }}>
+                                    심사 필요
+                                </span>
+                            </div>
+                            <div style={{ fontSize: '13px', color: '#B45309', marginTop: '2px' }}>
+                                일반 회원의 상담사 입점 신청이 접수되었습니다. 지금 검토하고 승인·대기·반려를 진행하세요.
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{ background: '#F59E0B', color: '#FFFFFF', padding: '9px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                        심사하기 <ChevronRight size={16} />
+                    </div>
+                </div>
+            )}
+
             {isLoading ? (
                 <div className="ios-list-group">
                     <div className="ios-empty-state">
@@ -113,7 +154,7 @@ export default function AdminOverview({ adminTheme }) {
             ) : (
                 <>
                     {/* 1. 가입자 및 파트너 현황 */}
-                    <div className="ios-group-title">사용자 지표 현황</div>
+                    <div className="ios-group-title">사용자 및 파트너 지표 현황</div>
                     <div className="ios-list-group">
                         <div className="ios-list-row">
                             <div className="ios-label-wrap">
@@ -137,13 +178,33 @@ export default function AdminOverview({ adminTheme }) {
                             </div>
                         </div>
 
-                        <div className="ios-list-row">
+                        {/* 파트너 상담사 승인 대기 */}
+                        <div className="ios-list-row" style={{ cursor: 'pointer' }} onClick={() => onNavigateTab && onNavigateTab('counselor_approvals')}>
                             <div className="ios-label-wrap">
-                                <div className="ios-icon-box" style={{ background: '#34C759' }}><Store size={18} /></div>
-                                <span className="ios-label">승인된 스토어 파트너</span>
+                                <div className="ios-icon-box" style={{ background: '#EF4444' }}><Clock size={18} /></div>
+                                <span className="ios-label">파트너 상담사 입점 승인 대기</span>
                             </div>
                             <div className="ios-value-wrap">
-                                <span className="ios-value-number" style={{ color: '#34C759' }}>{(stats?.partners ?? 0).toLocaleString()}</span>
+                                <span className="ios-value-number" style={{ color: (stats?.pendingCounselors || 0) > 0 ? '#EF4444' : '#1C1C1E' }}>
+                                    {(stats?.pendingCounselors ?? 0).toLocaleString()}
+                                </span>
+                                <span className="ios-value-unit">건</span>
+                                {(stats?.pendingCounselors || 0) > 0 && (
+                                    <span style={{ background: '#FEE2E2', color: '#DC2626', fontSize: '11px', fontWeight: '800', padding: '2px 7px', borderRadius: '999px', marginLeft: '6px' }}>
+                                        심사필요
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 승인된 파트너 상담사 */}
+                        <div className="ios-list-row" style={{ cursor: 'pointer' }} onClick={() => onNavigateTab && onNavigateTab('counselor_approvals')}>
+                            <div className="ios-label-wrap">
+                                <div className="ios-icon-box" style={{ background: '#34C759' }}><ShieldCheck size={18} /></div>
+                                <span className="ios-label">승인된 파트너 상담사</span>
+                            </div>
+                            <div className="ios-value-wrap">
+                                <span className="ios-value-number" style={{ color: '#34C759' }}>{(stats?.approvedCounselors ?? stats?.partners ?? 0).toLocaleString()}</span>
                                 <span className="ios-value-unit">명</span>
                             </div>
                         </div>

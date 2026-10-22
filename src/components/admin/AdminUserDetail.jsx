@@ -129,7 +129,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                 setInfoForm({
                     login_id: profile.login_id || '', phone: profile.phone || '', 
                     role: profile.role || 'user', membership_tier: mappedTier, 
-                    is_blocked: profile.is_blocked || false, memo: profile.memo || ''
+                    is_blocked: profile.is_blocked || false, memo: profile.admin_memo || ''
                 });
             }
             await fetchAccessLogs(1, false);
@@ -169,7 +169,7 @@ export default function AdminUserDetail({ adminTheme, userId, onGoBack }) {
                     role: newRole,
                     membership_tier: infoForm.membership_tier,
                     is_blocked: infoForm.is_blocked,
-                    memo: infoForm.memo
+                    admin_memo: infoForm.memo
                 }).eq('id', userId);
                 if (updateErr) throw updateErr;
             }
